@@ -1,4 +1,5 @@
 function createCalendarEventForRow(rowNumber) {
+  const SETTINGS = getSettings_();
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 
@@ -41,7 +42,7 @@ function createCalendarEventForRow(rowNumber) {
       timeZone: Session.getScriptTimeZone()
     },
     colorId: CONFIG.CALENDAR_EVENT_COLOR_ID || "9",
-    attendees: CONFIG.CALENDAR_ATTENDEES.map(email => ({ email })),
+    attendees: SETTINGS.CALENDAR_ATTENDEES,
     attachments: [
       {
         fileUrl: quoteFile.getUrl(),

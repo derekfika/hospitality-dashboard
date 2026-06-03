@@ -31,15 +31,24 @@
   }, 100);
 }
 
-  function loadBookings() {
+function loadBookings(showLoading = true) {
+  if (showLoading) {
+    showToast("Refreshing bookings…", "loading", true);
+  }
+
   google.script.run
     .withSuccessHandler(data => {
       BOOKINGS = data || [];
       renderStats();
       renderCalendar();
-      renderBookings();})
+      renderBookings();
+
+      if (showLoading) {
+        showToast("Bookings refreshed.", "success");
+      }
+    })
     .withFailureHandler(err => {
-      showToast("Load failed: " + (err.message || err), "error");
+      showToast("Refresh failed: " + (err.message || err), "error");
     })
     .getDashboardBookings();
 }
@@ -277,6 +286,26 @@ function getWeekdayName_(isoDate) {
   return archived;
 }
 
+function createCalendar(bookingId) {
+  const row = BOOKINGS.find(x => x.BookingID === bookingId);
+  if (!row) return;
+
+  setBusy(bookingId);
+
+  google.script.run
+    .withSuccessHandler(res => {
+      clearBusy();
+      showToast("Calendar event created.", "success");
+      loadBookings();
+    })
+    .withFailureHandler(err => {
+      showBusy();
+      showToast("Calendar failed: " + (err.message || err), "error");
+    })
+    .createCalendarEventForRow(row.RowNumber);
+}
+
+
 function resetCalendar(bookingId) {
   const row = BOOKINGS.find(x => x.BookingID === bookingId);
   if (!row) return;
@@ -284,7 +313,7 @@ function resetCalendar(bookingId) {
   google.script.run
     .withSuccessHandler(() => {
       showToast("Calendar link reset.", "success");
-      loadBookings();
+      loadBookings(false);
     })
     .withFailureHandler(err => {
       showToast("Reset failed: " + (err.message || err), "error");
@@ -292,7 +321,9 @@ function resetCalendar(bookingId) {
     .resetCalendarForRow(row.RowNumber);
 }
 
-function showToast(message, type = "success") {
+let TOAST_TIMER = null;
+
+function showToast(message, type = "success", persist = false) {
   const el = document.getElementById("toast");
 
   if (!el) {
@@ -300,13 +331,32 @@ function showToast(message, type = "success") {
     return;
   }
 
+  if (TOAST_TIMER) {
+    clearTimeout(TOAST_TIMER);
+    TOAST_TIMER = null;
+  }
+
   el.className = `toast ${type}`;
   el.textContent = message;
   el.classList.remove("hidden");
 
-  setTimeout(() => {
-    el.classList.add("hidden");
-  }, 3500);
+  if (!persist) {
+    TOAST_TIMER = setTimeout(() => {
+      el.classList.add("hidden");
+    }, 3500);
+  }
+}
+
+function hideToast() {
+  const el = document.getElementById("toast");
+  if (!el) return;
+
+  if (TOAST_TIMER) {
+    clearTimeout(TOAST_TIMER);
+    TOAST_TIMER = null;
+  }
+
+  el.classList.add("hidden");
 }
 
   function renderStats() {
@@ -575,7 +625,7 @@ function cancelBooking(bookingId) {
     .withSuccessHandler(() => {
       clearBusy();
       showToast("Booking cancelled and calendar event removed.", "success");
-      loadBookings();
+      loadBookings(false);
     })
     .withFailureHandler(err => {
       clearBusy();
@@ -680,7 +730,7 @@ function printQuote(bookingId) {
     .withSuccessHandler(() => {
       clearBusy();
         showToast("Quote sent to printer.", "success");
-      loadBookings();
+      loadBookings(false);
     })
     .withFailureHandler(err => {
       clearBusy();
@@ -739,7 +789,7 @@ function saveDetail(bookingId) {
       clearBusy();
       showToast("Booking saved.", "success");
       OPEN_BOOKING_ID = "";
-      loadBookings();
+      loadBookings(false);
     })
     .withFailureHandler(err => {
       clearBusy();
@@ -768,7 +818,7 @@ function generateQuote(bookingId) {
     .withSuccessHandler(res => {
       clearBusy();
       showToast("Quote generated.", "success");
-      loadBookings();
+      loadBookings(false);
       if (res.quoteUrl) window.open(res.quoteUrl, "_blank");
     })
     .withFailureHandler(err => {
@@ -779,15 +829,18 @@ function generateQuote(bookingId) {
 }
 
 function scanInbox() {
+  showToast("Scanning inbox…", "loading", true);
+
   google.script.run
     .withSuccessHandler(res => {
-      alert(
-        `Scan complete.\nScanned: ${res.scanned}\nLogged: ${res.logged}\nSkipped: ${res.skipped}\nErrors: ${res.errors}`
+      showToast(
+        `Scan complete. Logged ${res.logged}, skipped ${res.skipped}, errors ${res.errors}.`,
+        "success"
       );
-      loadBookings();
+      loadBookings(false);
     })
     .withFailureHandler(err => {
-      alert("Scan failed: " + (err.message || err));
+      showToast("Scan failed: " + (err.message || err), "error");
     })
     .scanInboxForDashboardBookings();
 }
@@ -798,7 +851,7 @@ function setStatus(bookingId, status) {
 
   google.script.run
     .withSuccessHandler(() => {
-      loadBookings();
+      loadBookings(false);
     })
     .withFailureHandler(err => {
       showToast("Status update failed: " + (err.message || err), "error");
@@ -934,7 +987,7 @@ function saveDetail(bookingId) {
 
   google.script.run
     .withSuccessHandler(() => {
-      loadBookings();
+      loadBookings(false);
       closeDetail();
     })
     .withFailureHandler(err => {

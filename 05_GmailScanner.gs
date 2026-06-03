@@ -1,4 +1,21 @@
 function scanInboxForDashboardBookings() {
+  const lastScan = getSetting_("LAST_INBOX_SCAN_AT", "");
+
+  let query =
+    'in:anywhere -in:trash -in:spam filename:xlsx -label:AC_HOSPITALITY_PROCESSED';
+
+  if (lastScan) {
+    const afterDate = Utilities.formatDate(
+      new Date(lastScan),
+      Session.getScriptTimeZone(),
+      "yyyy/MM/dd"
+    );
+
+    query += ` after:${afterDate}`;
+  } else {
+    query += " newer_than:90d";
+  }
+  
   const query = 'in:anywhere -in:trash -in:spam filename:xlsx newer_than:90d';
 
   const threads = GmailApp.search(query, 0, 50);

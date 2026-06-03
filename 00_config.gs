@@ -69,3 +69,49 @@ COLOUR_DANGER: "#8B5E5E",
 COLOUR_INFO: "#5B7EA0",
 
 };
+
+function getSettingsSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName("Settings");
+
+  if (!sh) {
+    sh = ss.insertSheet("Settings");
+    sh.getRange(1, 1, 1, 2).setValues([["Key", "Value"]]);
+  }
+
+  return sh;
+}
+
+function getSetting_(key, fallback) {
+  const sh = getSettingsSheet_();
+  const values = sh.getDataRange().getValues();
+
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0]).trim() === key) {
+      return values[i][1] || fallback;
+    }
+  }
+
+  return fallback;
+}
+
+function setSetting_(key, value) {
+  const sh = getSettingsSheet_();
+  const values = sh.getDataRange().getValues();
+
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0]).trim() === key) {
+      sh.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+
+  sh.appendRow([key, value]);
+}
+
+
+const SETTINGS = getSettings_();
+
+Logger.log(SETTINGS.SITE_NAME);
+Logger.log(SETTINGS.MGMT_FEE_PERCENT);
+Logger.log(SETTINGS.CALENDAR_ID);
