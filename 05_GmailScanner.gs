@@ -15,8 +15,6 @@ function scanInboxForDashboardBookings() {
   } else {
     query += " newer_than:90d";
   }
-  
-  const query = 'in:anywhere -in:trash -in:spam filename:xlsx newer_than:90d';
 
   const threads = GmailApp.search(query, 0, 50);
 

@@ -286,26 +286,6 @@ function getWeekdayName_(isoDate) {
   return archived;
 }
 
-function createCalendar(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
-
-  setBusy(bookingId);
-
-  google.script.run
-    .withSuccessHandler(res => {
-      clearBusy();
-      showToast("Calendar event created.", "success");
-      loadBookings();
-    })
-    .withFailureHandler(err => {
-      showBusy();
-      showToast("Calendar failed: " + (err.message || err), "error");
-    })
-    .createCalendarEventForRow(row.RowNumber);
-}
-
-
 function resetCalendar(bookingId) {
   const row = BOOKINGS.find(x => x.BookingID === bookingId);
   if (!row) return;
@@ -607,6 +587,25 @@ function renderActionButtons(b) {
 
     </div>
   `;
+}
+
+function createCalendar(bookingId) {
+  const row = BOOKINGS.find(x => x.BookingID === bookingId);
+  if (!row) return;
+
+  setBusy(bookingId);
+
+  google.script.run
+    .withSuccessHandler(res => {
+      clearBusy();
+      showToast("Calendar event created.", "success");
+      loadBookings();
+    })
+    .withFailureHandler(err => {
+      showBusy();
+      showToast("Calendar failed: " + (err.message || err), "error");
+    })
+    .createCalendarEventForRow(row.RowNumber);
 }
 
 function cancelBooking(bookingId) {
