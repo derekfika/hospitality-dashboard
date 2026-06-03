@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <?!= include_("Styles"); ?>
+  <?!= include_("Icons"); ?>
+</head>
+
+<body>
+  <div class="app">
+<header class="topbar">
+
+  <div class="logo-wrap">
+  <img
+    class="fika-logo"
+    src="https://bloom-coffee.org/bloom-quiz/assets/images/fika_logoRGB.png"
+    alt="FIKA"
+  />  
+  </div>
+
+  <div class="header-title">
+    <h1>Angel Court Hospitality Dashboard</h1>
+  </div>  <div class="header-actions">
+    <button class="button" onclick="scanInbox()">Scan Inbox</button>
+    <button class="button" onclick="loadBookings()">Refresh</button>
+    <button class="theme-toggle" onclick="toggleTheme()">Light / Dark</button>
+  </div>
+
+</header>
+<section class="stats" id="stats"></section>
+
+<section class="controls">
+  <input id="searchInput" placeholder="Search company, host, floor, status..." oninput="renderBookings()">
+
+  <div class="status-filters">
+    <label><input type="checkbox" value="NEW" checked onchange="renderBookings()"> New</label>
+    <label><input type="checkbox" value="NEEDS_REVIEW" checked onchange="renderBookings()"> Needs Review</label>
+    <label><input type="checkbox" value="READY" checked onchange="renderBookings()"> Ready</label>
+    <label><input type="checkbox" value="QUOTE_GENERATED" checked onchange="renderBookings()"> Quote</label>
+    <label><input type="checkbox" value="PRINTED" checked onchange="renderBookings()"> Printed</label>
+    <label><input type="checkbox" value="CPU_CREATED" checked onchange="renderBookings()"> Calendar</label>
+    <label><input type="checkbox" value="CONFIRMED" checked onchange="renderBookings()"> Confirmed</label>
+    <label><input type="checkbox" value="CANCELLED" onchange="renderBookings()"> Cancelled</label>
+    <label><input type="checkbox" value="ERROR" onchange="renderBookings()"> Error</label>
+  </div>
+</section>
+
+<div id="calendarControls" class="calendar-controls hidden">
+  <button class="button" onclick="changeCalendarWeek(-1)">← Previous Week</button>
+  <button class="button" onclick="goToCurrentWeek()">This Week</button>
+  <button class="button" onclick="changeCalendarWeek(1)">Next Week →</button>
+  <div id="calendarWeekLabel" class="calendar-week-label"></div>
+</div>
+
+<section id="calendarView" class="calendar-view hidden"></section>
+      </section>
+
+      <section id="calendarView" class="calendar-view hidden"></section>
+    </section>
+
+    <main id="tableView" class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="setSort('date')">Date</th>
+            <th onclick="setSort('time')">Time</th>
+            <th onclick="setSort('company')">Company</th>
+            <th onclick="setSort('pax')">Pax</th>
+            <th onclick="setSort('service')">Service</th>
+            <th onclick="setSort('floor')">Floor</th>
+            <th onclick="setSort('total')">Total</th>
+            <th onclick="setSort('status')">Status</th>
+            <th>Missing</th>
+            <th>Actions</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bookingRows">
+          <tr>
+            <td colspan="11" class="loading">Loading bookings…</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+
+    <?!= include_("Script"); ?>
+    <div id="toast" class="toast hidden"></div>
+</body>
+
+</html>
