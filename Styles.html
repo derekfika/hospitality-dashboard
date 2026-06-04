@@ -917,4 +917,142 @@ td {
   background: #F4F0FF;
   color: var(--primary-dark);
 }
+
+.detail-row td {
+  background: var(--bg-card) !important;
+}
+
+.detail-panel,
+.detail-card,
+.edit-panel {
+  background: var(--bg-elevated) !important;
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(40, 15, 140, 0.08);
+}
+
+.detail-panel label,
+.edit-panel label {
+  color: var(--text-secondary);
+}
+
+.detail-panel input,
+.detail-panel textarea,
+.detail-panel select,
+.edit-panel input,
+.edit-panel textarea,
+.edit-panel select {
+  background: #FFFFFF;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.detail-panel input:hover,
+.detail-panel textarea:hover,
+.detail-panel select:hover,
+.edit-panel input:hover,
+.edit-panel textarea:hover,
+.edit-panel select:hover {
+  background: #FFFFFF;
+}
+
+.detail-panel input:focus,
+.detail-panel textarea:focus,
+.detail-panel select:focus,
+.edit-panel input:focus,
+.edit-panel textarea:focus,
+.edit-panel select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 52, 199, 0.14);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+  background: rgba(36, 31, 51, 0.55);
+  backdrop-filter: blur(5px);
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-card {
+  width: min(480px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+
+  padding: 28px;
+  box-sizing: border-box;
+
+  background: var(--bg-elevated);
+  color: var(--text);
+
+  border: 1px solid var(--border);
+  border-radius: 24px;
+
+  box-shadow: 0 24px 70px rgba(40, 15, 140, 0.25);
+}
+
+.modal-card h2 {
+  margin: 0 0 10px;
+  color: var(--primary);
+  font-family: var(--font-title);
+  font-size: 38px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.modal-card .muted {
+  margin: 0 0 20px;
+  color: var(--text-muted);
+}
+
+.modal-check {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 12px;
+
+  margin-top: 12px;
+  padding: 16px;
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  background: var(--bg-card);
+}
+
+.modal-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.modal-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.button.danger {
+  background: var(--error);
+  color: #fff;
+  box-shadow: 0 3px 0 rgba(255, 92, 0, 0.35);
+}
+
+.button.secondary {
+  background: #fff;
+  color: var(--primary-dark);
+  border: 1px solid var(--border);
+}
 </style>

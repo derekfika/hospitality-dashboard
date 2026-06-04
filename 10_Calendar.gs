@@ -23,6 +23,7 @@ function createCalendarEventForRow(rowNumber) {
   const quoteFile = DriveApp.getFileById(quoteFileId);
 
   const sourceXlsxFile = saveOriginalBookingXlsxToDrive_(booking);
+  const attendees = getCalendarAttendeesFromSettings_();
 
   const start = buildCalendarStart_(booking.eventDate, booking.serviceTimes[0]);
   const end = new Date(start.getTime() + (CONFIG.CALENDAR_EVENT_DURATION_MINUTES || 60) * 60 * 1000);
@@ -42,7 +43,7 @@ function createCalendarEventForRow(rowNumber) {
       timeZone: Session.getScriptTimeZone()
     },
     colorId: CONFIG.CALENDAR_EVENT_COLOR_ID || "9",
-    attendees: SETTINGS.CALENDAR_ATTENDEES,
+    attendees: attendees,
     attachments: [
       {
         fileUrl: quoteFile.getUrl(),
@@ -106,6 +107,16 @@ function saveOriginalBookingXlsxToDrive_(booking) {
   return folder.createFile(chosen.copyBlob()).setName(fileName);
 }
 
+function getCalendarAttendeesFromSettings_() {
+  const SETTINGS = getSettings_();
+
+  return String(SETTINGS.CALENDAR_ATTENDEES || "")
+    .split(",")
+    .map(email => email.trim())
+    .filter(Boolean)
+    .map(email => ({ email }));
+}
+
 function makeCalendarTitle_(booking) {
   const company = booking.clientCompany || "Unknown Company";
   const service = booking.serviceType || "Hospitality";
@@ -159,23 +170,4 @@ function resetCalendarForRow(rowNumber) {
   writeBookingObjectToExistingRow_(rowNumber, booking);
 
   return { ok: true };
-}
-
-function createCalendar(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
-
-  setBusy(bookingId);
-
-  google.script.run
-    .withSuccessHandler(res => {
-      clearBusy();
-      showToast("Calendar event created.", "success");
-      loadBookings();
-    })
-    .withFailureHandler(err => {
-      showBusy();
-      showToast("Calendar failed: " + (err.message || err), "error");
-    })
-    .createCalendarEventForRow(row.RowNumber);
 }

@@ -39,23 +39,6 @@ function isAngelCourtBookingForm_(sheet) {
   );
 }
 
-function normalisePMtoAM_(timeText) {
-  const m = String(timeText || "").match(/^(\d{2}):(\d{2})$/);
-  if (!m) return timeText;
-
-  let hh = Number(m[1]);
-  const mm = m[2];
-
-  // Hospitality sanity check:
-  // if someone enters 20:00, 23:30 etc.
-  // assume they meant AM rather than PM.
-  if (hh >= 18) {
-    hh -= 12;
-  }
-
-  return String(hh).padStart(2, "0") + ":" + mm;
-}
-
 function buildBookingFromMessageId(messageId) {
   const msg = GmailApp.getMessageById(messageId);
   const thread = msg.getThread();
@@ -81,10 +64,12 @@ function buildBookingFromMessageId(messageId) {
         extractTimeFromText_(sheet.getName());
 
       if (fallbackTime) {
-        booking.serviceTimes = [fallbackTime];
+        const fixedFallbackTime = normaliseHospitalityTime_(fallbackTime);
+
+        booking.serviceTimes = [fixedFallbackTime];
 
         booking.items = booking.items.map(item => {
-          if (!item.time) item.time = fallbackTime;
+          if (!item.time) item.time = fixedFallbackTime;
           return item;
         });
       }
@@ -103,6 +88,7 @@ function buildBookingFromMessageId(messageId) {
       booking.hostName = extractEmailName_(msg.getFrom());
     }
 
+    booking = normaliseBookingTimes_(booking);
     booking = validateBooking_(booking);
 
     return booking;
@@ -114,6 +100,35 @@ function buildBookingFromMessageId(messageId) {
       } catch (e) { }
     }
   }
+}
+
+function normaliseBookingTimes_(booking) {
+  booking.serviceTimes = (booking.serviceTimes || [])
+    .map(forceLateHospitalityTimeToMorning_)
+    .filter(Boolean);
+
+  booking.items = (booking.items || []).map(item => {
+    if (item.time) {
+      item.time = forceLateHospitalityTimeToMorning_(item.time);
+    }
+    return item;
+  });
+
+  return booking;
+}
+
+function forceLateHospitalityTimeToMorning_(timeText) {
+  const m = String(timeText || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return timeText;
+
+  let hour = Number(m[1]);
+  const minute = m[2];
+
+  if (hour >= 18 && hour <= 23) {
+    hour -= 12;
+  }
+
+  return String(hour).padStart(2, "0") + ":" + minute;
 }
 
 function extractTimeFromText_(text) {
@@ -294,29 +309,24 @@ function parseAngelCourtBookingSheet_(sheet) {
 
   const totalPrice = findCurrencyValueByLabel_(sheet, "Grand Net Total");
 
-  booking.items = items;
-
-const mgmtFee = totalPrice * 0.08;const netPrice = totalPrice + mgmtFee;
+  const mgmtFee = totalPrice * 0.08;
+  const netPrice = totalPrice + mgmtFee;
   const vat = netPrice * 0.20;
   const grossPrice = netPrice + vat;
 
   booking.clientCompany = String(company || "").trim();
   booking.hostName = String(hostName || "").trim();
   booking.hostEmail = String(hostEmail || "").trim();
-
   booking.pax = pax || "";
 
   booking.eventDate = eventDate || "";
-  booking.serviceTimes = (booking.serviceTimes || [])
-    .map(normaliseHospitalityTime_)
-    .filter(Boolean);
+
   booking.serviceType = serviceTypes.length
     ? serviceTypes.join(" / ")
     : "";
 
   booking.location = "One Angel Court";
   booking.floor = cleanFloor_(floorRaw);
-
   booking.notes = notes;
 
   booking.totalPrice = roundMoney_(totalPrice);
@@ -325,17 +335,23 @@ const mgmtFee = totalPrice * 0.08;const netPrice = totalPrice + mgmtFee;
   booking.vat = roundMoney_(vat);
   booking.grossPrice = roundMoney_(grossPrice);
 
+  booking.serviceTimes = (serviceTimes || [])
+    .map(normaliseHospitalityTime_)
+    .filter(Boolean);
+
   booking.items = (items || []).map(item => {
-  if (item.time) {
-    item.time = normaliseHospitalityTime_(item.time);
-  }
-  return item;
-});
+    if (item.time) {
+      item.time =
+        normaliseHospitalityTime_(item.time);
+    }
+    return item;
+  });
+
   return booking;
 }
 
-
 function normaliseHospitalityTime_(timeText) {
+  console.log("NORMALISE INPUT:", timeText);
   if (!timeText) return "";
 
   let t = String(timeText).trim().toLowerCase();
@@ -355,35 +371,14 @@ function normaliseHospitalityTime_(timeText) {
     hour = 0;
   }
 
-  // Angel Court hospitality sanity rule:
-  // if parsed time is late evening/night, assume client meant AM.
-  if (hour >= 20) {
+  // Angel Court hospitality sanity check:
+  // 20:00, 23:30 etc. almost always means 08:00, 11:30.
+  if (hour >= 18 && hour <= 23) {
     hour -= 12;
   }
-
+  console.log("NORMALISE OUTPUT:", `${String(hour).padStart(2, "0")}:${minute}`);
   return `${String(hour).padStart(2, "0")}:${minute}`;
 }
-
-function normalisePMtoAM_(timeText, serviceType) {
-  const isBreakfast =
-    String(serviceType || "")
-      .toLowerCase()
-      .includes("breakfast");
-
-  if (!isBreakfast) return timeText;
-
-  const m = String(timeText || "").match(/^(\d{2}):(\d{2})$/);
-  if (!m) return timeText;
-
-  let hh = Number(m[1]);
-
-  if (hh >= 18) {
-    hh -= 12;
-  }
-
-  return String(hh).padStart(2, "0") + ":" + m[2];
-}
-
 
 function parseRequiredQty_(value) {
   if (value === "" || value === null || value === undefined) return null;
@@ -491,13 +486,12 @@ function parseAngelCourtLineItems_(sheet) {
     const commentText = String(commentRaw || "").trim();
 
     const qtyNum = parseRequiredQty_(qtyRaw);
-    if (!qtyNum) continue;
 
     const isSection =
       itemText &&
       !infoText &&
       !commentText &&
-      (!isFinite(qtyNum) || qtyNum <= 0);
+      (!qtyNum || qtyNum <= 0);
 
     if (isSection) {
       const lowerItem = itemText.toLowerCase();
@@ -514,24 +508,14 @@ function parseAngelCourtLineItems_(sheet) {
       currentSection = itemText;
       continue;
     }
-    Logger.log(JSON.stringify({
-      row: r + 1,
-      currentSection,
-      itemText,
-      infoText,
-      qtyRaw,
-      qtyNum,
-      timeRaw,
-      commentText
-    }));
 
-    if (!isFinite(qtyNum) || qtyNum <= 0) continue;
+    if (!qtyNum || qtyNum <= 0) continue;
 
     const split = splitOrderNameAndDetail_(itemText);
 
     const timeText =
-      normaliseTimeText_(timeRaw) ||
-      fallbackTime ||
+      normaliseHospitalityTime_(timeRaw) ||
+      normaliseHospitalityTime_(fallbackTime) ||
       "";
 
     items.push({

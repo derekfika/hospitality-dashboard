@@ -9,183 +9,182 @@
   let CALENDAR_WEEK_START = getMonday_(new Date());
 
   document.addEventListener("DOMContentLoaded", loadBookings);
-  
+
   function toggleTheme() {
-  document.body.classList.toggle("theme-dark");
+    document.body.classList.toggle("theme-dark");
   }
 
   function jumpToBooking(bookingId) {
-  CURRENT_VIEW = "table";
-  HIGHLIGHT_BOOKING_ID = bookingId;
+    CURRENT_VIEW = "table";
+    HIGHLIGHT_BOOKING_ID = bookingId;
 
-  setView("table");
-
-  setTimeout(() => {
-    const row = document.querySelector(`[data-booking-id="${bookingId}"]`);
-    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+    setView("table");
 
     setTimeout(() => {
-      HIGHLIGHT_BOOKING_ID = "";
-      renderBookings();
-    }, 2500);
-  }, 100);
-}
+      const row = document.querySelector(`[data-booking-id="${bookingId}"]`);
+      if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
 
-function loadBookings(showLoading = true) {
-  if (showLoading) {
-    showToast("Refreshing bookings…", "loading", true);
+      setTimeout(() => {
+        HIGHLIGHT_BOOKING_ID = "";
+        renderBookings();
+      }, 2500);
+    }, 100);
   }
 
-  google.script.run
-    .withSuccessHandler(data => {
-      BOOKINGS = data || [];
-      renderStats();
-      renderCalendar();
-      renderBookings();
+  function loadBookings(showLoading = true) {
+    if (showLoading) {
+      showToast("Refreshing bookings…", "loading", true);
+    }
 
-      if (showLoading) {
-        showToast("Bookings refreshed.", "success");
-      }
-    })
-    .withFailureHandler(err => {
-      showToast("Refresh failed: " + (err.message || err), "error");
-    })
-    .getDashboardBookings();
-}
+    google.script.run
+      .withSuccessHandler(data => {
+        BOOKINGS = data || [];
+        renderStats();
+        renderCalendar();
+        renderBookings();
+
+        if (showLoading) {
+          showToast("Bookings refreshed.", "success");
+        }
+      })
+      .withFailureHandler(err => {
+        showToast("Refresh failed: " + (err.message || err), "error");
+      })
+      .getDashboardBookings();
+  }
 
 
   function renderCalendar() {
-  const el = document.getElementById("calendarView");
-  if (!el) return;
+    const el = document.getElementById("calendarView");
+    if (!el) return;
 
-  const weekDays = getWorkingWeekDays_(CALENDAR_WEEK_START);
-  const bookings = getVisibleBookings_();
+    const weekDays = getWorkingWeekDays_(CALENDAR_WEEK_START);
+    const bookings = getVisibleBookings_();
 
-  const weekStart = weekDays[0];
-  const weekEnd = weekDays[4];
+    const weekStart = weekDays[0];
+    const weekEnd = weekDays[4];
 
-  document.getElementById("calendarWeekLabel").textContent =
-    `Week commencing ${formatDateForCalendarLabel_(weekStart)}`;
+    document.getElementById("calendarWeekLabel").textContent =
+      `Week commencing ${formatDateForCalendarLabel_(weekStart)}`;
 
-  const grouped = {};
+    const grouped = {};
 
-  weekDays.forEach(day => {
-    grouped[toIsoDate_(day)] = [];
-  });
+    weekDays.forEach(day => {
+      grouped[toIsoDate_(day)] = [];
+    });
 
-  bookings.forEach(b => {
-    const iso = getDisplayDate(b);
-    if (!iso) return;
+    bookings.forEach(b => {
+      const iso = getDisplayDate(b);
+      if (!iso) return;
 
-    if (!grouped[iso]) return;
+      if (!grouped[iso]) return;
 
-    grouped[iso].push(b);
-  });
+      grouped[iso].push(b);
+    });
 
-  el.innerHTML = weekDays.map(day => {
-    const iso = toIsoDate_(day);
-    const bookingsForDay = grouped[iso] || [];
-    const isToday =
-  toIsoDate_(day) === toIsoDate_(new Date());
+    el.innerHTML = weekDays.map(day => {
+      const iso = toIsoDate_(day);
+      const bookingsForDay = grouped[iso] || [];
+      const isToday =
+        toIsoDate_(day) === toIsoDate_(new Date());
 
-  
 
-    return `
+
+      return `
       <div class="calendar-day ${isToday ? 'today' : ''}">
         <div class="calendar-day-title">
           <div>${day.toLocaleDateString("en-GB", { weekday: "long" })}</div>
           <div class="calendar-date">${day.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</div>
         </div>
 
-        ${
-          bookingsForDay.length
-            ? bookingsForDay.map(b => renderCalendarCard_(b)).join("")
-            : `<div class="muted">No bookings</div>`
+        ${bookingsForDay.length
+          ? bookingsForDay.map(b => renderCalendarCard_(b)).join("")
+          : `<div class="muted">No bookings</div>`
         }
       </div>
     `;
-  }).join("");
-}
-
-function getMonday_(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-
-  const day = d.getDay(); // Sunday = 0
-  const diff = day === 0 ? -6 : 1 - day;
-
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
-function getWorkingWeekDays_(monday) {
-  return [0, 1, 2, 3, 4].map(offset => {
-    const d = new Date(monday);
-    d.setDate(d.getDate() + offset);
-    return d;
-  });
-}
-
-function changeCalendarWeek(direction) {
-  CALENDAR_WEEK_START.setDate(CALENDAR_WEEK_START.getDate() + direction * 7);
-  renderCalendar();
-}
-
-function goToCurrentWeek() {
-  CALENDAR_WEEK_START = getMonday_(new Date());
-  renderCalendar();
-}
-
-function toIsoDate_(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function formatDateForCalendarLabel_(date) {
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric"
-  });
-}
-
-function getVisibleBookings_() {
-  const searchEl = document.getElementById("searchInput");
-  const search = searchEl ? searchEl.value.toLowerCase() : "";
-
-  const selectedStatuses = Array.from(
-    document.querySelectorAll(".status-filters input:checked")
-  ).map(cb => cb.value);
-
-  let rows = BOOKINGS.slice();
-
-  if (selectedStatuses.length) {
-    rows = rows.filter(b => selectedStatuses.includes(b.Status));
+    }).join("");
   }
 
-  if (search) {
-    rows = rows.filter(b => {
-      const text = [
-        b.ClientCompany,
-        b.HostName,
-        b.HostEmail,
-        b.ServiceType,
-        b.Location,
-        b.Floor,
-        b.Status
-      ].join(" ").toLowerCase();
+  function getMonday_(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
 
-      return text.includes(search);
+    const day = d.getDay(); // Sunday = 0
+    const diff = day === 0 ? -6 : 1 - day;
+
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  function getWorkingWeekDays_(monday) {
+    return [0, 1, 2, 3, 4].map(offset => {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + offset);
+      return d;
     });
   }
 
-  return rows;
-}
+  function changeCalendarWeek(direction) {
+    CALENDAR_WEEK_START.setDate(CALENDAR_WEEK_START.getDate() + direction * 7);
+    renderCalendar();
+  }
 
-function renderCalendarCard_(b) {
-  return `
+  function goToCurrentWeek() {
+    CALENDAR_WEEK_START = getMonday_(new Date());
+    renderCalendar();
+  }
+
+  function toIsoDate_(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function formatDateForCalendarLabel_(date) {
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    });
+  }
+
+  function getVisibleBookings_() {
+    const searchEl = document.getElementById("searchInput");
+    const search = searchEl ? searchEl.value.toLowerCase() : "";
+
+    const selectedStatuses = Array.from(
+      document.querySelectorAll(".status-filters input:checked")
+    ).map(cb => cb.value);
+
+    let rows = BOOKINGS.slice();
+
+    if (selectedStatuses.length) {
+      rows = rows.filter(b => selectedStatuses.includes(b.Status));
+    }
+
+    if (search) {
+      rows = rows.filter(b => {
+        const text = [
+          b.ClientCompany,
+          b.HostName,
+          b.HostEmail,
+          b.ServiceType,
+          b.Location,
+          b.Floor,
+          b.Status
+        ].join(" ").toLowerCase();
+
+        return text.includes(search);
+      });
+    }
+
+    return rows;
+  }
+
+  function renderCalendarCard_(b) {
+    return `
     <div class="calendar-card status-${b.Status}" onclick="jumpToBooking('${b.BookingID}')">
       <div class="calendar-time">${escapeHtml(getDisplayTime(b) || "—")}</div>
       <strong>${escapeHtml(b.ClientCompany || "—")}</strong>
@@ -195,149 +194,149 @@ function renderCalendarCard_(b) {
       <div class="calendar-meta">${escapeHtml(b.Floor || "")}</div>
     </div>
   `;
-}
-
-function getWeekdayName_(isoDate) {
-  if (!isoDate) return "";
-
-  let d;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
-    const [y, m, day] = isoDate.split("-").map(Number);
-    d = new Date(y, m - 1, day);
-  } else {
-    d = new Date(isoDate);
   }
 
-  if (isNaN(d.getTime())) return "";
+  function getWeekdayName_(isoDate) {
+    if (!isoDate) return "";
 
-  return d.toLocaleDateString("en-GB", { weekday: "long" });
-}
-  function setView(view) {
-  CURRENT_VIEW = view;
+    let d;
 
-  document.getElementById("tableView").classList.toggle("hidden", view !== "table");
-  document.getElementById("calendarView").classList.toggle("hidden", view !== "calendar");
-  document.getElementById("calendarControls").classList.toggle("hidden", view !== "calendar");
-
-  if (view === "calendar") {
-    renderCalendar();
-  } else {
-    renderBookings();
-  }
-}
-  function jumpToBooking(bookingId) {
-  HIGHLIGHT_BOOKING_ID = bookingId;
-
-  renderBookings();
-
-  setTimeout(() => {
-    const row = document.querySelector(
-      `[data-booking-id="${bookingId}"]`
-    );
-
-    if (row) {
-      row.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+      const [y, m, day] = isoDate.split("-").map(Number);
+      d = new Date(y, m - 1, day);
+    } else {
+      d = new Date(isoDate);
     }
 
-    OPEN_BOOKING_ID = bookingId;
+    if (isNaN(d.getTime())) return "";
+
+    return d.toLocaleDateString("en-GB", { weekday: "long" });
+  }
+  function setView(view) {
+    CURRENT_VIEW = view;
+
+    document.getElementById("tableView").classList.toggle("hidden", view !== "table");
+    document.getElementById("calendarView").classList.toggle("hidden", view !== "calendar");
+    document.getElementById("calendarControls").classList.toggle("hidden", view !== "calendar");
+
+    if (view === "calendar") {
+      renderCalendar();
+    } else {
+      renderBookings();
+    }
+  }
+  function jumpToBooking(bookingId) {
+    HIGHLIGHT_BOOKING_ID = bookingId;
+
     renderBookings();
 
-  }, 100);
-}
-  function archivePastBookings() {
-  const bookings = getDashboardBookings();
-
-  let archived = 0;
-
-  bookings.forEach(row => {
-
-    if (row.Status === "ARCHIVED") return;
-
-    const booking = row.ParsedBooking || {};
-
-    if (!booking.eventDate) return;
-
-    const eventDate = new Date(booking.eventDate);
-    eventDate.setHours(0,0,0,0);
-
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    if (eventDate < today) {
-
-      booking.status = "ARCHIVED";
-      booking.archivedAt = new Date();
-      booking.updatedAt = new Date();
-
-      writeBookingObjectToExistingRow_(
-        row.RowNumber,
-        booking
+    setTimeout(() => {
+      const row = document.querySelector(
+        `[data-booking-id="${bookingId}"]`
       );
 
-      archived++;
+      if (row) {
+        row.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      }
+
+      OPEN_BOOKING_ID = bookingId;
+      renderBookings();
+
+    }, 100);
+  }
+  function archivePastBookings() {
+    const bookings = getDashboardBookings();
+
+    let archived = 0;
+
+    bookings.forEach(row => {
+
+      if (row.Status === "ARCHIVED") return;
+
+      const booking = row.ParsedBooking || {};
+
+      if (!booking.eventDate) return;
+
+      const eventDate = new Date(booking.eventDate);
+      eventDate.setHours(0, 0, 0, 0);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (eventDate < today) {
+
+        booking.status = "ARCHIVED";
+        booking.archivedAt = new Date();
+        booking.updatedAt = new Date();
+
+        writeBookingObjectToExistingRow_(
+          row.RowNumber,
+          booking
+        );
+
+        archived++;
+      }
+
+    });
+
+    return archived;
+  }
+
+  function resetCalendar(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    google.script.run
+      .withSuccessHandler(() => {
+        showToast("Calendar link reset.", "success");
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        showToast("Reset failed: " + (err.message || err), "error");
+      })
+      .resetCalendarForRow(row.RowNumber);
+  }
+
+  let TOAST_TIMER = null;
+
+  function showToast(message, type = "success", persist = false) {
+    const el = document.getElementById("toast");
+
+    if (!el) {
+      console.log("Toast:", message);
+      return;
     }
 
-  });
+    if (TOAST_TIMER) {
+      clearTimeout(TOAST_TIMER);
+      TOAST_TIMER = null;
+    }
 
-  return archived;
-}
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    el.classList.remove("hidden");
 
-function resetCalendar(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
-
-  google.script.run
-    .withSuccessHandler(() => {
-      showToast("Calendar link reset.", "success");
-      loadBookings(false);
-    })
-    .withFailureHandler(err => {
-      showToast("Reset failed: " + (err.message || err), "error");
-    })
-    .resetCalendarForRow(row.RowNumber);
-}
-
-let TOAST_TIMER = null;
-
-function showToast(message, type = "success", persist = false) {
-  const el = document.getElementById("toast");
-
-  if (!el) {
-    console.log("Toast:", message);
-    return;
+    if (!persist) {
+      TOAST_TIMER = setTimeout(() => {
+        el.classList.add("hidden");
+      }, 3500);
+    }
   }
 
-  if (TOAST_TIMER) {
-    clearTimeout(TOAST_TIMER);
-    TOAST_TIMER = null;
+  function hideToast() {
+    const el = document.getElementById("toast");
+    if (!el) return;
+
+    if (TOAST_TIMER) {
+      clearTimeout(TOAST_TIMER);
+      TOAST_TIMER = null;
+    }
+
+    el.classList.add("hidden");
   }
-
-  el.className = `toast ${type}`;
-  el.textContent = message;
-  el.classList.remove("hidden");
-
-  if (!persist) {
-    TOAST_TIMER = setTimeout(() => {
-      el.classList.add("hidden");
-    }, 3500);
-  }
-}
-
-function hideToast() {
-  const el = document.getElementById("toast");
-  if (!el) return;
-
-  if (TOAST_TIMER) {
-    clearTimeout(TOAST_TIMER);
-    TOAST_TIMER = null;
-  }
-
-  el.classList.add("hidden");
-}
 
   function renderStats() {
     const total = BOOKINGS.length;
@@ -366,59 +365,59 @@ function hideToast() {
   }
 
   function getSortValue(b, key) {
-  switch (key) {
-    case "date":
-      return getDisplayDate(b) || "";
+    switch (key) {
+      case "date":
+        return getDisplayDate(b) || "";
 
-    case "time":
-      return getDisplayTime(b) || "";
+      case "time":
+        return getDisplayTime(b) || "";
 
-    case "company":
-      return String(b.ClientCompany || "").toLowerCase();
+      case "company":
+        return String(b.ClientCompany || "").toLowerCase();
 
-    case "pax":
-      return Number(b.Pax || 0);
+      case "pax":
+        return Number(b.Pax || 0);
 
-    case "service":
-      return String(b.ServiceType || "").toLowerCase();
+      case "service":
+        return String(b.ServiceType || "").toLowerCase();
 
-    case "floor":
-      return String(b.Floor || "").toLowerCase();
+      case "floor":
+        return String(b.Floor || "").toLowerCase();
 
-    case "total":
-      return Number(b.TotalPrice || 0);
+      case "total":
+        return Number(b.TotalPrice || 0);
 
-    case "status":
-      return String(b.Status || "").toLowerCase();
+      case "status":
+        return String(b.Status || "").toLowerCase();
 
-    default:
-      return "";
-  }
-}
-
-function setSort(key) {
-  if (SORT_KEY === key) {
-    SORT_DIR = SORT_DIR === "asc" ? "desc" : "asc";
-  } else {
-    SORT_KEY = key;
-    SORT_DIR = "asc";
+      default:
+        return "";
+    }
   }
 
-  renderBookings();
-}
+  function setSort(key) {
+    if (SORT_KEY === key) {
+      SORT_DIR = SORT_DIR === "asc" ? "desc" : "asc";
+    } else {
+      SORT_KEY = key;
+      SORT_DIR = "asc";
+    }
+
+    renderBookings();
+  }
 
   function renderBookings() {
     const search = document.getElementById("searchInput").value.toLowerCase();
 
     let rows = BOOKINGS.slice();
 
-   const selectedStatuses = Array.from(
-   document.querySelectorAll(".status-filters input:checked")
+    const selectedStatuses = Array.from(
+      document.querySelectorAll(".status-filters input:checked")
     ).map(cb => cb.value);
 
-  if (selectedStatuses.length) {
-    rows = rows.filter(b => selectedStatuses.includes(b.Status));
-  }
+    if (selectedStatuses.length) {
+      rows = rows.filter(b => selectedStatuses.includes(b.Status));
+    }
 
     if (search) {
       rows = rows.filter(b => {
@@ -437,13 +436,13 @@ function setSort(key) {
     }
 
     rows.sort((a, b) => {
-    const aa = getSortValue(a, SORT_KEY);
-    const bb = getSortValue(b, SORT_KEY);
+      const aa = getSortValue(a, SORT_KEY);
+      const bb = getSortValue(b, SORT_KEY);
 
-    if (aa < bb) return SORT_DIR === "asc" ? -1 : 1;
-    if (aa > bb) return SORT_DIR === "asc" ? 1 : -1;
-    return 0;
-    }); 
+      if (aa < bb) return SORT_DIR === "asc" ? -1 : 1;
+      if (aa > bb) return SORT_DIR === "asc" ? 1 : -1;
+      return 0;
+    });
 
     const html = rows.map(b => `
     <tr data-booking-id="${b.BookingID}"
@@ -487,37 +486,37 @@ function setSort(key) {
   }
 
   function icon(name) {
-  return (typeof ICONS !== "undefined" && ICONS[name]) ? ICONS[name] : "";
-}
+    return (typeof ICONS !== "undefined" && ICONS[name]) ? ICONS[name] : "";
+  }
 
-function renderActionButtons(b) {
-  const booking = b.ParsedBooking || {};
+  function renderActionButtons(b) {
+    const booking = b.ParsedBooking || {};
 
-  const hasQuote =
-    !!(b.QuoteURL || booking.quoteUrl);
+    const hasQuote =
+      !!(b.QuoteURL || booking.quoteUrl);
 
-  const hasCalendar =
-    !!(
-      b.CalendarEventId ||
-      b.CalendarEventURL ||
-      booking.calendarEventId ||
-      booking.calendarEventUrl
-    );
+    const hasCalendar =
+      !!(
+        b.CalendarEventId ||
+        b.CalendarEventURL ||
+        booking.calendarEventId ||
+        booking.calendarEventUrl
+      );
 
-  const isCancelled =
-    b.Status === "CANCELLED";
+    const isCancelled =
+      b.Status === "CANCELLED";
 
-  const needsReview =
-    b.Status === "NEEDS_REVIEW" ||
-    (b.ValidationErrorsParsed || []).length > 0;
+    const needsReview =
+      b.Status === "NEEDS_REVIEW" ||
+      (b.ValidationErrorsParsed || []).length > 0;
 
-  const quoteStale =
-    !!booking.quoteStale;
+    const quoteStale =
+      !!booking.quoteStale;
 
-  const calendarStale =
-    !!booking.calendarStale;
+    const calendarStale =
+      !!booking.calendarStale;
 
-  return `
+    return `
     <div class="action-panel">
 
       <div class="action-grid">
@@ -557,13 +556,13 @@ function renderActionButtons(b) {
 
         <button class="action-button action-confirm"
           ${isCancelled ? "disabled" : ""}
-          onclick="event.stopPropagation(); setStatus('${b.BookingID}', 'CONFIRMED')">
+          onclick="event.stopPropagation(); confirmBooking('${b.BookingID}')">
           ${icon("confirm")}
           <span>Confirm</span>
         </button>
 
         <button class="action-button action-cancel"
-          onclick="event.stopPropagation(); cancelBooking('${b.BookingID}')">
+          onclick="event.stopPropagation(); openCancelDialog('${b.BookingID}')">
           ${icon("cancel")}
           <span>Cancel</span>
         </button>
@@ -587,57 +586,157 @@ function renderActionButtons(b) {
 
     </div>
   `;
+  }
+
+  function confirmBooking(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    setBusy(bookingId);
+
+    showToast("Sending confirmation email...", "loading", true);
+
+    google.script.run
+      .withSuccessHandler(res => {
+        clearBusy();
+
+        showToast(
+          `Booking confirmed. Test email sent to ${res.sentTo}.`,
+          "success"
+        );
+
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        clearBusy();
+
+        console.error(err);
+
+        showToast(
+          "Confirmation failed: " + (err.message || err),
+          "error"
+        );
+      })
+      .confirmBookingForRow(row.RowNumber);
+  }
+
+  function createCalendar(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    setBusy(bookingId);
+
+    google.script.run
+      .withSuccessHandler(res => {
+        clearBusy();
+        showToast("Calendar event created.", "success");
+        loadBookings();
+      })
+      .withFailureHandler(err => {
+        showBusy();
+        showToast("Calendar failed: " + (err.message || err), "error");
+      })
+      .createCalendarEventForRow(row.RowNumber);
+  }
+
+  function cancelBooking(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    const ok = confirm(
+      "Are you sure you want to cancel this booking?\n\nThis will remove the calendar event and email attendees."
+    );
+
+    if (!ok) return;
+
+    setBusy(bookingId);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        clearBusy();
+        showToast("Booking cancelled and calendar event removed.", "success");
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        clearBusy();
+        showToast("Cancel failed: " + (err.message || err), "error");
+      })
+      .cancelBookingForRow(row.RowNumber);
+  }
+
+  let CANCEL_BOOKING_ID = null;
+
+function openCancelDialog(bookingId) {
+  console.log("openCancelDialog", bookingId);
+  CANCEL_BOOKING_ID = bookingId;
+
+  const modal = document.getElementById("cancelModal");
+  if (!modal) return;
+
+  document.getElementById("cancel-send-email").checked = false;
+  document.getElementById("cancel-remove-calendar").checked = true;
+
+  modal.classList.remove("hidden");
 }
 
-function createCalendar(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
+function closeCancelDialog() {
+  CANCEL_BOOKING_ID = null;
+  document.getElementById("cancelModal").classList.add("hidden");
+}
+
+function continueCancelDialog() {
+  const sendEmail = document.getElementById("cancel-send-email").checked;
+  const removeCalendar = document.getElementById("cancel-remove-calendar").checked;
+  console.log("continueCancelDialog");
+  const summary = [
+    "You are about to cancel this booking.",
+    "",
+    `Send cancellation email: ${sendEmail ? "YES" : "NO"}`,
+    `Remove from calendar: ${removeCalendar ? "YES" : "NO"}`,
+    "",
+    "This cannot be undone."
+  ].join("\n");
+
+  const ok = confirm(summary);
+  if (!ok) return;
+
+  confirmCancelBooking({
+    sendEmail,
+    removeCalendar
+  });
+}
+
+function confirmCancelBooking(options) {
+  const row = BOOKINGS.find(x => x.BookingID === CANCEL_BOOKING_ID);
   if (!row) return;
 
-  setBusy(bookingId);
+  closeCancelDialog();
+  console.log("confirmCancelBooking", CANCEL_BOOKING_ID, options);
+  setBusy(row.BookingID);
+  showToast("Cancelling booking…", "loading", true);
 
   google.script.run
     .withSuccessHandler(res => {
       clearBusy();
-      showToast("Calendar event created.", "success");
-      loadBookings();
-    })
-    .withFailureHandler(err => {
-      showBusy();
-      showToast("Calendar failed: " + (err.message || err), "error");
-    })
-    .createCalendarEventForRow(row.RowNumber);
-}
+      console.log("Cancel result:", res);
 
-function cancelBooking(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
-
-  const ok = confirm(
-    "Are you sure you want to cancel this booking?\n\nThis will remove the calendar event and email attendees."
-  );
-
-  if (!ok) return;
-
-  setBusy(bookingId);
-
-  google.script.run
-    .withSuccessHandler(() => {
-      clearBusy();
-      showToast("Booking cancelled and calendar event removed.", "success");
+      showToast("Booking cancelled.", "success");
       loadBookings(false);
     })
     .withFailureHandler(err => {
       clearBusy();
+      console.error("Cancel failed:", err);
+
       showToast("Cancel failed: " + (err.message || err), "error");
     })
-    .cancelBookingForRow(row.RowNumber);
+    .cancelBookingForRow(row.RowNumber, options);
 }
 
-function renderDetailPanel(row) {
-  const b = row.ParsedBooking || {};
-  const items = b.items || row.ItemsParsed || [];
+  function renderDetailPanel(row) {
+    const b = row.ParsedBooking || {};
+    const items = b.items || row.ItemsParsed || [];
 
-  return `
+    return `
     <div class="inline-detail">
       <div class="detail-header">
         <h3>${escapeHtml(b.clientCompany || "")}</h3>
@@ -701,182 +800,182 @@ function renderDetailPanel(row) {
 </div>
     </div>
   `;
-}
-
-function openQuote(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
-
-  const url =
-    row.QuoteURL ||
-    (row.ParsedBooking && row.ParsedBooking.quoteUrl);
-
-  if (!url) {
-    showToast("No URL found!", "error")
-    return;
   }
 
-  window.open(url, "_blank");
-}
+  function openQuote(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
 
-function printQuote(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
+    const url =
+      row.QuoteURL ||
+      (row.ParsedBooking && row.ParsedBooking.quoteUrl);
 
-  setBusy(bookingId);
+    if (!url) {
+      showToast("No URL found!", "error")
+      return;
+    }
 
-  google.script.run
-    .withSuccessHandler(() => {
-      clearBusy();
+    window.open(url, "_blank");
+  }
+
+  function printQuote(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    setBusy(bookingId);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        clearBusy();
         showToast("Quote sent to printer.", "success");
-      loadBookings(false);
-    })
-    .withFailureHandler(err => {
-      clearBusy();
-      showToast("Print failed: " + (err.message || err), "error");
-    })
-    .printQuoteForRow(row.RowNumber);
-}
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        clearBusy();
+        showToast("Print failed: " + (err.message || err), "error");
+      })
+      .printQuoteForRow(row.RowNumber);
+  }
 
-function saveDetail(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
+  function saveDetail(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
 
-  const items = Array.from(document.querySelectorAll("[data-item]"))
-    .reduce((acc, el) => {
-      const i = Number(el.dataset.item);
-      const key = el.dataset.key;
+    const items = Array.from(document.querySelectorAll("[data-item]"))
+      .reduce((acc, el) => {
+        const i = Number(el.dataset.item);
+        const key = el.dataset.key;
 
-      if (!acc[i]) acc[i] = {};
-      acc[i][key] = el.value;
+        if (!acc[i]) acc[i] = {};
+        acc[i][key] = el.value;
 
-      return acc;
-    }, []);
+        return acc;
+      }, []);
 
     const existingItems =
-  (row.ParsedBooking && row.ParsedBooking.items && row.ParsedBooking.items.length)
-    ? row.ParsedBooking.items
-    : (row.ItemsParsed || []);
+      (row.ParsedBooking && row.ParsedBooking.items && row.ParsedBooking.items.length)
+        ? row.ParsedBooking.items
+        : (row.ItemsParsed || []);
 
-  const serviceTimesText = document.getElementById("edit-serviceTimes").value.trim();
+    const serviceTimesText = document.getElementById("edit-serviceTimes").value.trim();
 
-  const serviceTimes = serviceTimesText
-    ? serviceTimesText
+    const serviceTimes = serviceTimesText
+      ? serviceTimesText
         .split("/")
         .map(s => s.trim())
         .filter(Boolean)
-    : [];
+      : [];
 
-  const patch = {
-    clientCompany: document.getElementById("edit-clientCompany").value.trim(),
-    hostName: document.getElementById("edit-hostName").value.trim(),
-    hostEmail: document.getElementById("edit-hostEmail").value.trim(),
-    pax: document.getElementById("edit-pax").value.trim(),
-    eventDate: document.getElementById("edit-eventDate").value.trim(),
-    serviceTimes: serviceTimes,
-    serviceType: document.getElementById("edit-serviceType").value.trim(),
-    location: document.getElementById("edit-location").value.trim(),
-    floor: document.getElementById("edit-floor").value.trim(),
-    notes: document.getElementById("edit-notes") ? document.getElementById("edit-notes").value.trim() : "",
-    items: items.length ? items : existingItems
-  };
+    const patch = {
+      clientCompany: document.getElementById("edit-clientCompany").value.trim(),
+      hostName: document.getElementById("edit-hostName").value.trim(),
+      hostEmail: document.getElementById("edit-hostEmail").value.trim(),
+      pax: document.getElementById("edit-pax").value.trim(),
+      eventDate: document.getElementById("edit-eventDate").value.trim(),
+      serviceTimes: serviceTimes,
+      serviceType: document.getElementById("edit-serviceType").value.trim(),
+      location: document.getElementById("edit-location").value.trim(),
+      floor: document.getElementById("edit-floor").value.trim(),
+      notes: document.getElementById("edit-notes") ? document.getElementById("edit-notes").value.trim() : "",
+      items: items.length ? items : existingItems
+    };
 
-  setBusy(bookingId);
+    setBusy(bookingId);
 
-  google.script.run
-    .withSuccessHandler(() => {
-      clearBusy();
-      showToast("Booking saved.", "success");
-      OPEN_BOOKING_ID = "";
-      loadBookings(false);
-    })
-    .withFailureHandler(err => {
-      clearBusy();
-      showToast("Save failed: " + (err.message || err), "error");
-    })
-    .updateBookingFromDashboard(row.RowNumber, patch);
-}
-
-function generateQuote(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
-
-  const booking = row.ParsedBooking || {};
-  const hasQuote = !!(row.QuoteURL || booking.quoteUrl);
-
-  if (hasQuote) {
-    const ok = confirm(
-      "A quote already exists for this booking.\n\nDo you want to overwrite/regenerate it with the latest booking details?"
-    );
-    if (!ok) return;
+    google.script.run
+      .withSuccessHandler(() => {
+        clearBusy();
+        showToast("Booking saved.", "success");
+        OPEN_BOOKING_ID = "";
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        clearBusy();
+        showToast("Save failed: " + (err.message || err), "error");
+      })
+      .updateBookingFromDashboard(row.RowNumber, patch);
   }
 
-  setBusy(bookingId);
+  function generateQuote(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
 
-  google.script.run
-    .withSuccessHandler(res => {
-      clearBusy();
-      showToast("Quote generated.", "success");
-      loadBookings(false);
-      if (res.quoteUrl) window.open(res.quoteUrl, "_blank");
-    })
-    .withFailureHandler(err => {
-      clearBusy();
-      showToast("Quote failed: " + (err.message || err), "error");
-    })
-    .generateQuoteForRow(row.RowNumber);
-}
+    const booking = row.ParsedBooking || {};
+    const hasQuote = !!(row.QuoteURL || booking.quoteUrl);
 
-function scanInbox() {
-  showToast("Scanning inbox…", "loading", true);
-
-  google.script.run
-    .withSuccessHandler(res => {
-      showToast(
-        `Scan complete. Logged ${res.logged}, skipped ${res.skipped}, errors ${res.errors}.`,
-        "success"
+    if (hasQuote) {
+      const ok = confirm(
+        "A quote already exists for this booking.\n\nDo you want to overwrite/regenerate it with the latest booking details?"
       );
-      loadBookings(false);
-    })
-    .withFailureHandler(err => {
-      showToast("Scan failed: " + (err.message || err), "error");
-    })
-    .scanInboxForDashboardBookings();
-}
+      if (!ok) return;
+    }
 
-function setStatus(bookingId, status) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
+    setBusy(bookingId);
 
-  google.script.run
-    .withSuccessHandler(() => {
-      loadBookings(false);
-    })
-    .withFailureHandler(err => {
-      showToast("Status update failed: " + (err.message || err), "error");
-    })
-    .setBookingStatus(row.RowNumber, status);
-}
+    google.script.run
+      .withSuccessHandler(res => {
+        clearBusy();
+        showToast("Quote generated.", "success");
+        loadBookings(false);
+        if (res.quoteUrl) window.open(res.quoteUrl, "_blank");
+      })
+      .withFailureHandler(err => {
+        clearBusy();
+        showToast("Quote failed: " + (err.message || err), "error");
+      })
+      .generateQuoteForRow(row.RowNumber);
+  }
 
-function setBusy(bookingId) {
-  BUSY_BOOKING_ID = bookingId;
-  renderBookings();
-}
+  function scanInbox() {
+    showToast("Scanning inbox…", "loading", true);
 
-function clearBusy() {
-  BUSY_BOOKING_ID = "";
-  renderBookings();
-}
+    google.script.run
+      .withSuccessHandler(res => {
+        showToast(
+          `Scan complete. Logged ${res.logged}, skipped ${res.skipped}, errors ${res.errors}.`,
+          "success"
+        );
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        showToast("Scan failed: " + (err.message || err), "error");
+      })
+      .scanInboxForDashboardBookings();
+  }
 
-function showDetail(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
+  function setStatus(bookingId, status) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
 
-  const b = row.ParsedBooking || {};
-  const items = b.items || row.ItemsParsed || [];
+    google.script.run
+      .withSuccessHandler(() => {
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        showToast("Status update failed: " + (err.message || err), "error");
+      })
+      .setBookingStatus(row.RowNumber, status);
+  }
 
-  document.getElementById("detailPanel").classList.remove("hidden");
-  document.getElementById("detailPanel").innerHTML = `
+  function setBusy(bookingId) {
+    BUSY_BOOKING_ID = bookingId;
+    renderBookings();
+  }
+
+  function clearBusy() {
+    BUSY_BOOKING_ID = "";
+    renderBookings();
+  }
+
+  function showDetail(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    const b = row.ParsedBooking || {};
+    const items = b.items || row.ItemsParsed || [];
+
+    document.getElementById("detailPanel").classList.remove("hidden");
+    document.getElementById("detailPanel").innerHTML = `
     <div style="display:flex; justify-content:space-between; gap:20px; margin-bottom:18px;">
       <div>
         <p class="eyebrow">${escapeHtml(row.BookingID)}</p>
@@ -929,76 +1028,76 @@ function showDetail(bookingId) {
       `).join("")}
     </div>
   `;
-}
+  }
 
-function editField(key, label, value, type = "text") {
-  const missing = value === "" || value === null || value === undefined;
-  return `
+  function editField(key, label, value, type = "text") {
+    const missing = value === "" || value === null || value === undefined;
+    return `
     <label class="field ${missing ? "field-missing" : ""}">
       <span>${label}</span>
       <input id="edit-${key}" type="${type}" value="${escapeHtml(value || "")}">
     </label>
   `;
-}
+  }
 
-function editItemField(index, key, label, value) {
-  return `
+  function editItemField(index, key, label, value) {
+    return `
     <label class="field">
       <span>${label}</span>
       <input data-item="${index}" data-key="${key}" value="${escapeHtml(value || "")}">
     </label>
   `;
-}
+  }
 
-function saveDetail(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
+  function saveDetail(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
 
-  const items = Array.from(document.querySelectorAll("[data-item]"))
-    .reduce((acc, el) => {
-      const i = Number(el.dataset.item);
-      const key = el.dataset.key;
-      if (!acc[i]) acc[i] = {};
-      acc[i][key] = el.value;
-      return acc;
-    }, []);
+    const items = Array.from(document.querySelectorAll("[data-item]"))
+      .reduce((acc, el) => {
+        const i = Number(el.dataset.item);
+        const key = el.dataset.key;
+        if (!acc[i]) acc[i] = {};
+        acc[i][key] = el.value;
+        return acc;
+      }, []);
 
-  const serviceTimesText = document.getElementById("edit-serviceTimes").value.trim();
-  const serviceTimes = serviceTimesText
-    ? serviceTimesText.split("/")
+    const serviceTimesText = document.getElementById("edit-serviceTimes").value.trim();
+    const serviceTimes = serviceTimesText
+      ? serviceTimesText.split("/")
         .map(s => s.trim())
         .filter(Boolean)
-    : [];
+      : [];
 
-  const patch = {
-    clientCompany: document.getElementById("edit-clientCompany").value.trim(),
-    hostName: document.getElementById("edit-hostName").value.trim(),
-    hostEmail: document.getElementById("edit-hostEmail").value.trim(),
-    pax: document.getElementById("edit-pax").value.trim(),
-    eventDate: document.getElementById("edit-eventDate").value.trim(),
-    serviceTimes: serviceTimes,
-    serviceType: document.getElementById("edit-serviceType").value.trim(),
-    location: document.getElementById("edit-location").value.trim(),
-    floor: document.getElementById("edit-floor").value.trim(),
-    notes: document.getElementById("edit-notes") ? document.getElementById("edit-notes").value.trim() : "",
-    items: items.length ? items : ((row.ParsedBooking && row.ParsedBooking.items) || row.ItemsParsed || [])
-  };
+    const patch = {
+      clientCompany: document.getElementById("edit-clientCompany").value.trim(),
+      hostName: document.getElementById("edit-hostName").value.trim(),
+      hostEmail: document.getElementById("edit-hostEmail").value.trim(),
+      pax: document.getElementById("edit-pax").value.trim(),
+      eventDate: document.getElementById("edit-eventDate").value.trim(),
+      serviceTimes: serviceTimes,
+      serviceType: document.getElementById("edit-serviceType").value.trim(),
+      location: document.getElementById("edit-location").value.trim(),
+      floor: document.getElementById("edit-floor").value.trim(),
+      notes: document.getElementById("edit-notes") ? document.getElementById("edit-notes").value.trim() : "",
+      items: items.length ? items : ((row.ParsedBooking && row.ParsedBooking.items) || row.ItemsParsed || [])
+    };
 
-  google.script.run
-    .withSuccessHandler(() => {
-      loadBookings(false);
-      closeDetail();
-    })
-    .withFailureHandler(err => {
-      showToast("Save failed: " + (err.message || err), "error");
-    })
-    .updateBookingFromDashboard(row.RowNumber, patch);
-}
+    google.script.run
+      .withSuccessHandler(() => {
+        loadBookings(false);
+        closeDetail();
+      })
+      .withFailureHandler(err => {
+        showToast("Save failed: " + (err.message || err), "error");
+      })
+      .updateBookingFromDashboard(row.RowNumber, patch);
+  }
 
   function closeDetail() {
     OPEN_BOOKING_ID = "";
     renderBookings();
-    }
+  }
 
   function getDisplayDate(b) {
     return (b.ParsedBooking && b.ParsedBooking.eventDate) || b.EventDate || "";
@@ -1031,4 +1130,92 @@ function saveDetail(bookingId) {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
+let SCAN_STATE = null;
+
+function openScanModal() {
+  const modal = document.getElementById("scanModal");
+  modal.classList.remove("hidden");
+
+  document.getElementById("scan-start-btn").disabled = true;
+  document.getElementById("scan-summary").textContent = "Preparing scan…";
+  document.getElementById("scan-ticker").textContent = "Checking settings…";
+
+  resetScanStats();
+
+  google.script.run
+    .withSuccessHandler(res => {
+      SCAN_STATE = res;
+
+      document.getElementById("scan-summary").textContent =
+        `Scanning from ${res.scanFromLabel}. ${res.totalFound} possible email thread(s) found.`;
+
+      document.getElementById("scan-found").textContent = res.totalFound;
+      document.getElementById("scan-ticker").textContent = "Ready to scan.";
+      document.getElementById("scan-start-btn").disabled = false;
+    })
+    .withFailureHandler(err => {
+      document.getElementById("scan-ticker").textContent =
+        "Scan setup failed: " + (err.message || err);
+    })
+    .prepareInboxScan();
+}
+
+function closeScanModal() {
+  document.getElementById("scanModal").classList.add("hidden");
+}
+
+function resetScanStats() {
+  ["found", "logged", "skipped", "errors"].forEach(k => {
+    document.getElementById(`scan-${k}`).textContent = "0";
+  });
+}
+
+function startInboxScan() {
+  if (!SCAN_STATE) return;
+
+  document.getElementById("scan-start-btn").disabled = true;
+  document.getElementById("scan-close-btn").disabled = true;
+  document.getElementById("scan-ticker").textContent = "Scanning…";
+
+  processScanChunk(0, {
+    logged: 0,
+    skipped: 0,
+    errors: 0
+  });
+}
+
+function processScanChunk(offset, totals) {
+  google.script.run
+    .withSuccessHandler(res => {
+      totals.logged += res.logged || 0;
+      totals.skipped += res.skipped || 0;
+      totals.errors += res.errors || 0;
+
+      document.getElementById("scan-logged").textContent = totals.logged;
+      document.getElementById("scan-skipped").textContent = totals.skipped;
+      document.getElementById("scan-errors").textContent = totals.errors;
+
+      document.getElementById("scan-ticker").textContent =
+        `Processed ${res.nextOffset} of ${SCAN_STATE.totalFound}…`;
+
+      if (res.done) {
+        document.getElementById("scan-ticker").textContent = "Scan complete.";
+        document.getElementById("scan-close-btn").disabled = false;
+        showToast("Inbox scan complete.", "success");
+        loadBookings(false);
+        return;
+      }
+
+      processScanChunk(res.nextOffset, totals);
+    })
+    .withFailureHandler(err => {
+      document.getElementById("scan-ticker").textContent =
+        "Scan failed: " + (err.message || err);
+
+      document.getElementById("scan-close-btn").disabled = false;
+      showToast("Scan failed: " + (err.message || err), "error");
+    })
+    .scanInboxChunk(offset, 5);
+}
+
 </script>

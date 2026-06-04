@@ -1,20 +1,8 @@
 function scanInboxForDashboardBookings() {
   const lastScan = getSetting_("LAST_INBOX_SCAN_AT", "");
 
-  let query =
-    'in:anywhere -in:trash -in:spam filename:xlsx -label:AC_HOSPITALITY_PROCESSED';
-
-  if (lastScan) {
-    const afterDate = Utilities.formatDate(
-      new Date(lastScan),
-      Session.getScriptTimeZone(),
-      "yyyy/MM/dd"
-    );
-
-    query += ` after:${afterDate}`;
-  } else {
-    query += " newer_than:90d";
-  }
+  const query = buildInboxScanQuery_();
+  console.log("Inbox scan query: " + query);
 
   const threads = GmailApp.search(query, 0, 50);
 
@@ -58,7 +46,7 @@ function scanInboxForDashboardBookings() {
       }
     }
   }
-
+  setSetting_("LAST_INBOX_SCAN_AT", new Date().toISOString());
   Logger.log(
     `Dashboard scan complete. Scanned=${scanned}, Logged=${logged}, Skipped=${skipped}, Errors=${errors}`
   );
@@ -69,6 +57,64 @@ function scanInboxForDashboardBookings() {
     skipped,
     errors
   };
+}
+
+function buildInboxScanQuery_() {
+  const SETTINGS = getSettings_();
+
+  const processedLabel =
+    SETTINGS.PROCESSED_LABEL_NAME || "AC_HOSPITALITY_PROCESSED";
+
+  let query =
+    `in:anywhere -in:trash -in:spam filename:xlsx -label:${processedLabel}`;
+
+  const earliest =
+    normaliseSettingsDate_(SETTINGS.EARLIEST_SCAN_DATE);
+
+  const lastScan =
+    normaliseSettingsDate_(SETTINGS.LAST_INBOX_SCAN_AT);
+
+  const scanAfter = getLaterDate_(earliest, lastScan);
+
+  if (scanAfter) {
+    query += " after:" + Utilities.formatDate(
+      scanAfter,
+      Session.getScriptTimeZone(),
+      "yyyy/MM/dd"
+    );
+  } else {
+    query += " newer_than:90d";
+  }
+
+  return query;
+}
+
+function normaliseSettingsDate_(value) {
+  if (!value) return null;
+
+  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) {
+    return value;
+  }
+
+  const text = String(value).trim();
+  if (!text) return null;
+
+  let m = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+
+  m = text.match(/^(\d{4})\/(\d{2})\/(\d{2})/);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+
+  return null;
+}
+
+function getLaterDate_(a, b) {
+  if (a && b) return a > b ? a : b;
+  return a || b || null;
 }
 
 function applyProcessedLabel_(thread) {
@@ -195,6 +241,7 @@ function buildBookingFromMessageIdAndAttachment_(messageId, attachmentName) {
       booking.hostName = extractEmailName_(msg.getFrom());
     }
 
+    booking = normaliseBookingTimes_(booking);
     booking = validateBooking_(booking);
 
     return booking;
@@ -206,4 +253,115 @@ function buildBookingFromMessageIdAndAttachment_(messageId, attachmentName) {
       } catch (e) { }
     }
   }
+}
+
+function prepareInboxScan() {
+  const query = buildInboxScanQuery_();
+  const threads = GmailApp.search(query, 0, 500);
+
+  const SETTINGS = getSettings_();
+
+  const scanFrom =
+    SETTINGS.LAST_INBOX_SCAN_AT ||
+    SETTINGS.EARLIEST_SCAN_DATE ||
+    "recent inbox";
+
+  return {
+    query,
+    totalFound: threads.length,
+    scanFromLabel: String(scanFrom)
+  };
+}
+
+function scanInboxChunk(offset, limit) {
+  offset = Number(offset || 0);
+  limit = Number(limit || 5);
+
+  const query = buildInboxScanQuery_();
+  const threads = GmailApp.search(query, offset, limit);
+
+  let logged = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  threads.forEach(thread => {
+    try {
+      const result = processInboxThread_(thread);
+
+      if (result && result.logged) logged += result.logged;
+      else skipped++;
+    } catch (e) {
+      console.log("Scan thread error: " + e);
+      errors++;
+    }
+  });
+
+  const nextOffset = offset + threads.length;
+  const done = threads.length < limit;
+
+  if (done) {
+    setSetting_("LAST_INBOX_SCAN_AT", new Date().toISOString());
+  }
+
+  return {
+    logged,
+    skipped,
+    errors,
+    nextOffset,
+    done
+  };
+}
+
+function processInboxThread_(thread) {
+  let logged = 0;
+  let skipped = 0;
+  let errors = 0;
+  let scanned = 0;
+
+  const messages = thread.getMessages();
+
+  for (const msg of messages) {
+    const atts = msg.getAttachments({ includeInlineImages: false });
+
+    for (const att of atts) {
+      if (!isXlsx_(att)) continue;
+
+      scanned++;
+
+      const key = makeDashboardKey_(msg.getId(), att.getName());
+
+      if (isDashboardKeyLogged_(key)) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        const booking = buildBookingFromMessageIdAndAttachment_(
+          msg.getId(),
+          att.getName()
+        );
+
+        if (isPastBooking_(booking)) {
+          booking.status = CONFIG.STATUS.ARCHIVED || "ARCHIVED";
+          applyProcessedLabel_(thread);
+          skipped++;
+          continue;
+        }
+
+        writeBookingToSheet_(booking);
+        logged++;
+
+      } catch (e) {
+        console.log(e);
+        errors++;
+      }
+    }
+  }
+
+  return {
+    scanned,
+    logged,
+    skipped,
+    errors
+  };
 }

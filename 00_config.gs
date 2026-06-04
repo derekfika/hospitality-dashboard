@@ -82,6 +82,30 @@ function getSettingsSheet_() {
   return sh;
 }
 
+function getSettings_() {
+  const sh = getSettingsSheet_();
+  const values = sh.getDataRange().getValues();
+  const settings = {};
+
+  for (let i = 1; i < values.length; i++) {
+    const key = String(values[i][0] || "").trim();
+    let value = values[i][1];
+
+    if (!key) continue;
+
+    if (typeof value === "string") {
+      const upper = value.trim().toUpperCase();
+
+      if (upper === "TRUE") value = true;
+      else if (upper === "FALSE") value = false;
+    }
+
+    settings[key] = value;
+  }
+
+  return settings;
+}
+
 function getSetting_(key, fallback) {
   const sh = getSettingsSheet_();
   const values = sh.getDataRange().getValues();

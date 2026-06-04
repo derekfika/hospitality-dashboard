@@ -289,3 +289,201 @@ function printQuoteForRow(rowNumber) {
     ok: true
   };
 }
+
+function sendBookingConfirmationEmail_(booking) {
+  const to = "derek@fikacatering.com";
+
+  console.log("Sending confirmation email to: " + to);
+  console.log("Booking: " + booking.bookingId);
+
+  const subject =
+    `FIKA Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
+
+  const htmlBody = buildConfirmationEmailHtml_(booking);
+
+  GmailApp.sendEmail(to, subject, stripHtml_(htmlBody), {
+    htmlBody: htmlBody,
+    name: "FIKA Hospitality"
+  });
+
+  console.log("Confirmation email sent.");
+
+  return {
+    sentTo: to
+  };
+}
+
+function buildConfirmationSubject_(booking) {
+  return `FIKA Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
+}
+
+function buildConfirmationEmailHtml_(booking) {
+  return `
+  <div style="font-family: Arial, sans-serif; color:#241F33; line-height:1.5;">
+    <h2 style="color:#4F34C7; margin-bottom:8px;">Booking Confirmed</h2>
+
+    <p>Hi there!,</p>
+
+    <p>Thank you for your booking with <strong>FIKA Hospitality</strong>.</p>
+
+    <p>
+      We're pleased to confirm that your booking has been received and scheduled with our team.
+      Our catering and logistics teams have been notified and will begin preparing your order.
+    </p>
+
+    <div style="margin:22px 0; padding:16px; border:1px solid #DDD8EA; border-radius:14px; background:#F4F0FF;">
+      <p><strong>Booking Reference:</strong> ${escapeEmailHtml_(booking.bookingId)}</p>
+      <p><strong>Service:</strong> ${escapeEmailHtml_(booking.serviceType || "Hospitality")}</p><p><strong>Date:</strong> ${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</p>
+      <p><strong>Time:</strong> ${escapeEmailHtml_((booking.serviceTimes || []).join(", "))}</p>
+      <p><strong>Location:</strong> ${escapeEmailHtml_(booking.location || "")}</p>
+      <p><strong>Floor:</strong> ${escapeEmailHtml_(booking.floor || "")}</p>
+      <p><strong>Guests:</strong> ${escapeEmailHtml_(booking.pax || "")}</p>
+    </div>
+
+    <p>Should any changes be required before the service date, please let us know as soon as possible and we'll do our best to accommodate them.</p>
+
+    <p style="margin-top:24px;">
+      We look forward to enhancing your hospitality experience.<br><br>
+      <strong style="color:#4F34C7; font-size:18px;">Let's FIKA!</strong>
+    </p>
+
+    <p style="margin-top:24px;">
+      Kind regards,<br>
+      <strong>FIKA Hospitality</strong>
+    </p>
+  </div>
+  `;
+}
+
+function escapeEmailHtml_(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function stripHtml_(html) {
+  return String(html || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function formatEmailDate_(isoDate) {
+  if (!isoDate) return "";
+
+  const parts = String(isoDate).split("-");
+  if (parts.length !== 3) return isoDate;
+
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+
+  return Utilities.formatDate(
+    d,
+    Session.getScriptTimeZone(),
+    "dd MMMM yyyy"
+  );
+}
+
+function cancelBookingForRow(rowNumber, options) {
+  options = options || {};
+
+  const sh = getDashboardSheet_();
+  const map = getHeaderMap_();
+  const SETTINGS = getSettings_();
+
+  const json = sh.getRange(rowNumber, map.ParsedJSON).getValue();
+  let booking = safeJsonParse_(json, null);
+
+  if (!booking) throw new Error("Could not read booking data.");
+
+  const result = {
+    ok: true,
+    bookingId: booking.bookingId,
+    emailSent: false,
+    calendarRemoved: false
+  };
+
+  if (options.sendEmail) {
+    sendBookingCancellationEmail_(booking);
+    result.emailSent = true;
+  }
+
+  if (options.removeCalendar && booking.calendarEventId) {
+    Calendar.Events.remove(
+      SETTINGS.CALENDAR_ID || "primary",
+      booking.calendarEventId,
+      {
+        sendUpdates: "all"
+      }
+    );
+
+    result.calendarRemoved = true;
+
+    booking.calendarRemovedAt = new Date();
+    booking.calendarEventId = "";
+    booking.calendarEventUrl = "";
+    booking.calendarStale = false;
+  }
+
+  booking.status = CONFIG.STATUS.CANCELLED || "CANCELLED";
+  booking.cancelledAt = new Date();
+  booking.cancelledBy = Session.getActiveUser().getEmail();
+  booking.cancellationEmailSentAt = result.emailSent ? new Date() : "";
+  booking.updatedAt = new Date();
+
+  writeBookingObjectToExistingRow_(rowNumber, booking);
+
+  return result;
+}
+
+function sendBookingCancellationEmail_(booking) {
+  const to = "derek@fikacatering.com";
+
+  const subject =
+    `FIKA Hospitality | Booking Cancelled | ${formatEmailDate_(booking.eventDate)}`;
+
+  const htmlBody = buildCancellationEmailHtml_(booking);
+
+  GmailApp.sendEmail(to, subject, stripHtml_(htmlBody), {
+    htmlBody,
+    name: "FIKA Hospitality"
+  });
+
+  return { sentTo: to };
+}
+
+function buildCancellationEmailHtml_(booking) {
+  return `
+  <div style="font-family: Arial, sans-serif; color:#241F33; line-height:1.5; padding:24px;">
+    <h2 style="color:#FF5C00; margin-bottom:8px;">Booking Cancelled</h2>
+
+    <p>Hi there,</p>
+
+    <p>
+      This email is to confirm that the following FIKA Hospitality booking has been cancelled.
+    </p>
+
+    <div style="margin:22px 0; padding:18px; border:1px solid #DDD8EA; border-radius:14px; background:#FFF7F2;">
+      <p><strong>Booking Reference:</strong> ${escapeEmailHtml_(booking.bookingId)}</p>
+      <p><strong>Service:</strong> ${escapeEmailHtml_(booking.serviceType || "Hospitality")}</p>
+      <p><strong>Date:</strong> ${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</p>
+      <p><strong>Time:</strong> ${escapeEmailHtml_((booking.serviceTimes || []).join(", "))}</p>
+      <p><strong>Location:</strong> ${escapeEmailHtml_(booking.location || "")}</p>
+      <p><strong>Floor:</strong> ${escapeEmailHtml_(booking.floor || "")}</p>
+      <p><strong>Guests:</strong> ${escapeEmailHtml_(booking.pax || "")}</p>
+    </div>
+
+    <p>
+      If you think this has been done in error, please do get in touch with us as soon as possible, otherwise no further action is required.<br>
+    </p>
+
+    <p style="margin-top:24px;">
+      Kind regards,<br>
+      <strong>FIKA Hospitality</strong>
+    </p>
+  </div>
+  `;
+}

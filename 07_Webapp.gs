@@ -116,8 +116,6 @@ function include_(filename) {
 function updateBookingFromDashboard(rowNumber, patch) {
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
-  const oldEventDate = booking.eventDate || "";
-  const oldServiceTimes = JSON.stringify(booking.serviceTimes || []);
 
   const parsedJsonCol = map.ParsedJSON;
   if (!parsedJsonCol) throw new Error("ParsedJSON column not found.");
@@ -128,6 +126,9 @@ function updateBookingFromDashboard(rowNumber, patch) {
   if (!booking) {
     throw new Error("Could not read booking JSON for row " + rowNumber);
   }
+
+  const oldEventDate = booking.eventDate || "";
+  const oldServiceTimes = JSON.stringify(booking.serviceTimes || []);
 
   Object.keys(patch).forEach(key => {
     booking[key] = patch[key];
@@ -140,6 +141,11 @@ function updateBookingFromDashboard(rowNumber, patch) {
     oldEventDate !== newEventDate ||
     oldServiceTimes !== newServiceTimes;
 
+  booking.manuallyEdited = true;
+  booking.lastEditedBy = Session.getActiveUser().getEmail();
+  booking.lastEditedAt = new Date();
+  booking.updatedAt = new Date();
+
   if (booking.quoteUrl) {
     booking.quoteStale = true;
   }
@@ -150,15 +156,6 @@ function updateBookingFromDashboard(rowNumber, patch) {
   ) {
     booking.calendarStale = true;
   }
-  
-  booking.manuallyEdited = true;
-  booking.lastEditedBy = Session.getActiveUser().getEmail();
-  booking.lastEditedAt = new Date();
-  booking.updatedAt = new Date();
-
-  if (booking.quoteUrl) {
-    booking.quoteStale = true;
-  }
 
   booking = validateBooking_(booking);
 
@@ -166,7 +163,7 @@ function updateBookingFromDashboard(rowNumber, patch) {
 
   return {
     ok: true,
-    booking: booking
+    booking
   };
 }
 
@@ -205,6 +202,33 @@ function writeBookingObjectToExistingRow_(rowNumber, booking) {
     if (!map[key]) return;
     sh.getRange(rowNumber, map[key]).setValue(values[key]);
   });
+}
+
+function confirmBookingForRow(rowNumber) {
+  const sh = getDashboardSheet_();
+  const map = getHeaderMap_();
+
+  const json = sh.getRange(rowNumber, map.ParsedJSON).getValue();
+  let booking = safeJsonParse_(json, null);
+
+  if (!booking) throw new Error("Could not read booking data.");
+
+  const emailResult = sendBookingConfirmationEmail_(booking);
+
+  booking.status = CONFIG.STATUS.CONFIRMED || "CONFIRMED";
+  booking.confirmedAt = new Date();
+  booking.confirmedBy = Session.getActiveUser().getEmail();
+  booking.confirmationEmailSentAt = new Date();
+  booking.confirmationEmailSentTo = emailResult.sentTo;
+  booking.updatedAt = new Date();
+
+  writeBookingObjectToExistingRow_(rowNumber, booking);
+
+  return {
+    ok: true,
+    bookingId: booking.bookingId,
+    sentTo: emailResult.sentTo
+  };
 }
 
 function setBookingStatus(rowNumber, status) {
