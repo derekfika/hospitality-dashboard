@@ -285,3 +285,28 @@ function getSortValue(b, key) {
     default: return "";
   }
 }
+
+function isBeforeThisWeek_(booking) {
+  if (!booking.eventDate) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const day = today.getDay(); // Sun 0, Mon 1
+  const diffToMonday = day === 0 ? 6 : day - 1;
+
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - diffToMonday);
+
+  const parts = String(booking.eventDate).split("-");
+  if (parts.length !== 3) return false;
+
+  const bookingDate = new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2])
+  );
+  bookingDate.setHours(0, 0, 0, 0);
+
+  return bookingDate < monday;
+}

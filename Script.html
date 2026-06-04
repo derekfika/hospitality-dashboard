@@ -339,29 +339,45 @@
   }
 
   function renderStats() {
-    const total = BOOKINGS.length;
-    const needsReview = BOOKINGS.filter(b => b.Status === "NEEDS_REVIEW").length;
-    const ready = BOOKINGS.filter(b => b.Status === "READY").length;
-    const printed = BOOKINGS.filter(b => b.Status === "PRINTED").length;
+    const counts = {
+      READY: 0,
+      NEEDS_REVIEW: 0,
+      CONFIRMED: 0,
+      CANCELLED: 0,
+      ARCHIVED: 0
+    };
+
+    BOOKINGS.forEach(row => {
+      const status = row.Status || "NEEDS_REVIEW";
+      if (counts[status] !== undefined) counts[status]++;
+    });
 
     document.getElementById("stats").innerHTML = `
-      <div class="stat">
-        <div class="stat-label">Total bookings</div>
-        <div class="stat-value">${total}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Needs review</div>
-        <div class="stat-value">${needsReview}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Ready</div>
-        <div class="stat-value">${ready}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Printed</div>
-        <div class="stat-value">${printed}</div>
-      </div>
-    `;
+    <div class="stat-card">
+      <strong>${BOOKINGS.length}</strong>
+      <span>Total</span>
+    </div>
+    <div class="stat-card status-ready">
+      <strong>${counts.READY}</strong>
+      <span>Ready</span>
+    </div>
+    <div class="stat-card status-review">
+      <strong>${counts.NEEDS_REVIEW}</strong>
+      <span>Needs Review</span>
+    </div>
+    <div class="stat-card status-confirmed">
+      <strong>${counts.CONFIRMED}</strong>
+      <span>Confirmed</span>
+    </div>
+    <div class="stat-card status-cancelled">
+      <strong>${counts.CANCELLED}</strong>
+      <span>Cancelled</span>
+    </div>
+    <div class="stat-card status-archived">
+      <strong>${counts.ARCHIVED}</strong>
+      <span>Archived</span>
+    </div>
+  `;
   }
 
   function getSortValue(b, key) {
@@ -478,112 +494,117 @@
   function toggleDetail(bookingId) {
     if (OPEN_BOOKING_ID === bookingId) {
       OPEN_BOOKING_ID = "";
-    } else {
-      OPEN_BOOKING_ID = bookingId;
+      renderBookings();
+      requestAnimationFrame(() => {
+        const detailRow = document.getElementById(`detail-${bookingId}`);
+
+        if (!detailRow) return;
+
+        const rect = detailRow.getBoundingClientRect();
+
+        window.scrollTo({
+          top: window.scrollY + rect.top - (window.innerHeight * 0.25),
+          behavior: "smooth"
+        });
+
+        detailRow.classList.add("detail-row-highlight");
+
+        setTimeout(() => {
+          detailRow.classList.remove("detail-row-highlight");
+        }, 800);
+      });
+      return;
     }
 
+    OPEN_BOOKING_ID = bookingId;
+
     renderBookings();
+
+    requestAnimationFrame(() => {
+      const detailRow = document.getElementById(`detail-${bookingId}`);
+
+      if (!detailRow) return;
+
+      const rect = detailRow.getBoundingClientRect();
+
+      window.scrollTo({
+        top: window.scrollY + rect.top - (window.innerHeight * 0.25),
+        behavior: "smooth"
+      });
+
+      detailRow.classList.add("detail-row-highlight");
+
+      setTimeout(() => {
+        detailRow.classList.remove("detail-row-highlight");
+      }, 800);
+    });
   }
 
   function icon(name) {
     return (typeof ICONS !== "undefined" && ICONS[name]) ? ICONS[name] : "";
   }
 
+  function actionSpinner(bookingId) {
+    if (BUSY_BOOKING_ID !== bookingId) return "";
+    return `<span class="action-spinner"></span>`;
+  }
+
   function renderActionButtons(b) {
-    const booking = b.ParsedBooking || {};
+    const isArchived = b.Status === "ARCHIVED";
+    if (isArchived) {
+      return `
+    <div class="action-cluster archived-actions">
 
-    const hasQuote =
-      !!(b.QuoteURL || booking.quoteUrl);
+      <button class="icon-btn"
+        title="Open Quote"
+        ${hasQuote ? "" : "disabled"}
+        onclick="event.stopPropagation(); openQuote('${b.BookingID}')">
+        ${ICONS.open || "Open"}
+      </button>
 
-    const hasCalendar =
-      !!(
-        b.CalendarEventId ||
-        b.CalendarEventURL ||
-        booking.calendarEventId ||
-        booking.calendarEventUrl
-      );
+      <button class="icon-btn"
+        title="Print Quote"
+        ${hasQuote ? "" : "disabled"}
+        onclick="event.stopPropagation(); printQuote('${b.BookingID}')">
+        ${ICONS.print || "Print"}
+      </button>
 
-    const isCancelled =
-      b.Status === "CANCELLED";
+      <span class="archived-pill">Archived</span>
 
-    const needsReview =
-      b.Status === "NEEDS_REVIEW" ||
-      (b.ValidationErrorsParsed || []).length > 0;
+    </div>
+  `;
+    }
 
-    const quoteStale =
-      !!booking.quoteStale;
-
-    const calendarStale =
-      !!booking.calendarStale;
+    const hasQuote = !!b.QuoteURL || !!(b.ParsedBooking && b.ParsedBooking.quoteUrl);
+    const hasCalendar = !!b.CalendarEventId || !!(b.ParsedBooking && b.ParsedBooking.calendarEventId);
 
     return `
-    <div class="action-panel">
+    <div class="action-cluster">
+       ${actionSpinner(b.BookingID)}
+      <button class="icon-btn" title="Edit" onclick="event.stopPropagation(); toggleDetail('${b.BookingID}')">
+        ${ICONS.edit || "Edit"}
+      </button>
 
-      <div class="action-grid">
-        <button class="action-button"
-          onclick="event.stopPropagation(); toggleDetail('${b.BookingID}')">
-          ${icon("edit")}
-          <span>Edit</span>
-        </button>
+      <button class="icon-btn" title="Generate Quote" onclick="event.stopPropagation(); generateQuote('${b.BookingID}')">
+        ${ICONS.quote || "Quote"}
+      </button>
 
-        <button class="action-button"
-          ${isCancelled || needsReview ? "disabled" : ""}
-          onclick="event.stopPropagation(); generateQuote('${b.BookingID}')">
-          ${icon("quote")}
-          <span>Quote</span>
-        </button>
+      <button class="icon-btn" title="Open Quote" ${hasQuote ? "" : "disabled"} onclick="event.stopPropagation(); openQuote('${b.BookingID}')">
+        ${ICONS.open || "Open"}
+      </button>
 
-        <button class="action-button"
-          ${!hasQuote || isCancelled ? "disabled" : ""}
-          onclick="event.stopPropagation(); openQuote('${b.BookingID}')">
-          ${icon("open")}
-          <span>Open</span>
-        </button>
+      <button class="icon-btn" title="Create Calendar Event" ${hasCalendar ? "disabled" : ""} onclick="event.stopPropagation(); createCalendar('${b.BookingID}')">
+        ${ICONS.calendar || "Calendar"}
+      </button>
 
-        <button class="action-button"
-          ${!hasQuote || isCancelled ? "disabled" : ""}
-          onclick="event.stopPropagation(); printQuote('${b.BookingID}')">
-          ${icon("print")}
-          <span>Print</span>
-        </button>
+      <button class="icon-btn" title="Confirm Booking" onclick="event.stopPropagation(); confirmBooking('${b.BookingID}')">
+        ${ICONS.confirm || "Confirm"}
+      </button>
 
-        <button class="action-button"
-          ${!hasQuote || isCancelled || hasCalendar ? "disabled" : ""}
-          onclick="event.stopPropagation(); createCalendar('${b.BookingID}')">
-          ${icon("calendar")}
-          <span>Calendar</span>
-        </button>
-
-        <button class="action-button action-confirm"
-          ${isCancelled ? "disabled" : ""}
-          onclick="event.stopPropagation(); confirmBooking('${b.BookingID}')">
-          ${icon("confirm")}
-          <span>Confirm</span>
-        </button>
-
-        <button class="action-button action-cancel"
-          onclick="event.stopPropagation(); openCancelDialog('${b.BookingID}')">
-          ${icon("cancel")}
-          <span>Cancel</span>
-        </button>
-
-        <button class="action-button action-muted"
-          ${!hasCalendar ? "disabled" : ""}
-          onclick="event.stopPropagation(); resetCalendar('${b.BookingID}')">
-          ${icon("reset")}
-          <span>Reset Cal</span>
-        </button>
-      </div>
-
-      <div class="action-meta">
-        <span class="action-spinner-slot">
-          ${BUSY_BOOKING_ID === b.BookingID ? '<span class="action-spinner"></span>' : ''}
-        </span>
-
-        ${quoteStale ? '<span class="status-chip warn">Quote needs update</span>' : ''}
-        ${calendarStale ? '<span class="status-chip warn">Calendar needs update</span>' : ''}
-      </div>
-
+      <button class="icon-btn danger" title="Cancel Booking" onclick="event.stopPropagation(); openCancelDialog('${b.BookingID}')">
+        ${ICONS.cancel || "Cancel"}
+      </button>
+     ${actionSpinner(b.BookingID)}
     </div>
   `;
   }
@@ -666,71 +687,71 @@
 
   let CANCEL_BOOKING_ID = null;
 
-function openCancelDialog(bookingId) {
-  console.log("openCancelDialog", bookingId);
-  CANCEL_BOOKING_ID = bookingId;
+  function openCancelDialog(bookingId) {
+    console.log("openCancelDialog", bookingId);
+    CANCEL_BOOKING_ID = bookingId;
 
-  const modal = document.getElementById("cancelModal");
-  if (!modal) return;
+    const modal = document.getElementById("cancelModal");
+    if (!modal) return;
 
-  document.getElementById("cancel-send-email").checked = false;
-  document.getElementById("cancel-remove-calendar").checked = true;
+    document.getElementById("cancel-send-email").checked = false;
+    document.getElementById("cancel-remove-calendar").checked = true;
 
-  modal.classList.remove("hidden");
-}
+    modal.classList.remove("hidden");
+  }
 
-function closeCancelDialog() {
-  CANCEL_BOOKING_ID = null;
-  document.getElementById("cancelModal").classList.add("hidden");
-}
+  function closeCancelDialog() {
+    CANCEL_BOOKING_ID = null;
+    document.getElementById("cancelModal").classList.add("hidden");
+  }
 
-function continueCancelDialog() {
-  const sendEmail = document.getElementById("cancel-send-email").checked;
-  const removeCalendar = document.getElementById("cancel-remove-calendar").checked;
-  console.log("continueCancelDialog");
-  const summary = [
-    "You are about to cancel this booking.",
-    "",
-    `Send cancellation email: ${sendEmail ? "YES" : "NO"}`,
-    `Remove from calendar: ${removeCalendar ? "YES" : "NO"}`,
-    "",
-    "This cannot be undone."
-  ].join("\n");
+  function continueCancelDialog() {
+    const sendEmail = document.getElementById("cancel-send-email").checked;
+    const removeCalendar = document.getElementById("cancel-remove-calendar").checked;
+    console.log("continueCancelDialog");
+    const summary = [
+      "You are about to cancel this booking.",
+      "",
+      `Send cancellation email: ${sendEmail ? "YES" : "NO"}`,
+      `Remove from calendar: ${removeCalendar ? "YES" : "NO"}`,
+      "",
+      "This cannot be undone."
+    ].join("\n");
 
-  const ok = confirm(summary);
-  if (!ok) return;
+    const ok = confirm(summary);
+    if (!ok) return;
 
-  confirmCancelBooking({
-    sendEmail,
-    removeCalendar
-  });
-}
+    confirmCancelBooking({
+      sendEmail,
+      removeCalendar
+    });
+  }
 
-function confirmCancelBooking(options) {
-  const row = BOOKINGS.find(x => x.BookingID === CANCEL_BOOKING_ID);
-  if (!row) return;
+  function confirmCancelBooking(options) {
+    const row = BOOKINGS.find(x => x.BookingID === CANCEL_BOOKING_ID);
+    if (!row) return;
 
-  closeCancelDialog();
-  console.log("confirmCancelBooking", CANCEL_BOOKING_ID, options);
-  setBusy(row.BookingID);
-  showToast("Cancelling booking…", "loading", true);
+    closeCancelDialog();
+    console.log("confirmCancelBooking", CANCEL_BOOKING_ID, options);
+    setBusy(row.BookingID);
+    showToast("Cancelling booking…", "loading", true);
 
-  google.script.run
-    .withSuccessHandler(res => {
-      clearBusy();
-      console.log("Cancel result:", res);
+    google.script.run
+      .withSuccessHandler(res => {
+        clearBusy();
+        console.log("Cancel result:", res);
 
-      showToast("Booking cancelled.", "success");
-      loadBookings(false);
-    })
-    .withFailureHandler(err => {
-      clearBusy();
-      console.error("Cancel failed:", err);
+        showToast("Booking cancelled.", "success");
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        clearBusy();
+        console.error("Cancel failed:", err);
 
-      showToast("Cancel failed: " + (err.message || err), "error");
-    })
-    .cancelBookingForRow(row.RowNumber, options);
-}
+        showToast("Cancel failed: " + (err.message || err), "error");
+      })
+      .cancelBookingForRow(row.RowNumber, options);
+  }
 
   function renderDetailPanel(row) {
     const b = row.ParsedBooking || {};
@@ -1130,92 +1151,92 @@ function confirmCancelBooking(options) {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
-let SCAN_STATE = null;
+  let SCAN_STATE = null;
 
-function openScanModal() {
-  const modal = document.getElementById("scanModal");
-  modal.classList.remove("hidden");
+  function openScanModal() {
+    const modal = document.getElementById("scanModal");
+    modal.classList.remove("hidden");
 
-  document.getElementById("scan-start-btn").disabled = true;
-  document.getElementById("scan-summary").textContent = "Preparing scan…";
-  document.getElementById("scan-ticker").textContent = "Checking settings…";
+    resetScanStats();
 
-  resetScanStats();
+    document.getElementById("scan-start-btn").disabled = true;
+    document.getElementById("scan-close-btn").disabled = false;
+    document.getElementById("scan-summary").textContent = "Preparing scan…";
+    document.getElementById("scan-ticker").textContent = "Checking inbox settings…";
 
-  google.script.run
-    .withSuccessHandler(res => {
-      SCAN_STATE = res;
+    google.script.run
+      .withSuccessHandler(res => {
+        SCAN_STATE = res;
 
-      document.getElementById("scan-summary").textContent =
-        `Scanning from ${res.scanFromLabel}. ${res.totalFound} possible email thread(s) found.`;
+        document.getElementById("scan-found").textContent = res.totalFound || 0;
+        document.getElementById("scan-summary").textContent =
+          `Scan from: ${res.scanFromLabel}. ${res.totalFound} thread(s) found.`;
 
-      document.getElementById("scan-found").textContent = res.totalFound;
-      document.getElementById("scan-ticker").textContent = "Ready to scan.";
-      document.getElementById("scan-start-btn").disabled = false;
-    })
-    .withFailureHandler(err => {
-      document.getElementById("scan-ticker").textContent =
-        "Scan setup failed: " + (err.message || err);
-    })
-    .prepareInboxScan();
-}
+        document.getElementById("scan-ticker").textContent = "Ready to scan.";
+        document.getElementById("scan-start-btn").disabled = false;
+      })
+      .withFailureHandler(err => {
+        document.getElementById("scan-ticker").textContent =
+          "Scan setup failed: " + (err.message || err);
+      })
+      .prepareInboxScan();
+  }
 
-function closeScanModal() {
-  document.getElementById("scanModal").classList.add("hidden");
-}
+  function closeScanModal() {
+    document.getElementById("scanModal").classList.add("hidden");
+  }
 
-function resetScanStats() {
-  ["found", "logged", "skipped", "errors"].forEach(k => {
-    document.getElementById(`scan-${k}`).textContent = "0";
-  });
-}
+  function resetScanStats() {
+    ["found", "logged", "skipped", "errors"].forEach(k => {
+      const el = document.getElementById(`scan-${k}`);
+      if (el) el.textContent = "0";
+    });
+  }
 
-function startInboxScan() {
-  if (!SCAN_STATE) return;
+  function startInboxScan() {
+    document.getElementById("scan-start-btn").disabled = true;
+    document.getElementById("scan-close-btn").disabled = true;
+    document.getElementById("scan-ticker").textContent = "Scanning…";
 
-  document.getElementById("scan-start-btn").disabled = true;
-  document.getElementById("scan-close-btn").disabled = true;
-  document.getElementById("scan-ticker").textContent = "Scanning…";
+    processScanChunk(0, {
+      logged: 0,
+      skipped: 0,
+      errors: 0
+    });
+  }
 
-  processScanChunk(0, {
-    logged: 0,
-    skipped: 0,
-    errors: 0
-  });
-}
+  function processScanChunk(offset, totals) {
+    google.script.run
+      .withSuccessHandler(res => {
+        totals.logged += res.logged || 0;
+        totals.skipped += res.skipped || 0;
+        totals.errors += res.errors || 0;
 
-function processScanChunk(offset, totals) {
-  google.script.run
-    .withSuccessHandler(res => {
-      totals.logged += res.logged || 0;
-      totals.skipped += res.skipped || 0;
-      totals.errors += res.errors || 0;
+        document.getElementById("scan-logged").textContent = totals.logged;
+        document.getElementById("scan-skipped").textContent = totals.skipped;
+        document.getElementById("scan-errors").textContent = totals.errors;
 
-      document.getElementById("scan-logged").textContent = totals.logged;
-      document.getElementById("scan-skipped").textContent = totals.skipped;
-      document.getElementById("scan-errors").textContent = totals.errors;
+        document.getElementById("scan-ticker").textContent =
+          `Processed ${res.nextOffset} of ${SCAN_STATE.totalFound} thread(s)…`;
 
-      document.getElementById("scan-ticker").textContent =
-        `Processed ${res.nextOffset} of ${SCAN_STATE.totalFound}…`;
+        if (res.done) {
+          document.getElementById("scan-ticker").textContent = "Scan complete.";
+          document.getElementById("scan-close-btn").disabled = false;
+          showToast("Inbox scan complete.", "success");
+          loadBookings(false);
+          return;
+        }
 
-      if (res.done) {
-        document.getElementById("scan-ticker").textContent = "Scan complete.";
+        processScanChunk(res.nextOffset, totals);
+      })
+      .withFailureHandler(err => {
+        document.getElementById("scan-ticker").textContent =
+          "Scan failed: " + (err.message || err);
+
         document.getElementById("scan-close-btn").disabled = false;
-        showToast("Inbox scan complete.", "success");
-        loadBookings(false);
-        return;
-      }
-
-      processScanChunk(res.nextOffset, totals);
-    })
-    .withFailureHandler(err => {
-      document.getElementById("scan-ticker").textContent =
-        "Scan failed: " + (err.message || err);
-
-      document.getElementById("scan-close-btn").disabled = false;
-      showToast("Scan failed: " + (err.message || err), "error");
-    })
-    .scanInboxChunk(offset, 5);
-}
+        showToast("Scan failed: " + (err.message || err), "error");
+      })
+      .scanInboxChunk(offset, 5);
+  }
 
 </script>

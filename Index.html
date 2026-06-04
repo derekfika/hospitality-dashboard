@@ -19,7 +19,7 @@
         <h1>Angel Court Hospitality Dashboard</h1>
       </div>
       <div class="header-actions">
-        <button class="button" onclick="scanInbox()">Scan Inbox</button>
+        <button class="button" onclick="openScanModal()">Scan Inbox</button>
         <button class="button" onclick="loadBookings()">Refresh</button>
         <button class="theme-toggle" onclick="toggleTheme()">Light / Dark</button>
       </div>
@@ -35,11 +35,11 @@
         <label><input type="checkbox" value="NEEDS_REVIEW" checked onchange="renderBookings()"> Needs Review</label>
         <label><input type="checkbox" value="READY" checked onchange="renderBookings()"> Ready</label>
         <label><input type="checkbox" value="QUOTE_GENERATED" checked onchange="renderBookings()"> Quote</label>
-        <label><input type="checkbox" value="PRINTED" checked onchange="renderBookings()"> Printed</label>
         <label><input type="checkbox" value="CPU_CREATED" checked onchange="renderBookings()"> Calendar</label>
         <label><input type="checkbox" value="CONFIRMED" checked onchange="renderBookings()"> Confirmed</label>
         <label><input type="checkbox" value="CANCELLED" onchange="renderBookings()"> Cancelled</label>
         <label><input type="checkbox" value="ERROR" onchange="renderBookings()"> Error</label>
+        <label><input type="checkbox" value="ARCHIVED" onchange="renderBookings()"> Archived</label>
       </div>
     </section>
 
@@ -56,21 +56,33 @@
     <section id="calendarView" class="calendar-view hidden"></section>
     </section>
 
-    <main id="tableView" class="table-wrap">
+    <main id="tableView" class="bookings-table">
       <table>
         <thead>
           <tr>
-            <th onclick="setSort('date')">Date</th>
-            <th onclick="setSort('time')">Time</th>
-            <th onclick="setSort('company')">Company</th>
-            <th onclick="setSort('pax')">Pax</th>
-            <th onclick="setSort('service')">Service</th>
-            <th onclick="setSort('floor')">Floor</th>
-            <th onclick="setSort('total')">Total</th>
-            <th onclick="setSort('status')">Status</th>
-            <th>Missing</th>
-            <th>Actions</th>
-            <th></th>
+            <table class="bookings-table">
+              <colgroup>
+                <col style="width: 90px">
+                <col style="width: 70px">
+                <col style="width: 170px">
+                <col style="width: 50px">
+                <col style="width: 90px">
+                <col style="width: 80px">
+                <col style="width: 80px">
+                <col style="width: 110px">
+                <col>
+                <col style="width: 250px">
+              </colgroup>
+              <th onclick="setSort('date')">Date</th>
+              <th onclick="setSort('time')">Time</th>
+              <th onclick="setSort('company')">Company</th>
+              <th onclick="setSort('pax')">Pax</th>
+              <th onclick="setSort('service')">Service</th>
+              <th onclick="setSort('floor')">Floor</th>
+              <th onclick="setSort('total')">Total</th>
+              <th onclick="setSort('status')">Status</th>
+              <th>Missing</th>
+              <th>Actions</th>
           </tr>
         </thead>
         <tbody id="bookingRows">
@@ -114,19 +126,17 @@
         <p id="scan-summary" class="muted">Preparing scan…</p>
 
         <div class="scan-stats">
-          <div><strong id="scan-found">0</strong><span>Found</span></div>
-          <div><strong id="scan-logged">0</strong><span>Logged</span></div>
-          <div><strong id="scan-skipped">0</strong><span>Skipped</span></div>
-          <div><strong id="scan-errors">0</strong><span>Errors</span></div>
+          <div><strong id="scan-found">0 </strong><span>Found</span></div>
+          <div><strong id="scan-logged">0 </strong><span>Logged</span></div>
+          <div><strong id="scan-skipped">0 </strong><span>Skipped</span></div>
+          <div><strong id="scan-errors">0 </strong><span>Errors</span></div>
         </div>
 
-        <div id="scan-ticker" class="scan-ticker">
-          Ready to scan.
-        </div>
+        <div id="scan-ticker" class="scan-ticker">Checking settings…</div>
 
         <div class="modal-actions">
           <button id="scan-close-btn" class="button secondary" onclick="closeScanModal()">Close</button>
-          <button id="scan-start-btn" class="button" onclick="startInboxScan()">Start Scan</button>
+          <button id="scan-start-btn" class="button" onclick="startInboxScan()" disabled>Start Scan</button>
         </div>
       </div>
     </div>

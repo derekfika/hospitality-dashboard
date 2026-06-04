@@ -31,12 +31,10 @@ function scanInboxForDashboardBookings() {
 
         try {
           const booking = buildBookingFromMessageIdAndAttachment_(msg.getId(), att.getName());
-          if (isPastBooking_(booking)) {
+          if (isBeforeThisWeek_(booking)) {
             booking.status = CONFIG.STATUS.ARCHIVED || "ARCHIVED";
-            applyProcessedLabel_(thread);
-            skipped++;
-            continue;
           }
+
           writeBookingToSheet_(booking);
           logged++;
         } catch (e) {
@@ -129,24 +127,29 @@ function applyProcessedLabel_(thread) {
   thread.addLabel(label);
 }
 
-function isPastBooking_(booking) {
+function shouldArchiveBooking_(booking) {
   if (!booking.eventDate) return false;
+
+  const SETTINGS = getSettings_();
+  const archiveAfterDays = Number(SETTINGS.ARCHIVE_AFTER_DAYS || 0);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const threshold = new Date(today);
+  threshold.setDate(today.getDate() - archiveAfterDays);
+
   const parts = String(booking.eventDate).split("-");
   if (parts.length !== 3) return false;
 
-  const d = new Date(
+  const bookingDate = new Date(
     Number(parts[0]),
     Number(parts[1]) - 1,
     Number(parts[2])
   );
+  bookingDate.setHours(0, 0, 0, 0);
 
-  d.setHours(0, 0, 0, 0);
-
-  return d < today;
+  return bookingDate < threshold;
 }
 
 function makeDashboardKey_(messageId, attachmentName) {
@@ -341,11 +344,8 @@ function processInboxThread_(thread) {
           att.getName()
         );
 
-        if (isPastBooking_(booking)) {
+        if (shouldArchiveBooking_(booking)) {
           booking.status = CONFIG.STATUS.ARCHIVED || "ARCHIVED";
-          applyProcessedLabel_(thread);
-          skipped++;
-          continue;
         }
 
         writeBookingToSheet_(booking);
