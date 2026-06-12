@@ -241,10 +241,17 @@ function parseAngelCourtBookingSheet_(sheet) {
     for (let r = 0; r < values.length; r++) {
       for (let c = 0; c < values[r].length; c++) {
         if (norm(values[r][c]) === target) {
-          for (let offset = 1; offset <= 5; offset++) {
+          for (let offset = 1; offset <= 4; offset++) {
             const v = values[r][c + offset];
-            if (v !== "" && v !== null && v !== undefined) return v;
+
+            if (isFormLabel_(v)) return "";
+
+            if (v !== "" && v !== null && v !== undefined) {
+              return v;
+            }
           }
+
+          return "";
         }
       }
     }
@@ -258,10 +265,17 @@ function parseAngelCourtBookingSheet_(sheet) {
     for (let r = 0; r < displayValues.length; r++) {
       for (let c = 0; c < displayValues[r].length; c++) {
         if (norm(displayValues[r][c]) === target) {
-          for (let offset = 1; offset <= 5; offset++) {
+          for (let offset = 1; offset <= 4; offset++) {
             const v = displayValues[r][c + offset];
-            if (v !== "" && v !== null && v !== undefined) return String(v).trim();
+
+            if (isFormLabel_(v)) return "";
+
+            if (v !== "" && v !== null && v !== undefined) {
+              return String(v).trim();
+            }
           }
+
+          return "";
         }
       }
     }
@@ -355,11 +369,21 @@ function parseAngelCourtBookingSheet_(sheet) {
     .map(normaliseHospitalityTime_)
     .filter(Boolean);
 
+  const bookingDefaultTime =
+    booking.serviceTimes && booking.serviceTimes.length
+      ? booking.serviceTimes[0]
+      : "";
+
+  let lastKnownTime = bookingDefaultTime;
+
   booking.items = (items || []).map(item => {
     if (item.time) {
-      item.time =
-        normaliseHospitalityTime_(item.time);
+      item.time = normaliseHospitalityTime_(item.time);
+      lastKnownTime = item.time;
+    } else {
+      item.time = lastKnownTime || bookingDefaultTime;
     }
+
     return item;
   });
 
@@ -817,6 +841,33 @@ function splitOrderNameAndDetail_(text) {
     name: parts.shift().trim(),
     detail: parts.join(" - ").trim()
   };
+}
+
+function isFormLabel_(value) {
+  const text = String(value || "").trim().toLowerCase();
+
+  if (!text) return false;
+
+  return (
+    text.endsWith(":") ||
+    [
+      "company",
+      "company name:",
+      "name:",
+      "email:",
+      "host name",
+      "host email",
+      "date of event:",
+      "event date",
+      "total number of people:",
+      "pax",
+      "service time",
+      "service type",
+      "location",
+      "floor",
+      "floor level"
+    ].includes(text)
+  );
 }
 
 function debugDashboardCount() {

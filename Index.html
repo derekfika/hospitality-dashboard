@@ -43,55 +43,56 @@
       </div>
     </section>
 
-    <div id="calendarControls" class="calendar-controls hidden">
-      <button class="button" onclick="changeCalendarWeek(-1)">← Previous Week</button>
-      <button class="button" onclick="goToCurrentWeek()">This Week</button>
-      <button class="button" onclick="changeCalendarWeek(1)">Next Week →</button>
-      <div id="calendarWeekLabel" class="calendar-week-label"></div>
-    </div>
+    <div id="calendarControls" class="calendar-controls">
+  <button class="button" onclick="changeCalendarWeek(-1)">← Previous Week</button>
+  <button class="button" onclick="goToCurrentWeek()">This Week</button>
+  <button class="button" onclick="changeCalendarWeek(1)">Next Week →</button>
+  <div id="calendarWeekLabel" class="calendar-week-label"></div>
+</div>
 
-    <section id="calendarView" class="calendar-view hidden"></section>
-    </section>
+<section id="calendarView" class="calendar-view"></section>
 
-    <section id="calendarView" class="calendar-view hidden"></section>
-    </section>
+<main id="tableView" class="table-wrap">
+  <table class="bookings-table">
 
-    <main id="tableView" class="bookings-table">
-      <table>
-        <thead>
-          <tr>
-            <table class="bookings-table">
-              <colgroup>
-                <col style="width: 90px">
-                <col style="width: 70px">
-                <col style="width: 170px">
-                <col style="width: 50px">
-                <col style="width: 90px">
-                <col style="width: 80px">
-                <col style="width: 80px">
-                <col style="width: 110px">
-                <col>
-                <col style="width: 250px">
-              </colgroup>
-              <th onclick="setSort('date')">Date</th>
-              <th onclick="setSort('time')">Time</th>
-              <th onclick="setSort('company')">Company</th>
-              <th onclick="setSort('pax')">Pax</th>
-              <th onclick="setSort('service')">Service</th>
-              <th onclick="setSort('floor')">Floor</th>
-              <th onclick="setSort('total')">Total</th>
-              <th onclick="setSort('status')">Status</th>
-              <th>Missing</th>
-              <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="bookingRows">
-          <tr>
-            <td colspan="11" class="loading">Loading bookings…</td>
-          </tr>
-        </tbody>
-      </table>
-    </main>
+    <colgroup>
+      <col style="width: 90px">
+      <col style="width: 70px">
+      <col style="width: 170px">
+      <col style="width: 50px">
+      <col style="width: 90px">
+      <col style="width: 80px">
+      <col style="width: 80px">
+      <col style="width: 110px">
+      <col>
+      <col style="width: 250px">
+    </colgroup>
+
+    <thead>
+      <tr>
+        <th onclick="setSort('date')">Date</th>
+        <th onclick="setSort('time')">Time</th>
+        <th onclick="setSort('company')">Company</th>
+        <th onclick="setSort('pax')">Pax</th>
+        <th onclick="setSort('service')">Service</th>
+        <th onclick="setSort('floor')">Floor</th>
+        <th onclick="setSort('total')">Total</th>
+        <th onclick="setSort('status')">Status</th>
+        <th>Missing</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    <tbody id="bookingRows">
+      <tr>
+        <td colspan="10" class="loading">
+          Loading bookings…
+        </td>
+      </tr>
+    </tbody>
+
+  </table>
+</main>
 
     <div id="toast" class="toast hidden"></div>
 

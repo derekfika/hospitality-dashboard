@@ -280,7 +280,6 @@ function printQuoteForRow(rowNumber) {
   });
 
   booking.quotePrintedAt = new Date();
-  booking.status = CONFIG.STATUS.PRINTED;
   booking.updatedAt = new Date();
 
   writeBookingObjectToExistingRow_(rowNumber, booking);
@@ -291,25 +290,28 @@ function printQuoteForRow(rowNumber) {
 }
 
 function sendBookingConfirmationEmail_(booking) {
-  const to = "derek@fikacatering.com";
+  const SETTINGS = getSettings_();
 
-  console.log("Sending confirmation email to: " + to);
-  console.log("Booking: " + booking.bookingId);
+  const ccAddress = SETTINGS.CALENDAR_ID;
 
   const subject =
     `FIKA Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
 
   const htmlBody = buildConfirmationEmailHtml_(booking);
+  const plainTextBody = buildConfirmationEmailHtml_(booking);
 
-  GmailApp.sendEmail(to, subject, stripHtml_(htmlBody), {
-    htmlBody: htmlBody,
-    name: "FIKA Hospitality"
-  });
-
-  console.log("Confirmation email sent.");
+  GmailApp.sendEmail(
+    booking.hostEmail,
+    subject,
+    plainTextBody,
+    {
+      htmlBody: htmlBody,
+      cc: ccAddress
+    }
+  );
 
   return {
-    sentTo: to
+    sentTo: booking.hostEmail
   };
 }
 
@@ -440,7 +442,9 @@ function cancelBookingForRow(rowNumber, options) {
 }
 
 function sendBookingCancellationEmail_(booking) {
-  const to = "derek@fikacatering.com";
+  const SETTINGS = getSettings_();
+  const to = "booking.hostEmail";
+  const cc = SETTINGS.CALENDAR_ID;
 
   const subject =
     `FIKA Hospitality | Booking Cancelled | ${formatEmailDate_(booking.eventDate)}`;
@@ -449,7 +453,8 @@ function sendBookingCancellationEmail_(booking) {
 
   GmailApp.sendEmail(to, subject, stripHtml_(htmlBody), {
     htmlBody,
-    name: "FIKA Hospitality"
+    name: "FIKA Hospitality",
+    cc: ccAddress
   });
 
   return { sentTo: to };
