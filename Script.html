@@ -575,19 +575,32 @@
   `;
     }
 
-    const hasQuote = !!b.QuoteURL || !!(b.ParsedBooking && b.ParsedBooking.quoteUrl);
-    const hasCalendar = !!b.CalendarEventId || !!(b.ParsedBooking && b.ParsedBooking.calendarEventId);
+    const parsed = b.ParsedBooking || {};
+
+    const hasQuote =
+      !!b.QuoteURL ||
+      !!parsed.quoteUrl;
+
+    const quoteStale =
+      parsed.quoteStale === true ||
+      parsed.quoteStale === "TRUE";
+
+    const canGenerateQuote =
+      !hasQuote || quoteStale; const hasCalendar = !!b.CalendarEventId || !!(b.ParsedBooking && b.ParsedBooking.calendarEventId);
 
     return `
     <div class="action-cluster">
-       ${actionSpinner(b.BookingID)}
       <button class="icon-btn" title="Edit" onclick="event.stopPropagation(); toggleDetail('${b.BookingID}')">
         ${ICONS.edit || "Edit"}
       </button>
 
-      <button class="icon-btn" title="Generate Quote" onclick="event.stopPropagation(); generateQuote('${b.BookingID}')">
-        ${ICONS.quote || "Quote"}
-      </button>
+      <button
+  class="icon-btn ${quoteStale ? "warning" : ""}"
+  title="${quoteStale ? "Regenerate outdated quote" : hasQuote ? "Quote already generated" : "Generate quote"}"
+  ${canGenerateQuote ? "" : "disabled"}
+  onclick="event.stopPropagation(); handleQuoteClick('${b.BookingID}')">
+  ${ICONS.quote || "Quote"}
+</button>
 
       <button class="icon-btn" title="Open Quote" ${hasQuote ? "" : "disabled"} onclick="event.stopPropagation(); openQuote('${b.BookingID}')">
         ${ICONS.open || "Open"}
@@ -862,6 +875,19 @@
     const row = BOOKINGS.find(x => x.BookingID === bookingId);
     if (!row) return;
 
+    const hadQuote = !!booking.quoteUrl;
+
+    if (hadQuote) {
+      booking.quoteStale = true;
+    }
+
+    if (
+      dateOrTimeChanged &&
+      (booking.calendarEventId || booking.calendarEventUrl)
+    ) {
+      booking.calendarStale = true;
+    }
+
     const items = Array.from(document.querySelectorAll("[data-item]"))
       .reduce((acc, el) => {
         const i = Number(el.dataset.item);
@@ -916,6 +942,36 @@
       })
       .updateBookingFromDashboard(row.RowNumber, patch);
   }
+  
+
+  let REGENERATE_BOOKING_ID = null;
+
+function openRegenerateQuoteModal(bookingId) {
+  REGENERATE_BOOKING_ID = bookingId;
+  document.getElementById("regenerateQuoteModal")
+    .classList.remove("hidden");
+}
+
+function closeRegenerateQuoteModal() {
+  REGENERATE_BOOKING_ID = null;
+  document.getElementById("regenerateQuoteModal")
+    .classList.add("hidden");
+}
+
+function confirmRegenerateQuote() {
+  if (!REGENERATE_BOOKING_ID) return;
+
+  const bookingId = REGENERATE_BOOKING_ID;
+
+  closeRegenerateQuoteModal();
+
+  setBusy(bookingId);
+
+  google.script.run
+    .withSuccessHandler(...)
+    .withFailureHandler(...)
+    .generateQuote(bookingId);
+}
 
   function generateQuote(bookingId) {
     const row = BOOKINGS.find(x => x.BookingID === bookingId);
@@ -925,10 +981,8 @@
     const hasQuote = !!(row.QuoteURL || booking.quoteUrl);
 
     if (hasQuote) {
-      const ok = confirm(
-        "A quote already exists for this booking.\n\nDo you want to overwrite/regenerate it with the latest booking details?"
-      );
-      if (!ok) return;
+      openRegenerateQuoteModal(bookingId);
+      return;
     }
 
     setBusy(bookingId);
@@ -1237,6 +1291,22 @@
         showToast("Scan failed: " + (err.message || err), "error");
       })
       .scanInboxChunk(offset, 5);
+  }
+
+  function handleQuoteClick(bookingId) {
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    const parsed = row.ParsedBooking || {};
+    const quoteStale = parsed.quoteStale === true || parsed.quoteStale === "TRUE";
+    const hasQuote = !!row.QuoteURL || !!parsed.quoteUrl;
+
+    if (hasQuote && quoteStale) {
+      const ok = confirm("This booking has changed since the quote was generated. Regenerate the quote now?");
+      if (!ok) return;
+    }
+
+    generateQuote(bookingId);
   }
 
 </script>

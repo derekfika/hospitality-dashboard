@@ -4,6 +4,22 @@ function testParseUploadedBookingFromMessageId() {
   writeBookingToSheet_(booking);
 }
 
+function isLikelyFormLabel_(v) {
+  const text = String(v || "").trim().toLowerCase();
+
+  return (
+    text.endsWith(":") ||
+    text === "floor level" ||
+    text === "grand net total" ||
+    text === "date of event:" ||
+    text === "total number of people:" ||
+    text === "company name:" ||
+    text === "name:" ||
+    text === "email:" ||
+    text === "contact number:"
+  );
+}
+
 function isAngelCourtBookingForm_(sheet) {
   const values = sheet.getDataRange().getDisplayValues();
 
