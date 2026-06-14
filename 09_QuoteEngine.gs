@@ -26,7 +26,8 @@ function generateQuoteForRow(rowNumber) {
   }
 
   if (!quoteFile) {
-    const template = DriveApp.getFileById(CONFIG.QUOTE_TEMPLATE_DOC_ID);
+    const templateId = getConfiguredValue_("QUOTE_TEMPLATE_DOC_ID", CONFIG.QUOTE_TEMPLATE_DOC_ID);
+    const template = DriveApp.getFileById(templateId);
     quoteFile = template.makeCopy(quoteName, folder);
   } else {
     quoteFile.setName(quoteName);
@@ -97,7 +98,6 @@ function clearAndRefillQuoteDoc_(doc, booking) {
 
   styleQuoteNotes_(body, booking.notes || "");
 
-  replaceQuoteOrderPlaceholder_(body, booking.items || []);
   replaceQuoteOrderPlaceholder_(body, booking.items || []);
 }
 
@@ -180,7 +180,7 @@ function replaceQuoteOrderPlaceholder_(body, items) {
     if (item.comment) detailParts.push("Comment: " + item.comment);
 
     if (detailParts.length) {
-      const detail = body.insertParagraph(insertIndex++, detailParts.join(" — "));
+      const detail = body.insertParagraph(insertIndex++, detailParts.join(" - "));
       detail.setFontSize(8);
       detail.setItalic(true);
       detail.setSpacingAfter(4);
@@ -189,7 +189,8 @@ function replaceQuoteOrderPlaceholder_(body, items) {
 }
 
 function getQuoteFolderForBooking_(booking) {
-  const root = getOrCreateDriveFolder_(CONFIG.QUOTE_ROOT_FOLDER_NAME || "Hospitality");
+  const rootFolderName = getConfiguredValue_("QUOTE_ROOT_FOLDER_NAME", CONFIG.QUOTE_ROOT_FOLDER_NAME || "Hospitality");
+  const root = getOrCreateDriveFolder_(rootFolderName);
 
   const year = booking.eventDate
     ? String(booking.eventDate).slice(0, 4)
@@ -220,7 +221,7 @@ function makeQuoteName_(booking) {
 }
 
 function formatMoney_(n) {
-  return "£" + Number(n || 0).toFixed(2);
+  return "GBP " + Number(n || 0).toFixed(2);
 }
 
 function formatUkDate_(isoDate) {
@@ -273,7 +274,7 @@ function printQuoteForRow(rowNumber) {
     .setName(makeQuoteName_(booking) + ".pdf");
 
   MailApp.sendEmail({
-    to: CONFIG.PRINTER_EMAIL,
+    to: getConfiguredValue_("PRINTER_EMAIL", CONFIG.PRINTER_EMAIL),
     subject: "Angel Court Hospitality Quote",
     body: "Auto-printed quote from Angel Court Hospitality Dashboard.",
     attachments: [pdfBlob]
@@ -290,9 +291,7 @@ function printQuoteForRow(rowNumber) {
 }
 
 function sendBookingConfirmationEmail_(booking) {
-  const SETTINGS = getSettings_();
-
-  const ccAddress = SETTINGS.CALENDAR_ID;
+  const ccAddress = getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "");
 
   const subject =
     `FIKA Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
@@ -394,7 +393,7 @@ function cancelBookingForRow(rowNumber, options) {
 
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
-  const SETTINGS = getSettings_();
+  const calendarId = getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "primary");
 
   const json = sh.getRange(rowNumber, map.ParsedJSON).getValue();
   let booking = safeJsonParse_(json, null);
@@ -415,7 +414,7 @@ function cancelBookingForRow(rowNumber, options) {
 
   if (options.removeCalendar && booking.calendarEventId) {
     Calendar.Events.remove(
-      SETTINGS.CALENDAR_ID || "primary",
+      calendarId,
       booking.calendarEventId,
       {
         sendUpdates: "all"
@@ -442,9 +441,10 @@ function cancelBookingForRow(rowNumber, options) {
 }
 
 function sendBookingCancellationEmail_(booking) {
-  const SETTINGS = getSettings_();
-  const to = "booking.hostEmail";
-  const cc = SETTINGS.CALENDAR_ID;
+  const to = booking.hostEmail;
+  const cc = getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "");
+
+  if (!to) throw new Error("Cannot send cancellation email. Host email is missing.");
 
   const subject =
     `FIKA Hospitality | Booking Cancelled | ${formatEmailDate_(booking.eventDate)}`;
@@ -454,7 +454,7 @@ function sendBookingCancellationEmail_(booking) {
   GmailApp.sendEmail(to, subject, stripHtml_(htmlBody), {
     htmlBody,
     name: "FIKA Hospitality",
-    cc: ccAddress
+    cc
   });
 
   return { sentTo: to };

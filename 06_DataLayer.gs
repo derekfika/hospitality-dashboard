@@ -6,11 +6,12 @@ function getDashboardSheet_() {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  const sh = ss.getSheetByName(CONFIG.SHEET_NAME);
+  const sheetName = getConfiguredValue_("SHEET_NAME", CONFIG.SHEET_NAME);
+  const sh = ss.getSheetByName(sheetName);
 
   if (!sh) {
     throw new Error(
-      `Sheet '${CONFIG.SHEET_NAME}' not found`
+      `Sheet '${sheetName}' not found`
     );
   }
 

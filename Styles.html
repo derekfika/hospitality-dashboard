@@ -1,6 +1,6 @@
 <style>
   /* =========================================================
-     FIKA Hospitality Dashboard — Refactored Styles
+     FIKA Hospitality Dashboard - Refactored Styles
      ---------------------------------------------------------
      Sections:
      01. Theme tokens & fonts
@@ -214,6 +214,23 @@
     display: flex;
     gap: 10px;
     align-items: center;
+  }
+
+  .header-settings-btn {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    padding: 0;
+    background: var(--primary);
+    color: #FFFFFF;
+    border: 0;
+    box-shadow: 0 3px 0 var(--primary-dark);
+  }
+
+  .header-settings-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    border-color: transparent;
+    box-shadow: 0 3px 0 rgba(40, 15, 140, 0.18);
   }
 
   .button,
@@ -552,7 +569,12 @@
   }
 
   /* 07. Action buttons */
-  .action-cluster,
+  .action-cluster {
+    width: 100%;
+    justify-content: flex-end;
+    min-width: 240px;
+  }
+
   .row-actions {
     display: flex;
     align-items: center;
@@ -658,6 +680,11 @@
     color: var(--text-muted);
     font-size: 13px;
     font-weight: 700;
+  }
+
+  th:last-child {
+    text-align: right;
+    padding-right: 18px;
   }
 
   /* 08. Detail / edit panel */
@@ -811,7 +838,7 @@
   }
 
   .calendar-view.hidden {
-  display: none;
+    display: none;
   }
 
   .calendar-day {
@@ -971,6 +998,125 @@
     max-width: 560px;
   }
 
+  .settings-modal-card {
+    width: min(920px, 100%);
+  }
+
+  .settings-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-status {
+    margin: 10px 0 16px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+
+  .settings-status.settings-error {
+    color: #8A3434;
+    border-color: rgba(139, 94, 94, 0.35);
+    background: rgba(139, 94, 94, 0.13);
+  }
+
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 210px 1fr;
+    gap: 18px;
+    min-height: 360px;
+  }
+
+  .settings-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .settings-tab {
+    width: 100%;
+    padding: 11px 12px;
+    text-align: left;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .settings-tab:hover,
+  .settings-tab.active {
+    background: #F4F0FF;
+    color: var(--primary-dark);
+    border-color: var(--primary);
+  }
+
+  .settings-tab.has-error {
+    border-color: rgba(139, 94, 94, 0.65);
+    color: #8A3434;
+  }
+
+  .settings-form {
+    padding: 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+
+  .settings-form h3 {
+    margin: 0 0 16px;
+    color: var(--primary);
+    font-size: 20px;
+  }
+
+  .settings-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .settings-field textarea {
+    min-height: 96px;
+  }
+
+  .settings-help,
+  .settings-error-text {
+    display: block;
+    margin-top: -2px;
+    font-size: 11px;
+    line-height: 1.35;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .settings-help {
+    color: var(--text-muted);
+  }
+
+  .settings-error-text {
+    color: #8A3434;
+    font-weight: 700;
+  }
+
+  .settings-field-error input,
+  .settings-field-error textarea {
+    border-color: rgba(139, 94, 94, 0.8);
+    background: rgba(139, 94, 94, 0.10);
+  }
+
+  .settings-field.readonly {
+    opacity: 0.72;
+  }
+
+  .settings-field.readonly input,
+  .settings-field.readonly textarea {
+    cursor: not-allowed;
+  }
+
   .scan-stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1116,5 +1262,44 @@
     .scan-stats {
       grid-template-columns: repeat(2, 1fr);
     }
+
+    .settings-layout,
+    .settings-fields {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .bookings-table th:last-child,
+  .bookings-table td:last-child {
+    text-align: right;
+    padding-right: 12px;
+  }
+
+  .action-cluster,
+  .row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    width: 100%;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .action-spinner-slot {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    flex: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-btn {
+    min-width: 30px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
   }
 </style>

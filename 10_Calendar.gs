@@ -1,5 +1,4 @@
 function createCalendarEventForRow(rowNumber) {
-  const SETTINGS = getSettings_();
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 
@@ -24,9 +23,12 @@ function createCalendarEventForRow(rowNumber) {
 
   const sourceXlsxFile = saveOriginalBookingXlsxToDrive_(booking);
   const attendees = getCalendarAttendeesFromSettings_();
+  const calendarId = getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "primary");
+  const eventDuration = getConfiguredNumber_("CALENDAR_EVENT_DURATION_MINUTES", CONFIG.CALENDAR_EVENT_DURATION_MINUTES || 60);
+  const eventColorId = getConfiguredValue_("CALENDAR_EVENT_COLOR_ID", CONFIG.CALENDAR_EVENT_COLOR_ID || "9");
 
   const start = buildCalendarStart_(booking.eventDate, booking.serviceTimes[0]);
-  const end = new Date(start.getTime() + (CONFIG.CALENDAR_EVENT_DURATION_MINUTES || 60) * 60 * 1000);
+  const end = new Date(start.getTime() + eventDuration * 60 * 1000);
 
   const title = makeCalendarTitle_(booking);
 
@@ -42,7 +44,7 @@ function createCalendarEventForRow(rowNumber) {
       dateTime: end.toISOString(),
       timeZone: Session.getScriptTimeZone()
     },
-    colorId: CONFIG.CALENDAR_EVENT_COLOR_ID || "9",
+    colorId: eventColorId,
     attendees: attendees,
     attachments: [
       {
@@ -60,7 +62,7 @@ function createCalendarEventForRow(rowNumber) {
 
   const created = Calendar.Events.insert(
     eventResource,
-    CONFIG.CALENDAR_ID || "primary",
+    calendarId,
     {
       supportsAttachments: true,
       sendUpdates: "all"
@@ -108,9 +110,12 @@ function saveOriginalBookingXlsxToDrive_(booking) {
 }
 
 function getCalendarAttendeesFromSettings_() {
-  const SETTINGS = getSettings_();
-
-  return String(SETTINGS.CALENDAR_ATTENDEES || "")
+  return String(
+    getConfiguredValue_(
+      "CALENDAR_ATTENDEES",
+      (CONFIG.CALENDAR_ATTENDEES || []).join(", ")
+    )
+  )
     .split(",")
     .map(email => email.trim())
     .filter(Boolean)
@@ -118,11 +123,12 @@ function getCalendarAttendeesFromSettings_() {
 }
 
 function makeCalendarTitle_(booking) {
+  const locationShortCode = getConfiguredValue_("LOCATION_SHORT_CODE", CONFIG.LOCATION_SHORT_CODE || "OAC");
   const company = booking.clientCompany || "Unknown Company";
   const service = booking.serviceType || "Hospitality";
   const pax = booking.pax || "";
 
-  return `OAC_${company}_${service} x ${pax}`;
+  return `${locationShortCode}_${company}_${service} x ${pax}`;
 }
 
 function buildCalendarStart_(isoDate, timeText) {

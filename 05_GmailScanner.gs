@@ -1,6 +1,4 @@
 function scanInboxForDashboardBookings() {
-  const lastScan = getSetting_("LAST_INBOX_SCAN_AT", "");
-
   const query = buildInboxScanQuery_();
   console.log("Inbox scan query: " + query);
 
@@ -31,7 +29,7 @@ function scanInboxForDashboardBookings() {
 
         try {
           const booking = buildBookingFromMessageIdAndAttachment_(msg.getId(), att.getName());
-          if (isBeforeThisWeek_(booking)) {
+          if (shouldArchiveBooking_(booking)) {
             booking.status = CONFIG.STATUS.ARCHIVED || "ARCHIVED";
           }
 
@@ -58,19 +56,17 @@ function scanInboxForDashboardBookings() {
 }
 
 function buildInboxScanQuery_() {
-  const SETTINGS = getSettings_();
-
   const processedLabel =
-    SETTINGS.PROCESSED_LABEL_NAME || "AC_HOSPITALITY_PROCESSED";
+    getConfiguredValue_("PROCESSED_LABEL_NAME", "AC_HOSPITALITY_PROCESSED");
 
   let query =
     `in:anywhere -in:trash -in:spam filename:xlsx -label:${processedLabel}`;
 
   const earliest =
-    normaliseSettingsDate_(SETTINGS.EARLIEST_SCAN_DATE);
+    normaliseSettingsDate_(getConfiguredValue_("EARLIEST_SCAN_DATE", ""));
 
   const lastScan =
-    normaliseSettingsDate_(SETTINGS.LAST_INBOX_SCAN_AT);
+    normaliseSettingsDate_(getConfiguredValue_("LAST_INBOX_SCAN_AT", ""));
 
   const scanAfter = getLaterDate_(earliest, lastScan);
 
@@ -116,7 +112,7 @@ function getLaterDate_(a, b) {
 }
 
 function applyProcessedLabel_(thread) {
-  const labelName = "AC_HOSPITALITY_PROCESSED";
+  const labelName = getConfiguredValue_("PROCESSED_LABEL_NAME", "AC_HOSPITALITY_PROCESSED");
 
   let label = GmailApp.getUserLabelByName(labelName);
 
@@ -130,16 +126,21 @@ function applyProcessedLabel_(thread) {
 function shouldArchiveBooking_(booking) {
   if (!booking.eventDate) return false;
 
-  const SETTINGS = getSettings_();
-  const archiveAfterDays = Number(SETTINGS.ARCHIVE_AFTER_DAYS || 0);
+  const archiveAfterDays = getConfiguredNumber_("ARCHIVE_AFTER_DAYS", 0);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const threshold = new Date(today);
-  threshold.setDate(today.getDate() - archiveAfterDays);
+  return isBookingOlderThanArchiveThreshold_(booking.eventDate, archiveAfterDays, today);
+}
 
-  const parts = String(booking.eventDate).split("-");
+function isBookingOlderThanArchiveThreshold_(eventDate, archiveAfterDays, today) {
+  if (!eventDate) return false;
+
+  const threshold = new Date(today);
+  threshold.setDate(threshold.getDate() - Number(archiveAfterDays || 0));
+
+  const parts = String(eventDate).split("-");
   if (parts.length !== 3) return false;
 
   const bookingDate = new Date(
@@ -262,11 +263,9 @@ function prepareInboxScan() {
   const query = buildInboxScanQuery_();
   const threads = GmailApp.search(query, 0, 500);
 
-  const SETTINGS = getSettings_();
-
   const scanFrom =
-    SETTINGS.LAST_INBOX_SCAN_AT ||
-    SETTINGS.EARLIEST_SCAN_DATE ||
+    getConfiguredValue_("LAST_INBOX_SCAN_AT", "") ||
+    getConfiguredValue_("EARLIEST_SCAN_DATE", "") ||
     "recent inbox";
 
   return {

@@ -1,3 +1,26 @@
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu("Hospitality Dashboard")
+      .addItem("Initialise settings", "initialiseDashboardSettings")
+      .addItem("Import settings draft", "importDashboardSettingsDraft")
+      .addItem("Create hourly inbox scan", "createDashboardScanTrigger")
+      .addItem("Remove inbox scan triggers", "deleteDashboardScanTriggers")
+      .addToUi();
+  } catch (e) {
+    Logger.log("Dashboard menu could not be created: " + e);
+  }
+}
+
+function initialiseDashboardSettings() {
+  ensureSettingsDefaults_();
+
+  return {
+    ok: true,
+    message: "Dashboard settings initialised."
+  };
+}
+
 function createDashboardScanTrigger() {
   const fn = "scanInboxForDashboardBookings";
 

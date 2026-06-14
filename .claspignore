@@ -1,0 +1,5 @@
+.git/**
+.npm-cache/**
+node_modules/**
+README.md
+jsconfig.json

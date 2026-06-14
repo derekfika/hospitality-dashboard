@@ -31,41 +31,6 @@ function getDashboardBookings() {
     });
 }
 
-function cancelBookingForRow(rowNumber) {
-  const sh = getDashboardSheet_();
-  const map = getHeaderMap_();
-
-  const json = sh.getRange(rowNumber, map.ParsedJSON).getValue();
-  let booking = safeJsonParse_(json, null);
-
-  if (!booking) throw new Error("Could not read booking data.");
-
-  if (booking.calendarEventId) {
-    try {
-      Calendar.Events.remove(
-        CONFIG.CALENDAR_ID || "primary",
-        booking.calendarEventId,
-        {
-          sendUpdates: "all"
-        }
-      );
-    } catch (e) {
-      Logger.log("Calendar deletion failed: " + e);
-    }
-  }
-
-  booking.status = CONFIG.STATUS.CANCELLED;
-  booking.cancelledAt = new Date();
-  booking.calendarEventId = "";
-  booking.calendarEventUrl = "";
-  booking.calendarStale = false;
-  booking.updatedAt = new Date();
-
-  writeBookingObjectToExistingRow_(rowNumber, booking);
-
-  return { ok: true };
-}
-
 function setBusy(bookingId) {
   BUSY_BOOKING_ID = bookingId;
   renderBookings();
@@ -105,7 +70,7 @@ function doGet() {
   return HtmlService
     .createTemplateFromFile("Index")
     .evaluate()
-    .setTitle("Angel Court Hospitality Dashboard")
+    .setTitle(getConfiguredValue_("APP_NAME", CONFIG.APP_NAME))
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 

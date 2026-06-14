@@ -4,6 +4,44 @@
 <head>
   <base target="_top">
   <?!= include_("Styles"); ?>
+  <? const faviconUrl = getConfiguredValue_("FAVICON_URL", ""); ?>
+  <? if (faviconUrl) { ?>
+    <link rel="icon" href="<?!= faviconUrl; ?>">
+  <? } ?>
+  <style>
+    <? const titleFontUrl = getConfiguredValue_("FONT_TITLE_URL", ""); ?>
+    <? const bodyFontUrl = getConfiguredValue_("FONT_BODY_URL", ""); ?>
+    <? const titleFontFamily = getConfiguredValue_("FONT_TITLE_FAMILY", CONFIG.FONT_TITLE_FAMILY); ?>
+    <? const bodyFontFamily = getConfiguredValue_("FONT_BODY_FAMILY", CONFIG.FONT_BODY_FAMILY); ?>
+    <? if (titleFontUrl) { ?>
+      @font-face {
+        font-family: '<?!= titleFontFamily; ?>';
+        src: url('<?!= titleFontUrl; ?>');
+      }
+    <? } ?>
+    <? if (bodyFontUrl) { ?>
+      @font-face {
+        font-family: '<?!= bodyFontFamily; ?>';
+        src: url('<?!= bodyFontUrl; ?>');
+      }
+    <? } ?>
+
+    :root {
+      --bg: <?!= getConfiguredValue_("COLOUR_BACKGROUND", CONFIG.COLOUR_BACKGROUND); ?>;
+      --bg-elevated: <?!= getConfiguredValue_("COLOUR_SURFACE", CONFIG.COLOUR_SURFACE); ?>;
+      --bg-card: <?!= getConfiguredValue_("COLOUR_SURFACE_ALT", CONFIG.COLOUR_SURFACE_ALT); ?>;
+      --text: <?!= getConfiguredValue_("COLOUR_TEXT", CONFIG.COLOUR_TEXT); ?>;
+      --text-muted: <?!= getConfiguredValue_("COLOUR_TEXT_MUTED", CONFIG.COLOUR_TEXT_MUTED); ?>;
+      --border: <?!= getConfiguredValue_("COLOUR_BORDER", CONFIG.COLOUR_BORDER); ?>;
+      --primary: <?!= getConfiguredValue_("COLOUR_PRIMARY", CONFIG.COLOUR_PRIMARY); ?>;
+      --success: <?!= getConfiguredValue_("COLOUR_SUCCESS", CONFIG.COLOUR_SUCCESS); ?>;
+      --warning: <?!= getConfiguredValue_("COLOUR_WARNING", CONFIG.COLOUR_WARNING); ?>;
+      --error: <?!= getConfiguredValue_("COLOUR_DANGER", CONFIG.COLOUR_DANGER); ?>;
+      --info: <?!= getConfiguredValue_("COLOUR_INFO", CONFIG.COLOUR_INFO); ?>;
+      --font-title: '<?!= titleFontFamily; ?>', serif;
+      --font-body: '<?!= bodyFontFamily; ?>', Arial, sans-serif;
+    }
+  </style>
   <?!= include_("Icons"); ?>
 </head>
 
@@ -12,16 +50,23 @@
     <header class="topbar">
 
       <div class="logo-wrap">
-        <img class="fika-logo" src="https://bloom-coffee.org/bloom-quiz/assets/images/fika_logoRGB.png" alt="FIKA" />
+        <img class="fika-logo" src="<?!= getConfiguredValue_('FIKA_LOGO_URL', CONFIG.FIKA_LOGO_URL); ?>" alt="FIKA" />
       </div>
 
       <div class="header-title">
-        <h1>Angel Court Hospitality Dashboard</h1>
+        <h1><?!= getConfiguredValue_("APP_NAME", CONFIG.APP_NAME); ?></h1>
       </div>
       <div class="header-actions">
         <button class="button" onclick="openScanModal()">Scan Inbox</button>
         <button class="button" onclick="loadBookings()">Refresh</button>
-        <button class="theme-toggle" onclick="toggleTheme()">Light / Dark</button>
+        <button class="icon-btn header-settings-btn" title="Settings" aria-label="Settings" onclick="openSettingsModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="lucide lucide-settings">
+            <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
       </div>
 
     </header>
@@ -44,9 +89,9 @@
     </section>
 
     <div id="calendarControls" class="calendar-controls">
-  <button class="button" onclick="changeCalendarWeek(-1)">← Previous Week</button>
+  <button class="button" onclick="changeCalendarWeek(-1)">&larr; Previous Week</button>
   <button class="button" onclick="goToCurrentWeek()">This Week</button>
-  <button class="button" onclick="changeCalendarWeek(1)">Next Week →</button>
+  <button class="button" onclick="changeCalendarWeek(1)">Next Week &rarr;</button>
   <div id="calendarWeekLabel" class="calendar-week-label"></div>
 </div>
 
@@ -65,7 +110,7 @@
       <col style="width: 80px">
       <col style="width: 110px">
       <col>
-      <col style="width: 250px">
+      <col style="width: 280px">
     </colgroup>
 
     <thead>
@@ -86,7 +131,7 @@
     <tbody id="bookingRows">
       <tr>
         <td colspan="10" class="loading">
-          Loading bookings…
+          Loading bookings...
         </td>
       </tr>
     </tbody>
@@ -120,11 +165,35 @@
         </div>
       </div>
     </div>
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-card settings-modal-card">
+        <div class="settings-modal-header">
+          <div>
+            <h2>Settings</h2>
+            <p class="muted">Update the dashboard configuration stored in the Settings sheet.</p>
+          </div>
+          <button class="icon-btn" title="Close settings" onclick="closeSettingsModal()">X</button>
+        </div>
+
+        <div id="settingsStatus" class="settings-status muted">Loading settings...</div>
+
+        <div class="settings-layout">
+          <nav id="settingsTabs" class="settings-tabs"></nav>
+          <form id="settingsForm" class="settings-form" onsubmit="event.preventDefault(); saveSettings();"></form>
+        </div>
+
+        <div class="modal-actions">
+          <button class="button secondary" onclick="resetCurrentSettingsTab()" type="button">Reset Tab</button>
+          <button class="button secondary" onclick="closeSettingsModal()" type="button">Close</button>
+          <button id="settingsSaveBtn" class="button" onclick="saveSettings()" type="button" disabled>Save Settings</button>
+        </div>
+      </div>
+    </div>
     <div id="scanModal" class="modal hidden">
       <div class="modal-card scan-modal-card">
         <h2>Scan Inbox</h2>
 
-        <p id="scan-summary" class="muted">Preparing scan…</p>
+        <p id="scan-summary" class="muted">Preparing scan...</p>
 
         <div class="scan-stats">
           <div><strong id="scan-found">0 </strong><span>Found</span></div>
@@ -133,7 +202,7 @@
           <div><strong id="scan-errors">0 </strong><span>Errors</span></div>
         </div>
 
-        <div id="scan-ticker" class="scan-ticker">Checking settings…</div>
+        <div id="scan-ticker" class="scan-ticker">Checking settings...</div>
 
         <div class="modal-actions">
           <button id="scan-close-btn" class="button secondary" onclick="closeScanModal()">Close</button>
@@ -141,6 +210,9 @@
         </div>
       </div>
     </div>
+    <script>
+      window.DASHBOARD_SETTINGS_SCHEMA = <?!= JSON.stringify(getSettingSchema_()); ?>;
+    </script>
     <?!= include_("Script"); ?>
 
 </body>
