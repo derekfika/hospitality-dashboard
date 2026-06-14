@@ -1,3 +1,9 @@
+function testParseUploadedBookingFromMessageId() {
+  const messageId = "19e692579772d596"
+  const booking = buildBookingFromMessageId(messageId);
+  writeBookingToSheet_(booking);
+}
+
 function isLikelyFormLabel_(v) {
   const text = String(v || "").trim().toLowerCase();
 
@@ -47,6 +53,69 @@ function isAngelCourtBookingForm_(sheet) {
     hasText("Total Number of people:") &&
     hasText("Grand Net Total")
   );
+}
+
+function buildBookingFromMessageId(messageId) {
+  const msg = GmailApp.getMessageById(messageId);
+  const thread = msg.getThread();
+  const atts = msg.getAttachments({ includeInlineImages: false });
+
+  const xlsx = atts.find(att => isXlsx_(att));
+  if (!xlsx) throw new Error("No XLSX attachment found.");
+
+  let tempSheetId = null;
+
+  try {
+    tempSheetId = convertXlsxToGoogleSheet_(xlsx);
+
+    const ss = SpreadsheetApp.openById(tempSheetId);
+    const sheet = ss.getSheets()[0];
+
+    let booking = parseAngelCourtBookingSheet_(sheet);
+
+    if (!booking.serviceTimes || booking.serviceTimes.length === 0) {
+      const fallbackTime =
+        extractTimeFromText_(msg.getSubject()) ||
+        extractTimeFromText_(xlsx.getName()) ||
+        extractTimeFromText_(sheet.getName());
+
+      if (fallbackTime) {
+        const fixedFallbackTime = normaliseHospitalityTime_(fallbackTime);
+
+        booking.serviceTimes = [fixedFallbackTime];
+
+        booking.items = booking.items.map(item => {
+          if (!item.time) item.time = fixedFallbackTime;
+          return item;
+        });
+      }
+    }
+
+    booking.bookingId = generateBookingId_();
+    booking.messageId = msg.getId();
+    booking.threadId = thread.getId();
+    booking.attachmentName = xlsx.getName();
+    booking.emailReceived = msg.getDate();
+    booking.sourceEmailFrom = msg.getFrom();
+    booking.sourceEmailSubject = msg.getSubject();
+
+    booking.hostEmail = extractEmailAddress_(msg.getFrom());
+    if (!booking.hostName) {
+      booking.hostName = extractEmailName_(msg.getFrom());
+    }
+
+    booking = normaliseBookingTimes_(booking);
+    booking = validateBooking_(booking);
+
+    return booking;
+
+  } finally {
+    if (tempSheetId) {
+      try {
+        DriveApp.getFileById(tempSheetId).setTrashed(true);
+      } catch (e) { }
+    }
+  }
 }
 
 function normaliseBookingTimes_(booking) {
@@ -113,6 +182,43 @@ function extractTimeFromText_(text) {
   }
 
   return "";
+}
+
+function isXlsx_(attachment) {
+  const name = String(attachment.getName() || "").toLowerCase();
+  const ct = String(attachment.getContentType() || "").toLowerCase();
+
+  return (
+    name.endsWith(".xlsx") ||
+    ct === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+}
+
+function extractEmailAddress_(fromText) {
+  const text = String(fromText || "");
+
+  let m = text.match(/<([^>]+)>/);
+  if (m) return m[1].trim();
+
+  m = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return m ? m[0].trim() : "";
+}
+
+function extractEmailName_(fromText) {
+  const text = String(fromText || "").trim();
+
+  let m = text.match(/^(.+?)\s*<.+>$/);
+  if (m) return m[1].replace(/["']/g, "").trim();
+
+  m = text.match(/^([^@]+)@/);
+  if (m) {
+    return m[1]
+      .replace(/[._-]+/g, " ")
+      .replace(/\b\w/g, s => s.toUpperCase())
+      .trim();
+  }
+
+  return text;
 }
 
 function parseAngelCourtBookingSheet_(sheet) {
@@ -762,4 +868,10 @@ function isFormLabel_(value) {
       "floor level"
     ].includes(text)
   );
+}
+
+function debugDashboardCount() {
+  const bookings = getDashboardBookings();
+  Logger.log("Bookings found: " + bookings.length);
+  Logger.log(JSON.stringify(bookings.map(b => b.BookingID)));
 }

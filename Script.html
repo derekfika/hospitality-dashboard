@@ -638,6 +638,7 @@
 
     return `
       <div class="action-cluster">
+        ${actionSpinner(b.BookingID)}
         <button class="icon-btn" title="Edit" onclick="event.stopPropagation(); toggleDetail('${b.BookingID}')">
           ${ICONS.edit || "Edit"}
         </button>
@@ -670,7 +671,6 @@
           ${ICONS.cancel || "Cancel"}
         </button>
 
-        ${actionSpinner(b.BookingID)}
       </div>
     `;
   }
