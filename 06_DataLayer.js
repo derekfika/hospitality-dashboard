@@ -47,6 +47,14 @@ function getHeaderMap_() {
 
 function writeBookingToSheet_(booking) {
 
+  assertRequiredHeaders_(map, [
+    "BookingID",
+    "Status",
+    "ParsedJSON",
+    "MessageId",
+    "AttachmentName"
+  ]);
+
   const sh = getDashboardSheet_();
 
   const map = getHeaderMap_();
@@ -170,13 +178,21 @@ function writeBookingToSheet_(booking) {
 
   // Write values into correct columns
 
+  const lastCol = sh.getLastColumn();
+  const rowValues = new Array(lastCol).fill("");
+
   Object.keys(values).forEach(key => {
-
     if (!map[key]) return;
-
-    sh.getRange(row, map[key])
-      .setValue(values[key]);
-
+    rowValues[map[key] - 1] = values[key];
   });
 
+  sh.getRange(row, 1, 1, lastCol).setValues([rowValues]);
+
+}
+
+function assertRequiredHeaders_(map, required) {
+  const missing = required.filter(h => !map[h]);
+  if (missing.length) {
+    throw new Error("Missing dashboard headers: " + missing.join(", "));
+  }
 }

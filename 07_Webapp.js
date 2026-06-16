@@ -148,10 +148,15 @@ function writeBookingObjectToExistingRow_(rowNumber, booking) {
     Error: booking.error || ""
   };
 
+  const lastCol = sh.getLastColumn();
+  const currentRow = sh.getRange(rowNumber, 1, 1, lastCol).getValues()[0];
+
   Object.keys(values).forEach(key => {
     if (!map[key]) return;
-    sh.getRange(rowNumber, map[key]).setValue(values[key]);
+    currentRow[map[key] - 1] = values[key];
   });
+
+  sh.getRange(rowNumber, 1, 1, lastCol).setValues([currentRow]);
 }
 
 function confirmBookingForRow(rowNumber) {
@@ -162,6 +167,14 @@ function confirmBookingForRow(rowNumber) {
   let booking = safeJsonParse_(json, null);
 
   if (!booking) throw new Error("Could not read booking data.");
+
+  if (!booking.quoteUrl) {
+    throw new Error("Cannot confirm booking before a quote has been generated.");
+  }
+
+  if (!booking.calendarEventId) {
+    throw new Error("Cannot confirm booking before a calendar event has been created.");
+  }
 
   const emailResult = sendBookingConfirmationEmail_(booking);
 

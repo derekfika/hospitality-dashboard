@@ -18,6 +18,7 @@ function runDashboardPureTests() {
   record("Calendar helper functions", testCalendarHelpers_);
   record("Status validation", testStatusValidation_);
   record("Settings draft column aliases", testSettingsDraftColumnAliases_);
+  record("Locked status validation", testLockedStatusValidation_);
 
   const failures = results.filter(result => !result.ok);
   return {
@@ -102,7 +103,8 @@ function makeDashboardTestBooking_() {
   booking.grossPrice = 158.4;
   booking.items = [
     { section: "Food", name: "Pastries", qty: 12, time: "08:30" }
-  ];
+  ],
+  booking.status = CONFIG.STATUS.NEW;
   return booking;
 }
 
@@ -239,3 +241,28 @@ function testSettingsDraftColumnAliases_() {
   assertDashboardEqual_(findSettingsDraftColumn_(headers, ["value", "current value"]), 2, "Current value alias failed.");
   assertDashboardEqual_(findSettingsDraftColumn_(headers, ["missing"]), -1, "Missing alias should return -1.");
 }
+
+function testLockedStatusValidation_() {
+  const booking = makeDashboardTestBooking_();
+  booking.status = CONFIG.STATUS.CONFIRMED;
+  booking.clientCompany = "";
+
+  const validated = validateBooking_(booking);
+
+  assertDashboardEqual_(
+    validated.status,
+    CONFIG.STATUS.CONFIRMED,
+    "validateBooking_ should not overwrite locked CONFIRMED status."
+  );
+
+  assertDashboardTest_(
+    validated.validationErrors.indexOf("Missing company") !== -1,
+    "Locked status booking should still record validation errors."
+  );
+}
+
+assertDashboardEqual_(
+  parseHospitalityDate_("31/02/2026"),
+  "",
+  "Invalid calendar dates should not roll over."
+);

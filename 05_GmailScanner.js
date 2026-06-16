@@ -42,6 +42,11 @@ function scanInboxForDashboardBookings() {
       }
     }
   }
+
+  if (logged > 0 || skipped > 0) {
+  applyProcessedLabel_(thread);  
+  }
+  
   setSetting_("LAST_INBOX_SCAN_AT", new Date().toISOString());
   Logger.log(
     `Dashboard scan complete. Scanned=${scanned}, Logged=${logged}, Skipped=${skipped}, Errors=${errors}`

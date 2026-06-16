@@ -1,14 +1,25 @@
 function convertXlsxToGoogleSheet_(xlsxBlob) {
   const tempXlsx = DriveApp.createFile(xlsxBlob);
-  tempXlsx.setName(`TEMP_BOOKING_${Date.now()}.xlsx`);
 
-  const resource = {
-    title: tempXlsx.getName().replace(/\.xlsx$/i, ""),
-    mimeType: MimeType.GOOGLE_SHEETS
-  };
+  try {
+    tempXlsx.setName(`TEMP_BOOKING_${Date.now()}.xlsx`);
 
-  const converted = Drive.Files.copy(resource, tempXlsx.getId(), { convert: true });
-  tempXlsx.setTrashed(true);
+    const resource = {
+      title: tempXlsx.getName().replace(/\.xlsx$/i, ""),
+      mimeType: MimeType.GOOGLE_SHEETS
+    };
 
-  return converted.id;
+    const converted = Drive.Files.copy(
+      resource,
+      tempXlsx.getId(),
+      { convert: true }
+    );
+
+    return converted.id;
+
+  } finally {
+    try {
+      tempXlsx.setTrashed(true);
+    } catch (e) {}
+  }
 }

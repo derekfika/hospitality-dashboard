@@ -612,6 +612,7 @@
       !!parsed.calendarEventId;
 
     const isArchived = b.Status === "ARCHIVED";
+    const isConfirmed = b.Status === "CONFIRMED";
 
     if (isArchived) {
       return `
@@ -663,7 +664,11 @@
           ${ICONS.calendar || "Calendar"}
         </button>
 
-        <button class="icon-btn" title="Confirm Booking" onclick="event.stopPropagation(); confirmBooking('${b.BookingID}')">
+        <button
+          class="icon-btn"
+          title="${isConfirmed ? "Booking already confirmed" : "Confirm Booking"}"
+          ${isConfirmed ? "disabled" : ""}
+          onclick="event.stopPropagation(); confirmBooking('${b.BookingID}')">
           ${ICONS.confirm || "Confirm"}
         </button>
 
@@ -1182,11 +1187,11 @@
     CURRENT_VIEW = view;
 
     document.getElementById("tableView").classList.toggle("hidden", view !== "table");
-    
+
     renderCalendar();
     renderBookings();
-    }
-  
+  }
+
 
   function renderCalendar() {
     const el = document.getElementById("calendarView");
@@ -1208,6 +1213,20 @@
       if (!iso || !grouped[iso]) return;
 
       grouped[iso].push(b);
+    });
+
+    Object.keys(grouped).forEach(iso => {
+      grouped[iso].sort((a, b) => {
+        const aa = getCalendarSortTime_(a);
+        const bb = getCalendarSortTime_(b);
+
+        if (aa < bb) return -1;
+        if (aa > bb) return 1;
+
+        return String(a.ClientCompany || "").localeCompare(
+          String(b.ClientCompany || "")
+        );
+      });
     });
 
     el.innerHTML = weekDays.map(day => {
@@ -1323,6 +1342,20 @@
     return parsed.length ? parsed.join(" / ") : "";
   }
 
+  function getCalendarSortTime_(booking) {
+    const displayTime = getDisplayTime(booking);
+
+    const firstTime = String(displayTime || "")
+      .split("/")
+      .map(t => t.trim())
+      .filter(Boolean)[0] || "";
+
+    const match = firstTime.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return "99:99";
+
+    return `${match[1].padStart(2, "0")}:${match[2]}`;
+  }
+
   function formatDate(value) {
     if (!value) return "-";
 
@@ -1343,17 +1376,17 @@
    */
   function normaliseTime_(timeStr) {
     if (!timeStr) return "";
-    
+
     let clean = String(timeStr).toLowerCase().replace(/[^0-9ap:.]/g, "");
     if (!clean) return "";
 
     let hours = 0;
     let minutes = 0;
-    
+
     const isPm = clean.includes("pm");
     const isAm = clean.includes("am");
     clean = clean.replace(/[apm]/g, "");
-    
+
     const parts = clean.split(/[:.]/);
     if (parts.length >= 2) {
       hours = parseInt(parts[0], 10);
@@ -1366,13 +1399,13 @@
         minutes = parseInt(parts[0].slice(-2), 10);
       }
     }
-    
+
     if (isPm && hours < 12) hours += 12;
     if (isAm && hours === 12) hours = 0;
-    
+
     if (isNaN(hours) || hours < 0 || hours > 23) hours = 0;
     if (isNaN(minutes) || minutes < 0 || minutes > 59) minutes = 0;
-    
+
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   }
 

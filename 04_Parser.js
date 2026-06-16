@@ -217,10 +217,10 @@ function parseHospitalityDate_(raw) {
 
   // ── "14 July 2026" / "14 Jul 2026" / "14th July 2026" ────────────────────
   const MONTHS = {
-    jan:1, feb:2, mar:3, apr:4, may:5, jun:6,
-    jul:7, aug:8, sep:9, oct:10, nov:11, dec:12,
-    january:1, february:2, march:3, april:4, june:6,
-    july:7, august:8, september:9, october:10, november:11, december:12
+    jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+    jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+    january: 1, february: 2, march: 3, april: 4, june: 6,
+    july: 7, august: 8, september: 9, october: 10, november: 11, december: 12
   };
   m = text.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{2,4})$/i);
   if (m) {
@@ -247,7 +247,16 @@ function parseComponents_(dayStr, monthStr, yearStr) {
   if (isNaN(dd) || isNaN(mm) || isNaN(yyyy)) return null;
 
   const d = new Date(yyyy, mm - 1, dd);
-  return isNaN(d.getTime()) ? null : d;
+
+  if (
+    d.getFullYear() !== yyyy ||
+    d.getMonth() !== mm - 1 ||
+    d.getDate() !== dd
+  ) {
+    return null;
+  }
+
+  return d;
 }
 
 /** Format a Date as "yyyy-MM-dd". */
@@ -405,11 +414,11 @@ function buildBookingFromMessageId(messageId) {
       }
     }
 
-    booking.bookingId       = generateBookingId_();
-    booking.messageId       = msg.getId();
-    booking.threadId        = thread.getId();
-    booking.attachmentName  = xlsx.getName();
-    booking.emailReceived   = msg.getDate();
+    booking.bookingId = generateBookingId_();
+    booking.messageId = msg.getId();
+    booking.threadId = thread.getId();
+    booking.attachmentName = xlsx.getName();
+    booking.emailReceived = msg.getDate();
     booking.sourceEmailFrom = msg.getFrom();
     booking.sourceEmailSubject = msg.getSubject();
 
@@ -423,7 +432,7 @@ function buildBookingFromMessageId(messageId) {
 
   } finally {
     if (tempSheetId) {
-      try { DriveApp.getFileById(tempSheetId).setTrashed(true); } catch (e) {}
+      try { DriveApp.getFileById(tempSheetId).setTrashed(true); } catch (e) { }
     }
   }
 }
@@ -436,12 +445,12 @@ function buildBookingFromMessageId(messageId) {
 function parseAngelCourtBookingSheet_(sheet) {
   let booking = createEmptyBooking_();
 
-  const values        = sheet.getDataRange().getValues();
+  const values = sheet.getDataRange().getValues();
   const displayValues = sheet.getDataRange().getDisplayValues();
 
   const notes =
     getNotesBlockUnderLabel_(sheet, "Allergens & Dietary Requirements") ||
-    getNotesBlockUnderLabel_(sheet, "NOTES:")                           ||
+    getNotesBlockUnderLabel_(sheet, "NOTES:") ||
     getNotesBlockUnderLabel_(sheet, "Notes & dietary/allergen information") ||
     "";
 
@@ -483,16 +492,16 @@ function parseAngelCourtBookingSheet_(sheet) {
     return "";
   }
 
-  const company   = findValueRightOfLabel("Company Name:")             || findValueRightOfLabel("Company name:");
-  const pax       = findValueRightOfLabel("Total Number of people:")   || findValueRightOfLabel("Number of guests:");
-  const floorRaw  = findValueRightOfLabel("Floor Level")               || findValueRightOfLabel("Floor level:");
-  const hostName  = findValueRightOfLabel("Name:")                     || findValueRightOfLabel("Contact name:");
-  const hostEmail = findValueRightOfLabel("Email:")                    || findValueRightOfLabel("Contact email:");
+  const company = findValueRightOfLabel("Company Name:") || findValueRightOfLabel("Company name:");
+  const pax = findValueRightOfLabel("Total Number of people:") || findValueRightOfLabel("Number of guests:");
+  const floorRaw = findValueRightOfLabel("Floor Level") || findValueRightOfLabel("Floor level:");
+  const hostName = findValueRightOfLabel("Name:") || findValueRightOfLabel("Contact name:");
+  const hostEmail = findValueRightOfLabel("Email:") || findValueRightOfLabel("Contact email:");
 
   const dateRaw =
-    findValueRightOfLabel("Date of event:")                ||
-    findDisplayRightOfLabel("Date of event:")              ||
-    findValueRightOfLabel("Date of delivery (DD/MM/YY):")  ||
+    findValueRightOfLabel("Date of event:") ||
+    findDisplayRightOfLabel("Date of event:") ||
+    findValueRightOfLabel("Date of delivery (DD/MM/YY):") ||
     findDisplayRightOfLabel("Date of delivery (DD/MM/YY):");
 
   const items = parseAngelCourtLineItems_(sheet);
@@ -512,25 +521,25 @@ function parseAngelCourtBookingSheet_(sheet) {
   )];
 
   const totalPrice = findCurrencyValueByLabel_(sheet, "Grand Net Total");
-  const mgmtFee    = totalPrice * 0.08;
-  const netPrice   = totalPrice + mgmtFee;
-  const vat        = netPrice  * 0.20;
-  const grossPrice = netPrice  + vat;
+  const mgmtFee = totalPrice * 0.08;
+  const netPrice = totalPrice + mgmtFee;
+  const vat = netPrice * 0.20;
+  const grossPrice = netPrice + vat;
 
-  booking.clientCompany = String(company    || "").trim();
-  booking.hostName      = String(hostName   || "").trim();
-  booking.hostEmail     = String(hostEmail  || "").trim();
-  booking.pax           = pax               || "";
-  booking.eventDate     = eventDate         || "";
-  booking.serviceType   = serviceTypes.length ? serviceTypes.join(" / ") : "";
-  booking.location      = "One Angel Court";
-  booking.floor         = cleanFloor_(floorRaw);
-  booking.notes         = notes;
+  booking.clientCompany = String(company || "").trim();
+  booking.hostName = String(hostName || "").trim();
+  booking.hostEmail = String(hostEmail || "").trim();
+  booking.pax = pax || "";
+  booking.eventDate = eventDate || "";
+  booking.serviceType = serviceTypes.length ? serviceTypes.join(" / ") : "";
+  booking.location = "One Angel Court";
+  booking.floor = cleanFloor_(floorRaw);
+  booking.notes = notes;
 
   booking.totalPrice = roundMoney_(totalPrice);
-  booking.mgmtFee    = roundMoney_(mgmtFee);
-  booking.netPrice   = roundMoney_(netPrice);
-  booking.vat        = roundMoney_(vat);
+  booking.mgmtFee = roundMoney_(mgmtFee);
+  booking.netPrice = roundMoney_(netPrice);
+  booking.vat = roundMoney_(vat);
   booking.grossPrice = roundMoney_(grossPrice);
 
   // Normalise booking-level times
@@ -565,7 +574,7 @@ function parseAngelCourtBookingSheet_(sheet) {
 // ---------------------------------------------------------------------------
 
 function parseAngelCourtLineItems_(sheet) {
-  const values        = sheet.getDataRange().getValues();
+  const values = sheet.getDataRange().getValues();
   const displayValues = sheet.getDataRange().getDisplayValues();
 
   function norm(v) {
@@ -579,22 +588,22 @@ function parseAngelCourtLineItems_(sheet) {
     const row = displayValues[r].map(norm);
 
     const itemCol = row.findIndex(v => v === "item" || v.includes("item"));
-    const qtyCol  = row.findIndex(v =>
+    const qtyCol = row.findIndex(v =>
       v.includes("number required") ||
-      v.includes("number")          ||
-      v.includes("qty")             ||
-      v.includes("quantity")        ||
+      v.includes("number") ||
+      v.includes("qty") ||
+      v.includes("quantity") ||
       v.includes("amount required")
     );
 
-    if (itemCol !== -1 && qtyCol !== -1) {
-      headerRow   = r;
-      cols.item   = itemCol;
-      cols.qty    = qtyCol;
-      cols.info   = row.indexOf("info");
-      cols.time   = row.findIndex(v =>
+    if (itemCol !== -1 && qtyCol !== -1 && itemCol < qtyCol) {
+      headerRow = r;
+      cols.item = itemCol;
+      cols.qty = qtyCol;
+      cols.info = row.indexOf("info");
+      cols.time = row.findIndex(v =>
         v.includes("time required") ||
-        v.includes("service time")  ||
+        v.includes("service time") ||
         v === "time"
       );
       cols.comment = row.findIndex(v =>
@@ -614,29 +623,34 @@ function parseAngelCourtLineItems_(sheet) {
   let emptyRun = 0;
 
   for (let r = headerRow + 1; r < values.length; r++) {
-    const itemRaw    = cols.item    >= 0 ? values[r][cols.item]               : "";
-    const infoRaw    = cols.info    >= 0 ? values[r][cols.info]               : "";
-    const qtyRaw     = cols.qty     >= 0 ? values[r][cols.qty]                : "";
-    const timeRaw    = cols.time    >= 0 ? displayValues[r][cols.time]        : "";
-    const commentRaw = cols.comment >= 0 ? values[r][cols.comment]            : "";
+    const itemRaw = cols.item >= 0 ? values[r][cols.item] : "";
+    const infoRaw = cols.info >= 0 ? values[r][cols.info] : "";
+    const qtyRaw = cols.qty >= 0 ? values[r][cols.qty] : "";
+    const timeRaw = cols.time >= 0 ? displayValues[r][cols.time] : "";
+    const commentRaw = cols.comment >= 0 ? values[r][cols.comment] : "";
 
     const hasAny =
-      (itemRaw    !== "" && itemRaw    !== null) ||
-      (infoRaw    !== "" && infoRaw    !== null) ||
-      (qtyRaw     !== "" && qtyRaw     !== null) ||
+      (itemRaw !== "" && itemRaw !== null) ||
+      (infoRaw !== "" && infoRaw !== null) ||
+      (qtyRaw !== "" && qtyRaw !== null) ||
       (commentRaw !== "" && commentRaw !== null);
 
     if (!hasAny) {
-      emptyRun++;
-      if (emptyRun >= 15) break;
       continue;
     }
+
+    if (
+      lowerItem.includes("please note") ||
+      lowerItem.includes("quotes are subject") ||
+      lowerItem.includes("notice") ||
+      lowerItem.includes("cancellation")
+    ) break;
     emptyRun = 0;
 
-    const itemText    = String(itemRaw    || "").trim();
-    const infoText    = String(infoRaw    || "").trim();
+    const itemText = String(itemRaw || "").trim();
+    const infoText = String(infoRaw || "").trim();
     const commentText = String(commentRaw || "").trim();
-    const qtyNum      = parseRequiredQty_(qtyRaw);
+    const qtyNum = parseRequiredQty_(qtyRaw);
 
     const isSection =
       itemText &&
@@ -647,9 +661,9 @@ function parseAngelCourtLineItems_(sheet) {
     if (isSection) {
       const lowerItem = itemText.toLowerCase();
       if (
-        lowerItem.includes("please note")        ||
-        lowerItem.includes("quotes are subject")  ||
-        lowerItem.includes("notice")              ||
+        lowerItem.includes("please note") ||
+        lowerItem.includes("quotes are subject") ||
+        lowerItem.includes("notice") ||
         lowerItem.includes("cancellation")
       ) break;
 
@@ -670,11 +684,11 @@ function parseAngelCourtLineItems_(sheet) {
 
     items.push({
       section: currentSection,
-      time:    timeText,
-      name:    split.name,
-      detail:  split.detail,
-      info:    infoText,
-      qty:     qtyNum % 1 === 0 ? String(qtyNum.toFixed(0)) : String(qtyNum),
+      time: timeText,
+      name: split.name,
+      detail: split.detail,
+      info: infoText,
+      qty: qtyNum % 1 === 0 ? String(qtyNum.toFixed(0)) : String(qtyNum),
       comment: commentText
     });
   }
@@ -695,9 +709,9 @@ function extractDateFromSheetName_(name) {
   const m = text.match(/\b(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\b/);
   if (!m) return null;
 
-  const dd   = parseInt(m[1], 10);
-  const mm   = parseInt(m[2], 10);
-  let   yyyy = m[3] ? parseInt(m[3], 10) : new Date().getFullYear();
+  const dd = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  let yyyy = m[3] ? parseInt(m[3], 10) : new Date().getFullYear();
   if (yyyy < 100) yyyy += 2000;
 
   const d = new Date(yyyy, mm - 1, dd);
@@ -711,7 +725,7 @@ function extractDateFromSheetName_(name) {
 
 function isXlsx_(attachment) {
   const name = String(attachment.getName() || "").toLowerCase();
-  const ct   = String(attachment.getContentType() || "").toLowerCase();
+  const ct = String(attachment.getContentType() || "").toLowerCase();
   return (
     name.endsWith(".xlsx") ||
     ct === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -763,7 +777,7 @@ function roundMoney_(n) {
 }
 
 function findCurrencyValueByLabel_(sheet, labelText) {
-  const values   = sheet.getDataRange().getValues();
+  const values = sheet.getDataRange().getValues();
   const displays = sheet.getDataRange().getDisplayValues();
 
   function norm(v) {
@@ -776,7 +790,7 @@ function findCurrencyValueByLabel_(sheet, labelText) {
     for (let c = 0; c < values[r].length; c++) {
       if (norm(values[r][c]) === target || norm(displays[r][c]) === target) {
         for (let offset = 1; offset <= 6; offset++) {
-          const raw     = values[r][c + offset];
+          const raw = values[r][c + offset];
           const display = displays[r][c + offset];
 
           if (typeof raw === "number" && isFinite(raw)) return raw;
@@ -810,8 +824,8 @@ function getNotesBlockUnderLabel_(sheet, labelText) {
 
   if (labelRow === -1) return "";
 
-  const lines    = [];
-  let   blankRun = 0;
+  const lines = [];
+  let blankRun = 0;
 
   for (let r = labelRow + 1; r < Math.min(values.length, labelRow + 31); r++) {
     const rowTexts = values[r]
@@ -826,12 +840,12 @@ function getNotesBlockUnderLabel_(sheet, labelText) {
     blankRun = 0;
 
     const joined = rowTexts.join(" ").replace(/\s+/g, " ").trim();
-    const lower  = joined.toLowerCase();
+    const lower = joined.toLowerCase();
 
     if (
-      lower.includes("notice")                     ||
-      lower.includes("cancellation")               ||
-      lower.includes("grand net total")            ||
+      lower.includes("notice") ||
+      lower.includes("cancellation") ||
+      lower.includes("grand net total") ||
       lower.includes("please note that all quotes")
     ) break;
 
@@ -851,7 +865,7 @@ function pad2_(n) {
 }
 
 function splitOrderNameAndDetail_(text) {
-  const s     = String(text || "").trim();
+  const s = String(text || "").trim();
   const parts = s.split(/\s+-\s+/);
   if (parts.length <= 1) return { name: s, detail: "" };
   return { name: parts.shift().trim(), detail: parts.join(" - ").trim() };
@@ -894,8 +908,8 @@ function isAngelCourtBookingForm_(sheet) {
 
   return (
     hasItemHeader &&
-    hasText("Company Name:")          &&
-    hasText("Date of event:")         &&
+    hasText("Company Name:") &&
+    hasText("Date of event:") &&
     hasText("Total Number of people:") &&
     hasText("Grand Net Total")
   );

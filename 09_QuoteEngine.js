@@ -7,6 +7,7 @@ function generateQuoteForRow(rowNumber) {
 
   if (!booking) throw new Error("Could not read booking data.");
 
+  booking = ensureLineItemTimes_(booking);
   booking = validateBooking_(booking);
 
   if (booking.validationErrors.length > 0) {
@@ -49,6 +50,21 @@ function generateQuoteForRow(rowNumber) {
     ok: true,
     quoteUrl: quoteFile.getUrl()
   };
+}
+
+function ensureLineItemTimes_(booking) {
+  const defaultTime =
+    booking.serviceTimes && booking.serviceTimes.length
+      ? booking.serviceTimes[0]
+      : "";
+
+  booking.items = (booking.items || []).map(item => {
+    if (!item.time) item.time = defaultTime;
+    item.time = String(item.time || "").trim();
+    return item;
+  });
+
+  return booking;
 }
 
 function clearAndRefillQuoteDoc_(doc, booking) {
@@ -240,6 +256,7 @@ function printQuoteForRow(rowNumber) {
 
   const json = sh.getRange(rowNumber, map.ParsedJSON).getValue();
   let booking = safeJsonParse_(json, null);
+  const siteName = getConfiguredValue_("SITE_NAME", "FIKA Hospitality");
 
   if (!booking) throw new Error("Could not read booking data.");
   if (!booking.quoteUrl) throw new Error("No quote has been generated yet.");
@@ -255,10 +272,9 @@ function printQuoteForRow(rowNumber) {
 
   MailApp.sendEmail({
     to: getConfiguredValue_("PRINTER_EMAIL", CONFIG.PRINTER_EMAIL),
-    subject: "Angel Court Hospitality Quote",
-    body: "Auto-printed quote from Angel Court Hospitality Dashboard.",
-    attachments: [pdfBlob]
-  });
+    subject: `${siteName} Quote`,
+    body: `Auto-printed quote from ${siteName} Dashboard.`
+});
 
   booking.quotePrintedAt = new Date();
   booking.updatedAt = new Date();
@@ -277,7 +293,11 @@ function sendBookingConfirmationEmail_(booking) {
     `FIKA Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
 
   const htmlBody = buildConfirmationEmailHtml_(booking);
-  const plainTextBody = buildConfirmationEmailHtml_(booking);
+  const plainTextBody = stripHtml_(booking);
+
+  if (!booking.hostEmail) {
+  throw new Error("Cannot send confirmation email. Host email is missing.");
+  }
 
   GmailApp.sendEmail(
     booking.hostEmail,

@@ -56,7 +56,13 @@ function createEmptyBooking_() {
     createdAt: new Date(),
     updatedAt: new Date(),
 
-    error: ""
+    error: "",
+    quoteStale: false,
+    calendarStale: false,
+    calendarRemovedAt: "",
+    cancelledAt: "",
+    cancelledBy: "",
+    cancellationEmailSentAt: ""
   };
 }
 
@@ -91,6 +97,21 @@ function validateBooking_(booking) {
     errors.length > 0
       ? CONFIG.STATUS.NEEDS_REVIEW
       : CONFIG.STATUS.READY;
+
+  const lockedStatuses = [
+    CONFIG.STATUS.QUOTE_GENERATED,
+    CONFIG.STATUS.CPU_CREATED,
+    CONFIG.STATUS.CONFIRMED,
+    CONFIG.STATUS.CANCELLED,
+    CONFIG.STATUS.ARCHIVED
+  ];
+
+  if (!lockedStatuses.includes(booking.status)) {
+    booking.status =
+      errors.length > 0
+        ? CONFIG.STATUS.NEEDS_REVIEW
+        : CONFIG.STATUS.READY;
+  }
 
   return booking;
 }
