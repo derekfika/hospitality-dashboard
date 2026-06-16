@@ -31,16 +31,6 @@ function getDashboardBookings() {
     });
 }
 
-function setBusy(bookingId) {
-  BUSY_BOOKING_ID = bookingId;
-  renderBookings();
-}
-
-function clearBusy() {
-  BUSY_BOOKING_ID = "";
-  renderBookings();
-}
-
 function normaliseForClient_(value) {
   if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) {
     return value.toISOString();
@@ -59,11 +49,6 @@ function safeJsonParse_(value, fallback) {
   } catch (e) {
     return fallback;
   }
-}
-
-function testGetDashboardBookings() {
-  const bookings = getDashboardBookings();
-  Logger.log(JSON.stringify(bookings, null, 2));
 }
 
 function doGet() {
@@ -224,54 +209,4 @@ function setBookingStatus(rowNumber, status) {
   writeBookingObjectToExistingRow_(rowNumber, booking);
 
   return { ok: true };
-}
-
-function setSort(key) {
-  if (SORT_KEY === key) {
-    SORT_DIR = SORT_DIR === "asc" ? "desc" : "asc";
-  } else {
-    SORT_KEY = key;
-    SORT_DIR = "asc";
-  }
-
-  renderBookings();
-}
-
-function getSortValue(b, key) {
-  switch (key) {
-    case "date": return getDisplayDate(b) || "";
-    case "time": return getDisplayTime(b) || "";
-    case "company": return String(b.ClientCompany || "").toLowerCase();
-    case "pax": return Number(b.Pax || 0);
-    case "service": return String(b.ServiceType || "").toLowerCase();
-    case "floor": return String(b.Floor || "").toLowerCase();
-    case "total": return Number(b.TotalPrice || 0);
-    case "status": return String(b.Status || "").toLowerCase();
-    default: return "";
-  }
-}
-
-function isBeforeThisWeek_(booking) {
-  if (!booking.eventDate) return false;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const day = today.getDay(); // Sun 0, Mon 1
-  const diffToMonday = day === 0 ? 6 : day - 1;
-
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - diffToMonday);
-
-  const parts = String(booking.eventDate).split("-");
-  if (parts.length !== 3) return false;
-
-  const bookingDate = new Date(
-    Number(parts[0]),
-    Number(parts[1]) - 1,
-    Number(parts[2])
-  );
-  bookingDate.setHours(0, 0, 0, 0);
-
-  return bookingDate < monday;
 }

@@ -107,12 +107,70 @@ function makeDashboardTestBooking_() {
 }
 
 function testParserEdgeCases_() {
+  // Email helpers
   assertDashboardEqual_(extractEmailAddress_('"Alex Example" <alex@example.com>'), "alex@example.com", "Email extraction failed.");
   assertDashboardEqual_(extractEmailName_("alex.example@example.com"), "Alex Example", "Email-name fallback failed.");
-  assertDashboardEqual_(extractTimeFromText_("Breakfast at 8am"), "08:00", "Simple am time extraction failed.");
-  assertDashboardEqual_(extractTimeFromText_("Service 08:30 pm"), "20:30", "PM time extraction failed.");
-  assertDashboardEqual_(normaliseHospitalityTime_("20:30"), "08:30", "Late hospitality time normalisation failed.");
-  assertDashboardEqual_(normaliseTimeText_("7.45"), "07:45", "Dotted time normalisation failed.");
+
+  // ── parseHospitalityTime_ (canonical) ───────────────────────────────────
+  // The hospitaliy collapse (18-23 → 06-11) is intentional for Angel Court.
+  // "8:30pm" = 20:30 in 24-hr → collapses to 08:30.
+  assertDashboardEqual_(parseHospitalityTime_("08:30"),    "08:30", "parseHospitalityTime_: HH:mm passthrough failed.");
+  assertDashboardEqual_(parseHospitalityTime_("8:30"),     "08:30", "parseHospitalityTime_: H:mm failed.");
+  assertDashboardEqual_(parseHospitalityTime_("7.45"),     "07:45", "parseHospitalityTime_: dotted time failed.");
+  assertDashboardEqual_(parseHospitalityTime_("8am"),      "08:00", "parseHospitalityTime_: bare am failed.");
+  assertDashboardEqual_(parseHospitalityTime_("8 AM"),     "08:00", "parseHospitalityTime_: spaced AM failed.");
+  assertDashboardEqual_(parseHospitalityTime_("8:30pm"),   "08:30", "parseHospitalityTime_: 8:30pm → 20:30 → collapse to 08:30 failed.");
+  assertDashboardEqual_(parseHospitalityTime_("20:30"),    "08:30", "parseHospitalityTime_: late 24-hr collapse failed.");
+  assertDashboardEqual_(parseHospitalityTime_("20:00"),    "08:00", "parseHospitalityTime_: 20:00 collapse failed.");
+  assertDashboardEqual_(parseHospitalityTime_("8"),        "08:00", "parseHospitalityTime_: bare integer failed.");
+  assertDashboardEqual_(parseHospitalityTime_(""),         "",      "parseHospitalityTime_: empty should return empty.");
+  assertDashboardEqual_(parseHospitalityTime_(null),       "",      "parseHospitalityTime_: null should return empty.");
+  // Afternoon times that should NOT collapse (12:00 = noon, 13:00-17:xx are fine)
+  assertDashboardEqual_(parseHospitalityTime_("12:00"),    "12:00", "parseHospitalityTime_: noon should not collapse.");
+  assertDashboardEqual_(parseHospitalityTime_("13:30"),    "13:30", "parseHospitalityTime_: 13:30 should not collapse.");
+  assertDashboardEqual_(parseHospitalityTime_("17:00"),    "17:00", "parseHospitalityTime_: 17:00 should not collapse.");
+
+  // ── Aliases (backwards-compat) ───────────────────────────────────────────
+  assertDashboardEqual_(normaliseHospitalityTime_("20:30"), "08:30", "normaliseHospitalityTime_ alias: late time failed.");
+  assertDashboardEqual_(normaliseTimeText_("7.45"),         "07:45", "normaliseTimeText_ alias: dotted time failed.");
+
+  // ── extractTimeFromText_ (finds first time in free text) ────────────────
+  assertDashboardEqual_(extractTimeFromText_("Breakfast at 8am"),    "08:00", "extractTimeFromText_: bare am failed.");
+  // "08:30 pm" = 20:30 → hospitality collapse → 08:30
+  assertDashboardEqual_(extractTimeFromText_("Service 08:30 pm"),    "08:30", "extractTimeFromText_: pm collapses correctly.");
+  assertDashboardEqual_(extractTimeFromText_("Delivery 09:00"),      "09:00", "extractTimeFromText_: bare HH:mm failed.");
+  assertDashboardEqual_(extractTimeFromText_("Nothing here"),        "",      "extractTimeFromText_: no time should return empty.");
+
+  // ── parseHospitalityDate_ ────────────────────────────────────────────────
+  assertDashboardEqual_(parseHospitalityDate_("14.06.2026"),   "2026-06-14", "parseHospitalityDate_: dd.mm.yyyy failed.");
+  assertDashboardEqual_(parseHospitalityDate_("14/06/2026"),   "2026-06-14", "parseHospitalityDate_: dd/mm/yyyy failed.");
+  assertDashboardEqual_(parseHospitalityDate_("14-06-2026"),   "2026-06-14", "parseHospitalityDate_: dd-mm-yyyy failed.");
+  assertDashboardEqual_(parseHospitalityDate_("14.06.26"),     "2026-06-14", "parseHospitalityDate_: dd.mm.yy failed.");
+  assertDashboardEqual_(parseHospitalityDate_("2026-06-14"),   "2026-06-14", "parseHospitalityDate_: ISO pass-through failed.");
+  assertDashboardEqual_(parseHospitalityDate_("14 June 2026"), "2026-06-14", "parseHospitalityDate_: dd MMMM yyyy failed.");
+  assertDashboardEqual_(parseHospitalityDate_("14 Jun 2026"),  "2026-06-14", "parseHospitalityDate_: dd MMM yyyy failed.");
+  assertDashboardEqual_(parseHospitalityDate_(""),             "",           "parseHospitalityDate_: empty should return empty.");
+  assertDashboardEqual_(parseHospitalityDate_(null),           "",           "parseHospitalityDate_: null should return empty.");
+
+  // ── normaliseBookingTimes_ forward-fill ──────────────────────────────────
+  const testBooking = {
+    serviceTimes: ["08:30"],
+    items: [
+      { time: "08:30", name: "Item A" },
+      { time: "",      name: "Item B" },  // blank — should forward-fill
+      { time: null,    name: "Item C" },  // null — should forward-fill
+      { time: "09:00", name: "Item D" },  // explicit new time
+      { time: "",      name: "Item E" }   // should pick up 09:00
+    ]
+  };
+  const filled = normaliseBookingTimes_(testBooking);
+  assertDashboardEqual_(filled.items[0].time, "08:30", "normaliseBookingTimes_: item 0 time failed.");
+  assertDashboardEqual_(filled.items[1].time, "08:30", "normaliseBookingTimes_: blank item should forward-fill from previous.");
+  assertDashboardEqual_(filled.items[2].time, "08:30", "normaliseBookingTimes_: null item should forward-fill.");
+  assertDashboardEqual_(filled.items[3].time, "09:00", "normaliseBookingTimes_: explicit time should be respected.");
+  assertDashboardEqual_(filled.items[4].time, "09:00", "normaliseBookingTimes_: blank after explicit should pick up explicit.");
+
+  // ── Other parser helpers ─────────────────────────────────────────────────
   assertDashboardEqual_(parseRequiredQty_("Approx 12 portions"), 12, "Quantity parsing failed.");
   assertDashboardEqual_(splitOrderNameAndDetail_("Fruit platter - vegan option").name, "Fruit platter", "Order/detail split failed.");
 }

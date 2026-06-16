@@ -51,26 +51,6 @@ function generateQuoteForRow(rowNumber) {
   };
 }
 
-function generateQuote(bookingId) {
-  const row = BOOKINGS.find(x => x.BookingID === bookingId);
-  if (!row) return;
-
-  setBusy(bookingId);
-
-  google.script.run
-    .withSuccessHandler(res => {
-      showToast("Quote generated.", "success");
-      clearBusy();
-      loadBookings();
-      if (res.quoteUrl) window.open(res.quoteUrl, "_blank");
-    })
-    .withFailureHandler(err => {
-      clearBusy();
-      showToast("Quote failed: " + (err.message || err), "error");
-    })
-    .generateQuoteForRow(row.RowNumber);
-}
-
 function clearAndRefillQuoteDoc_(doc, booking) {
   const body = doc.getBody();
 

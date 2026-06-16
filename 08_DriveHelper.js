@@ -12,12 +12,3 @@ function convertXlsxToGoogleSheet_(xlsxBlob) {
 
   return converted.id;
 }
-
-function authorizeDocsAccess() {
-  const doc = DocumentApp.create("TEMP_DOC_AUTH_TEST");
-  const id = doc.getId();
-  doc.saveAndClose();
-  DriveApp.getFileById(id).setTrashed(true);
-
-  SpreadsheetApp.getUi().alert("Docs access authorised.");
-}

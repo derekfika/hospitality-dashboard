@@ -791,16 +791,24 @@
         ? row.ParsedBooking.items
         : (row.ItemsParsed || []);
 
-    const mergedItems = existingItems.map((item, i) => ({
-      ...item,
-      ...(itemPatch[i] || {})
-    }));
-
     const serviceTimesText = document.getElementById("edit-serviceTimes").value.trim();
-
     const serviceTimes = serviceTimesText
       ? serviceTimesText.split("/").map(s => s.trim()).filter(Boolean)
       : [];
+
+    const mainStartTime = serviceTimes[0] || "";
+
+    const mergedItems = existingItems.map((item, i) => {
+      const patch = itemPatch[i] || {};
+      let time = (patch.time !== undefined ? patch.time.trim() : (item.time || ""));
+      if (!time) time = mainStartTime;
+
+      return {
+        ...item,
+        ...patch,
+        time: normaliseTime_(time)
+      };
+    });
 
     const patch = {
       clientCompany: document.getElementById("edit-clientCompany").value.trim(),
@@ -808,7 +816,7 @@
       hostEmail: document.getElementById("edit-hostEmail").value.trim(),
       pax: document.getElementById("edit-pax").value.trim(),
       eventDate: document.getElementById("edit-eventDate").value.trim(),
-      serviceTimes: serviceTimes,
+      serviceTimes: serviceTimes.map(t => normaliseTime_(t)),
       serviceType: document.getElementById("edit-serviceType").value.trim(),
       location: document.getElementById("edit-location").value.trim(),
       floor: document.getElementById("edit-floor").value.trim(),
@@ -983,7 +991,7 @@
     google.script.run
       .withSuccessHandler(res => {
         clearBusy();
-        showToast(`Booking confirmed. Test email sent to ${res.sentTo}.`, "success");
+        showToast(`Booking confirmed. Email sent to ${res.sentTo}.`, "success");
         loadBookings(false);
       })
       .withFailureHandler(err => {
@@ -1174,8 +1182,7 @@
     CURRENT_VIEW = view;
 
     document.getElementById("tableView").classList.toggle("hidden", view !== "table");
-    document.getElementById("calendarControls").classList.toggle("hidden", view !== "calendar");
-
+    
     renderCalendar();
     renderBookings();
     }
@@ -1328,6 +1335,45 @@
     if (isNaN(d.getTime())) return value;
 
     return d.toLocaleDateString("en-GB");
+  }
+
+  /**
+   * Normalises a time string to ISO HH:mm format.
+   * Handles formats like "9", "9:00", "9am", "2pm", "14.30"
+   */
+  function normaliseTime_(timeStr) {
+    if (!timeStr) return "";
+    
+    let clean = String(timeStr).toLowerCase().replace(/[^0-9ap:.]/g, "");
+    if (!clean) return "";
+
+    let hours = 0;
+    let minutes = 0;
+    
+    const isPm = clean.includes("pm");
+    const isAm = clean.includes("am");
+    clean = clean.replace(/[apm]/g, "");
+    
+    const parts = clean.split(/[:.]/);
+    if (parts.length >= 2) {
+      hours = parseInt(parts[0], 10);
+      minutes = parseInt(parts[1], 10);
+    } else if (parts.length === 1 && parts[0]) {
+      if (parts[0].length <= 2) {
+        hours = parseInt(parts[0], 10);
+      } else {
+        hours = parseInt(parts[0].substring(0, parts[0].length - 2), 10);
+        minutes = parseInt(parts[0].slice(-2), 10);
+      }
+    }
+    
+    if (isPm && hours < 12) hours += 12;
+    if (isAm && hours === 12) hours = 0;
+    
+    if (isNaN(hours) || hours < 0 || hours > 23) hours = 0;
+    if (isNaN(minutes) || minutes < 0 || minutes > 59) minutes = 0;
+    
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   }
 
   function escapeHtml(value) {
