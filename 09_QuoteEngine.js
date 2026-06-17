@@ -256,8 +256,11 @@ function printQuoteForRow(rowNumber) {
 
   const json = sh.getRange(rowNumber, map.ParsedJSON).getValue();
   let booking = safeJsonParse_(json, null);
-  const siteName = getConfiguredValue_("SITE_NAME", "FIKA Hospitality");
-
+  const siteName = getConfiguredValue_(
+  "LOCATION_NAME",
+  "FIKA Hospitality"
+  );
+  
   if (!booking) throw new Error("Could not read booking data.");
   if (!booking.quoteUrl) throw new Error("No quote has been generated yet.");
 
@@ -293,7 +296,7 @@ function sendBookingConfirmationEmail_(booking) {
     `FIKA Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
 
   const htmlBody = buildConfirmationEmailHtml_(booking);
-  const plainTextBody = stripHtml_(booking);
+  const plainTextBody = stripHtml_(htmlBody);
 
   if (!booking.hostEmail) {
   throw new Error("Cannot send confirmation email. Host email is missing.");

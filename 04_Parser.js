@@ -645,6 +645,7 @@ function parseAngelCourtLineItems_(sheet) {
       lowerItem.includes("notice") ||
       lowerItem.includes("cancellation")
     ) break;
+    
     emptyRun = 0;
 
     const itemText = String(itemRaw || "").trim();

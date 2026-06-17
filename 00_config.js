@@ -27,9 +27,7 @@ const CONFIG = {
 
   CALENDAR_ID: "seven@fikacatering.com",
 
-  CALENDAR_ATTENDEES: ["seven@fikacatering.com",
-    "derek@fikacatering.com",
-    // "cpu@fikacatering.com"
+  CALENDAR_ATTENDEES: ["cpux@fikacatering.com, dwayne@fikacatering.com, logistics@fikacatering.com"
   ], CALENDAR_EVENT_COLOR_ID: "9", // blue / blueberry
   CALENDAR_EVENT_DURATION_MINUTES: 60,
 

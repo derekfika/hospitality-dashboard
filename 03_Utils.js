@@ -12,5 +12,10 @@ function generateBookingId_() {
     .toString()
     .padStart(3, "0");
 
-  return `AC-${datePart}-${rand}`;
+  const siteCode = getConfiguredValue_(
+  "SITE_CODE",
+  CONFIG.SITE_CODE
+);
+
+return `${siteCode}-${datePart}-${rand}`;
 }

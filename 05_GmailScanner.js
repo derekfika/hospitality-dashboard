@@ -46,7 +46,7 @@ function scanInboxForDashboardBookings() {
   if (logged > 0 || skipped > 0) {
   applyProcessedLabel_(thread);  
   }
-  
+
   setSetting_("LAST_INBOX_SCAN_AT", new Date().toISOString());
   Logger.log(
     `Dashboard scan complete. Scanned=${scanned}, Logged=${logged}, Skipped=${skipped}, Errors=${errors}`
@@ -61,11 +61,7 @@ function scanInboxForDashboardBookings() {
 }
 
 function buildInboxScanQuery_() {
-  const processedLabel =
-    getConfiguredValue_("PROCESSED_LABEL_NAME", "AC_HOSPITALITY_PROCESSED");
-
-  let query =
-    `in:anywhere -in:trash -in:spam filename:xlsx -label:${processedLabel}`;
+  let query = "in:anywhere -in:trash -in:spam filename:xlsx";
 
   const earliest =
     normaliseSettingsDate_(getConfiguredValue_("EARLIEST_SCAN_DATE", ""));
