@@ -1,6 +1,7 @@
 function doGet() {
   const template = HtmlService.createTemplateFromFile("Index");
   template.appName = getCpuSetting_("APP_NAME", CPU_CONFIG.APP_NAME);
+  template.fikaLogoSvg = CPU_CONFIG.FIKA_LOGO_SVG;
   return template.evaluate()
     .setTitle(template.appName)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

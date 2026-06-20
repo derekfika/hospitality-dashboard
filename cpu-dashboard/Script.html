@@ -1,5 +1,5 @@
 <script>
-  const CLIENT_BUILD = "2026.06.20.8";
+  const CLIENT_BUILD = "2026.06.20.18";
   const PREFS_KEY = "cpu-dashboard-preferences-v1";
   const state = {
     weekStart: startOfWeek(new Date()),
@@ -31,6 +31,7 @@
   });
 
   function loadDashboard() {
+    setBusyState_(true);
     updatePeriodHeading();
     const request = weekRequest();
     if (window.google && google.script && google.script.run) {
@@ -46,6 +47,9 @@
   }
 
   function applyDashboardData(data) {
+    setBusyState_(false);
+    state.loading = false;
+    setWeekLoading_(false);
     const previousSiteIds = new Set(state.sites.map(function(site) { return site.id; }));
     state.orders = ((data && data.orders) || []).map(normaliseOrder);
     state.deliveries = (data && data.deliveries) || [];
@@ -886,14 +890,20 @@
   }
 
   function changeWeek(delta) {
+    if (state.loading) return;
+    state.loading = true;
     state.weekStart = addDays(state.weekStart, delta * 7);
     updatePeriodHeading();
+    setWeekLoading_(true);
     loadDashboard();
   }
 
   function goToToday() {
+    if (state.loading) return;
+    state.loading = true;
     state.weekStart = startOfWeek(new Date());
     updatePeriodHeading();
+    setWeekLoading_(true);
     loadDashboard();
   }
 
@@ -1032,6 +1042,7 @@
   }
 
   function finishScanJob_(job) {
+    setBusyState_(false);
     state.scanRunning = false;
     state.scanJobId = "";
     const button = document.getElementById("refreshButton");
@@ -1047,6 +1058,7 @@
   }
 
   function finishScanWithError_(error) {
+    setBusyState_(false);
     state.scanRunning = false;
     state.scanJobId = "";
     const button = document.getElementById("refreshButton");
@@ -1080,12 +1092,14 @@
   }
 
   function reloadSheet(reopenOrderId) {
+    setBusyState_(true);
     const button = document.getElementById("reloadButton");
     button.disabled = true;
     button.textContent = "Loading…";
     if (!(window.google && google.script && google.script.run)) {
       button.disabled = false;
       button.textContent = "Reload sheet";
+      setBusyState_(false);
       loadDashboard();
       return;
     }
@@ -1107,6 +1121,7 @@
         window.clearTimeout(timer);
         button.disabled = false;
         button.textContent = "Reload sheet";
+        setBusyState_(false);
         applyDashboardData(data);
         if (reopenOrderId && state.orders.some(function(order) { return order.id === reopenOrderId; })) {
           openOrderEditor(reopenOrderId);
@@ -1119,6 +1134,7 @@
         window.clearTimeout(timer);
         button.disabled = false;
         button.textContent = "Reload sheet";
+        setBusyState_(false);
         handleFailure(error);
       })
       .getCpuDashboardData(weekRequest());
@@ -1129,6 +1145,9 @@
     const timer = window.setTimeout(function() {
       if (finished) return;
       finished = true;
+      setBusyState_(false);
+      state.loading = false;
+      setWeekLoading_(false);
       document.getElementById("syncStatus").textContent = label + " timed out";
       showToast(label + " timed out. The server deployment may be stale.");
     }, milliseconds);
@@ -1136,11 +1155,17 @@
       if (finished) return;
       finished = true;
       window.clearTimeout(timer);
+      setBusyState_(false);
+      state.loading = false;
+      setWeekLoading_(false);
       applyDashboardData(value);
     }, function(error) {
       if (finished) return;
       finished = true;
       window.clearTimeout(timer);
+      setBusyState_(false);
+      state.loading = false;
+      setWeekLoading_(false);
       handleFailure(error);
     });
   }
@@ -1432,6 +1457,32 @@
   function hashText(value) { return String(value || "").split("").reduce(function(hash, char) { return ((hash << 5) - hash) + char.charCodeAt(0); }, 0); }
   function handleFailure(error) { showToast((error && error.message) || "Something went wrong"); document.getElementById("syncStatus").textContent = "Refresh failed"; }
   function showToast(message) { const toast = document.getElementById("toast"); toast.textContent = message; toast.classList.remove("hidden"); window.setTimeout(function() { toast.classList.add("hidden"); }, 3200); }
+  function setBusyState_(busy) {
+    document.documentElement.classList.toggle("is-busy", Boolean(busy));
+    document.body.classList.toggle("is-busy", Boolean(busy));
+    if (!busy) {
+      document.documentElement.style.cursor = "default";
+      document.body.style.cursor = "default";
+    }
+  }
+  function setWeekLoading_(loading) {
+    const panel = document.querySelector(".primary-panel");
+    if (panel) {
+      panel.classList.toggle("week-loading", Boolean(loading));
+      let overlay = panel.querySelector(".week-loading-overlay");
+      if (loading && !overlay) {
+        overlay = document.createElement("div");
+        overlay.className = "week-loading-overlay";
+        overlay.innerHTML = '<span class="week-spinner"></span><strong>Loading week…</strong>';
+        panel.appendChild(overlay);
+      } else if (!loading && overlay) {
+        overlay.remove();
+      }
+    }
+    document.querySelectorAll(".week-button").forEach(function(button) {
+      button.disabled = Boolean(loading);
+    });
+  }
 
   function demoDashboardData() {
     const sites = [
