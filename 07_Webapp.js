@@ -127,6 +127,7 @@ function writeBookingObjectToExistingRow_(rowNumber, booking) {
     ClientCompany: booking.clientCompany,
     HostName: booking.hostName,
     HostEmail: booking.hostEmail,
+    InvoiceReference: booking.invoiceReference || "",
     Pax: booking.pax,
     EventDate: booking.eventDate,
     ServiceTimes: JSON.stringify(booking.serviceTimes || []),
@@ -157,6 +158,27 @@ function writeBookingObjectToExistingRow_(rowNumber, booking) {
   });
 
   sh.getRange(rowNumber, 1, 1, lastCol).setValues([currentRow]);
+
+  syncBookingJsonFileIfPresent_(booking);
+}
+
+function syncBookingJsonFileIfPresent_(booking) {
+  const fileId =
+    booking.bookingJsonFileId ||
+    extractDriveIdFromUrl_(booking.bookingJsonFileUrl || "");
+  if (!fileId) return;
+
+  try {
+    const file = DriveApp.getFileById(fileId);
+    updateBookingJsonFile_(file, booking);
+  } catch (error) {
+    console.warn(
+      "Booking JSON file could not be updated for " +
+      (booking.bookingId || "unknown booking") +
+      ": " +
+      error.message
+    );
+  }
 }
 
 function confirmBookingForRow(rowNumber) {
@@ -172,10 +194,12 @@ function confirmBookingForRow(rowNumber) {
     throw new Error("Cannot confirm booking before a quote has been generated.");
   }
 
-  if (!booking.calendarEventId) {
+  if (
+    getConfiguredValue_("REQUIRE_CALENDAR_BEFORE_CONFIRMATION", true) &&
+    !booking.calendarEventId
+  ) {
     throw new Error("Cannot confirm booking before a calendar event has been created.");
   }
-
   const emailResult = sendBookingConfirmationEmail_(booking);
 
   booking.status = CONFIG.STATUS.CONFIRMED || "CONFIRMED";

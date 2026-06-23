@@ -47,14 +47,6 @@ function getHeaderMap_() {
 
 function writeBookingToSheet_(booking) {
 
-  assertRequiredHeaders_(map, [
-    "BookingID",
-    "Status",
-    "ParsedJSON",
-    "MessageId",
-    "AttachmentName"
-  ]);
-
   const sh = getDashboardSheet_();
 
   const map = getHeaderMap_();
@@ -62,6 +54,14 @@ function writeBookingToSheet_(booking) {
   const row = sh.getLastRow() + 1;
 
   const values = {};
+
+  assertRequiredHeaders_(map, [
+    "BookingID",
+    "Status",
+    "ParsedJSON",
+    "MessageId",
+    "AttachmentName"
+  ]);
 
   values.BookingID = booking.bookingId;
 

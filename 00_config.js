@@ -1,4 +1,10 @@
 const CONFIG = {
+  APP_VERSION: "v0.9.12",
+  APP_RELEASE_NAME: "Parser Hotfix & Settings Prep",
+  APP_DEVELOPER: "Derek Buckley",
+  APP_DEVELOPER_EMAIL: "derekbuc@gmail.com",
+  APP_ENVIRONMENT: "Production",
+
   QUOTE_TEMPLATE_DOC_ID: "1-2E0p2D7ivEyL7iB7yTe3tsgoppwSq48itHw7fSaBl0",
   QUOTE_ROOT_FOLDER_NAME: "Hospitality",
   SHEET_NAME: "Dashboard Data",
@@ -27,44 +33,95 @@ const CONFIG = {
 
   CALENDAR_ID: "seven@fikacatering.com",
 
-  CALENDAR_ATTENDEES: ["cpux@fikacatering.com, dwayne@fikacatering.com, logistics@fikacatering.com"
-  ], CALENDAR_EVENT_COLOR_ID: "9", // blue / blueberry
+  CALENDAR_ATTENDEES: [
+    "cpux@fikacatering.com",
+    "dwayne@fikacatering.com",
+    "logistics@fikacatering.com"
+  ],
+
+  CALENDAR_EVENT_COLOR_ID: "9",
   CALENDAR_EVENT_DURATION_MINUTES: 60,
 
-  // ---------- APP / LOCATION ----------
-APP_NAME: "Angel Court Hospitality Dashboard",
-LOCATION_NAME: "Angel Court",
-LOCATION_SHORT_CODE: "OAC",
+  APP_NAME: "Angel Court Hospitality Dashboard",
+  LOCATION_NAME: "Angel Court",
+  LOCATION_SHORT_CODE: "OAC",
 
-// ---------- BRANDING ----------
-FIKA_LOGO_URL: "https://bloom-coffee.org/bloom-quiz/assets/images/fika_logoRGB.png",
-ANGEL_COURT_LOGO_URL: "",
-SEVEN_LOGO_URL: "",
-FAVICON_URL: "",
+  FIKA_LOGO_URL: "https://bloom-coffee.org/bloom-quiz/assets/images/fika_logoRGB.png",
+  ANGEL_COURT_LOGO_URL: "",
+  SEVEN_LOGO_URL: "",
+  FAVICON_URL: "",
 
-// ---------- FONTS ----------
-FONT_TITLE_URL: "",
-FONT_BODY_URL: "",
-FONT_TITLE_FAMILY: "VIM",
-FONT_BODY_FAMILY: "Gilroy",
+  FONT_TITLE_URL: "",
+  FONT_BODY_URL: "",
+  FONT_TITLE_FAMILY: "VIM",
+  FONT_BODY_FAMILY: "Gilroy",
 
-// ---------- UI COLOURS ----------
-COLOUR_BACKGROUND: "#F8F6F2",
-COLOUR_SURFACE: "#FFFFFF",
-COLOUR_SURFACE_ALT: "#F1EEE8",
+  COLOUR_BACKGROUND: "#F8F6F2",
+  COLOUR_SURFACE: "#FFFFFF",
+  COLOUR_SURFACE_ALT: "#F1EEE8",
+  COLOUR_TEXT: "#252525",
+  COLOUR_TEXT_MUTED: "#777777",
+  COLOUR_BORDER: "#DED8CD",
+  COLOUR_PRIMARY: "#4F34C7",
+  COLOUR_SECONDARY: "#280F8C",
+  COLOUR_SUCCESS: "#6C8A74",
+  COLOUR_WARNING: "#B08B52",
+  COLOUR_DANGER: "#8B5E5E",
+  COLOUR_INFO: "#5B7EA0",
 
-COLOUR_TEXT: "#252525",
-COLOUR_TEXT_MUTED: "#777777",
-COLOUR_BORDER: "#DED8CD",
+  ADMIN_PIN_HASH: "1bea20e1df19b12013976de2b5e0e3d1fb4ba088b59fe53642c324298b21ffd9",
 
-COLOUR_PRIMARY: "#4F34C7",
-COLOUR_SECONDARY: "#280F8C",
+  // =========================
+  // OPERATIONS
+  // =========================
 
-COLOUR_SUCCESS: "#6C8A74",
-COLOUR_WARNING: "#B08B52",
-COLOUR_DANGER: "#8B5E5E",
-COLOUR_INFO: "#5B7EA0",
+  AUTO_ARCHIVE_ENABLED: true,
+  ARCHIVE_AFTER_DAYS: 7,
 
+  REQUIRE_QUOTE_BEFORE_CALENDAR: true,
+  REQUIRE_CALENDAR_BEFORE_CONFIRMATION: true,
+
+  // =========================
+  // PARSER
+  // =========================
+
+  USE_FIRST_SERVICE_TIME_ONLY: true,
+  ALLOW_EVENING_TIMES: true,
+
+  DEFAULT_LOCATION: "One Angel Court",
+  DEFAULT_FLOOR: "",
+
+  // =========================
+  // CALENDAR
+  // =========================
+
+  CALENDAR_TITLE_FORMAT: "{SITE}_{COMPANY}_{SERVICE} x {PAX}",
+  CALENDAR_ATTACH_QUOTE: true,
+  CALENDAR_ATTACH_ORIGINAL_XLSX: true,
+
+  // =========================
+  // EMAILS
+  // =========================
+
+  CONFIRMATION_EMAIL_ENABLED: true,
+  CONFIRMATION_EMAIL_CC: "",
+  CONFIRMATION_EMAIL_BCC: "",
+
+  // =========================
+  // DASHBOARD
+  // =========================
+
+  SHOW_ARCHIVED_BY_DEFAULT: false,
+  HIGHLIGHT_STALE_QUOTES: true,
+  HIGHLIGHT_STALE_CALENDAR_EVENTS: true,
+
+  // =========================
+  // AUTOMATION
+  // =========================
+
+  AUTOMATION_MODE: "MANUAL",
+  AUTOMATION_REQUIRE_READY: true,
+  AUTOMATION_ALLOW_CONFIRMATION_EMAILS: false
 };
 
 function getSettingsSheet_() {
@@ -95,7 +152,6 @@ function getSettings_() {
 
     if (typeof value === "string") {
       const upper = value.trim().toUpperCase();
-
       if (upper === "TRUE") value = true;
       else if (upper === "FALSE") value = false;
     }
@@ -111,26 +167,135 @@ function getSettingSchema_() {
     {
       id: "general",
       title: "General",
+      access: "user",
       fields: [
         { key: "APP_NAME", label: "App name", type: "text", fallback: CONFIG.APP_NAME, required: true, notes: "Shown in the browser title and dashboard header." },
-        { key: "LOCATION_NAME", label: "Location name", type: "text", fallback: CONFIG.LOCATION_NAME, notes: "Human-friendly site name." },
+        { key: "LOCATION_NAME", label: "Location name", type: "text", fallback: CONFIG.LOCATION_NAME, required: true, notes: "Human-friendly site name." }
+      ]
+    },
+    {
+      id: "operations",
+      title: "Operations",
+      access: "user",
+      fields: [
+        {
+          key: "AUTO_ARCHIVE_ENABLED",
+          label: "Enable automatic archiving",
+          type: "checkbox",
+          fallback: CONFIG.AUTO_ARCHIVE_ENABLED
+        },
+        { key: "ARCHIVE_AFTER_DAYS", label: "Archive after days", type: "number", fallback: 0, min: 0, notes: "Bookings older than this can be archived automatically. Use 0 to archive before today." }
+      ]
+    },
+    {
+      id: "parser",
+      title: "Parser",
+      access: "user",
+      fields: [
+        {
+          key: "USE_FIRST_SERVICE_TIME_ONLY",
+          label: "Use first service time only",
+          type: "checkbox",
+          fallback: CONFIG.USE_FIRST_SERVICE_TIME_ONLY
+        },
+        {
+          key: "ALLOW_EVENING_TIMES",
+          label: "Allow evening times",
+          type: "checkbox",
+          fallback: CONFIG.ALLOW_EVENING_TIMES
+        }
+      ]
+    }, {
+      id: "email",
+      title: "Email",
+      access: "user",
+      fields: [
+        {
+          key: "CONFIRMATION_EMAIL_CC",
+          label: "Confirmation email CC",
+          type: "text",
+          fallback: CONFIG.CONFIRMATION_EMAIL_CC
+        },
+        {
+          key: "CONFIRMATION_EMAIL_BCC",
+          label: "Confirmation email BCC",
+          type: "text",
+          fallback: CONFIG.CONFIRMATION_EMAIL_BCC
+        }
+      ]
+    },
+    {
+      id: "dashboard",
+      title: "Dashboard",
+      access: "user",
+      fields: [
+        {
+          key: "SHOW_ARCHIVED_BY_DEFAULT",
+          label: "Show archived bookings by default",
+          type: "checkbox",
+          fallback: CONFIG.SHOW_ARCHIVED_BY_DEFAULT
+        }
+      ]
+    },
+    {
+      id: "calendar-user",
+      title: "Calendar",
+      access: "user",
+      fields: [
+        { key: "CALENDAR_ATTENDEES", label: "Calendar attendees", type: "textarea", fallback: (CONFIG.CALENDAR_ATTENDEES || []).join(", "), notes: "Comma or line separated email addresses invited to CPU events." }
+      ]
+    },
+    {
+      id: "branding",
+      title: "Branding",
+      access: "user",
+      fields: [
+        { key: "FIKA_LOGO_URL", label: "FIKA logo URL", type: "url", fallback: CONFIG.FIKA_LOGO_URL, notes: "Main logo shown in the dashboard header." },
+        { key: "FAVICON_URL", label: "Favicon URL", type: "url", fallback: CONFIG.FAVICON_URL, notes: "Optional browser tab icon." }
+      ]
+    },
+    {
+      id: "colours",
+      title: "Colours",
+      access: "user",
+      fields: [
+        { key: "COLOUR_BACKGROUND", label: "Background", type: "color", fallback: CONFIG.COLOUR_BACKGROUND, required: true, notes: "Main dashboard background." },
+        { key: "COLOUR_SURFACE", label: "Surface", type: "color", fallback: CONFIG.COLOUR_SURFACE, required: true, notes: "Raised panel background." },
+        { key: "COLOUR_SURFACE_ALT", label: "Alternate surface", type: "color", fallback: CONFIG.COLOUR_SURFACE_ALT, required: true, notes: "Cards and table surfaces." },
+        { key: "COLOUR_TEXT", label: "Text", type: "color", fallback: CONFIG.COLOUR_TEXT, required: true, notes: "Main text colour." },
+        { key: "COLOUR_TEXT_MUTED", label: "Muted text", type: "color", fallback: CONFIG.COLOUR_TEXT_MUTED, required: true, notes: "Secondary text colour." },
+        { key: "COLOUR_BORDER", label: "Border", type: "color", fallback: CONFIG.COLOUR_BORDER, required: true, notes: "Border colour." },
+        { key: "COLOUR_PRIMARY", label: "Primary", type: "color", fallback: CONFIG.COLOUR_PRIMARY, required: true, notes: "Primary buttons and headings." },
+        { key: "COLOUR_SECONDARY", label: "Secondary", type: "color", fallback: CONFIG.COLOUR_SECONDARY, required: true, notes: "Secondary brand accent." },
+        { key: "COLOUR_SUCCESS", label: "Success", type: "color", fallback: CONFIG.COLOUR_SUCCESS, required: true, notes: "Success feedback." },
+        { key: "COLOUR_WARNING", label: "Warning", type: "color", fallback: CONFIG.COLOUR_WARNING, required: true, notes: "Warning feedback." },
+        { key: "COLOUR_DANGER", label: "Danger", type: "color", fallback: CONFIG.COLOUR_DANGER, required: true, notes: "Cancel/error feedback." },
+        { key: "COLOUR_INFO", label: "Info", type: "color", fallback: CONFIG.COLOUR_INFO, required: true, notes: "Informational accent." }
+      ]
+    },
+    {
+      id: "admin-system",
+      title: "Admin: System",
+      access: "admin",
+      fields: [
         { key: "LOCATION_SHORT_CODE", label: "Location short code", type: "text", fallback: CONFIG.LOCATION_SHORT_CODE, required: true, notes: "Used at the start of calendar event titles." },
         { key: "SHEET_NAME", label: "Dashboard sheet name", type: "text", fallback: CONFIG.SHEET_NAME, required: true, notes: "Must match the tab that stores dashboard booking rows." }
       ]
     },
     {
-      id: "inbox",
-      title: "Inbox Scan",
+      id: "admin-inbox",
+      title: "Admin: Inbox",
+      access: "admin",
       fields: [
-        { key: "PROCESSED_LABEL_NAME", label: "Processed Gmail label", type: "text", fallback: "AC_HOSPITALITY_PROCESSED", required: true, notes: "Threads with this Gmail label are excluded from future scans." },
+        { key: "PROCESSED_LABEL_NAME", label: "Processed Gmail label", type: "text", fallback: "AC_HOSPITALITY_PROCESSED", notes: "Legacy setting. Duplicate checking now uses Message ID + Attachment Name." },
         { key: "EARLIEST_SCAN_DATE", label: "Earliest scan date", type: "date", fallback: "", notes: "Optional. Use YYYY-MM-DD to stop scans going further back." },
-        { key: "LAST_INBOX_SCAN_AT", label: "Last scan timestamp", type: "text", fallback: "", readonly: true, notes: "Updated automatically after a completed inbox scan." },
-        { key: "ARCHIVE_AFTER_DAYS", label: "Archive after days", type: "number", fallback: 0, min: 0, notes: "Bookings older than this can be archived automatically. Use 0 to archive before today." }
+        { key: "LAST_INBOX_SCAN_AT", label: "Last scan timestamp", type: "text", fallback: "", readonly: true, notes: "Updated automatically after a completed inbox scan." }
       ]
     },
     {
-      id: "quotes",
-      title: "Quotes",
+      id: "admin-quotes",
+      title: "Admin: Quotes",
+      access: "admin",
       fields: [
         { key: "QUOTE_TEMPLATE_DOC_ID", label: "Quote template document ID", type: "text", fallback: CONFIG.QUOTE_TEMPLATE_DOC_ID, required: true, notes: "Google Doc template ID used when generating quote files." },
         { key: "QUOTE_ROOT_FOLDER_NAME", label: "Quote root folder", type: "text", fallback: CONFIG.QUOTE_ROOT_FOLDER_NAME, required: true, notes: "Drive folder name where quote folders are created." },
@@ -138,23 +303,22 @@ function getSettingSchema_() {
       ]
     },
     {
-      id: "calendar",
-      title: "Calendar",
+      id: "admin-calendar",
+      title: "Admin: Calendar",
+      access: "admin",
       fields: [
         { key: "CALENDAR_ID", label: "Calendar ID", type: "text", fallback: CONFIG.CALENDAR_ID, required: true, notes: "Calendar email or ID where CPU events are created." },
-        { key: "CALENDAR_ATTENDEES", label: "Calendar attendees", type: "textarea", fallback: (CONFIG.CALENDAR_ATTENDEES || []).join(", "), notes: "Comma or line separated email addresses invited to CPU events." },
         { key: "CALENDAR_EVENT_COLOR_ID", label: "Event colour ID", type: "text", fallback: CONFIG.CALENDAR_EVENT_COLOR_ID, notes: "Google Calendar colour ID. Usually a number from 1 to 11." },
         { key: "CALENDAR_EVENT_DURATION_MINUTES", label: "Event duration minutes", type: "number", fallback: CONFIG.CALENDAR_EVENT_DURATION_MINUTES, required: true, min: 1, notes: "Length of created calendar events." }
       ]
     },
     {
-      id: "branding",
-      title: "Branding",
+      id: "admin-branding",
+      title: "Admin: Advanced Branding",
+      access: "admin",
       fields: [
-        { key: "FIKA_LOGO_URL", label: "FIKA logo URL", type: "url", fallback: CONFIG.FIKA_LOGO_URL, notes: "Main logo shown in the dashboard header." },
         { key: "ANGEL_COURT_LOGO_URL", label: "Angel Court logo URL", type: "url", fallback: CONFIG.ANGEL_COURT_LOGO_URL, notes: "Reserved for future branded quote/dashboard use." },
         { key: "SEVEN_LOGO_URL", label: "Seven logo URL", type: "url", fallback: CONFIG.SEVEN_LOGO_URL, notes: "Reserved for future branded quote/dashboard use." },
-        { key: "FAVICON_URL", label: "Favicon URL", type: "url", fallback: CONFIG.FAVICON_URL, notes: "Optional browser tab icon." },
         { key: "FONT_TITLE_URL", label: "Title font URL", type: "url", fallback: CONFIG.FONT_TITLE_URL, notes: "Optional font file URL for headings." },
         { key: "FONT_BODY_URL", label: "Body font URL", type: "url", fallback: CONFIG.FONT_BODY_URL, notes: "Optional font file URL for body text." },
         { key: "FONT_TITLE_FAMILY", label: "Title font family", type: "text", fallback: CONFIG.FONT_TITLE_FAMILY, required: true, notes: "CSS font-family name for headings." },
@@ -162,24 +326,53 @@ function getSettingSchema_() {
       ]
     },
     {
-      id: "colours",
-      title: "Colours",
+      id: "admin-automation",
+      title: "Admin: Automation",
+      access: "admin",
       fields: [
-        { key: "COLOUR_BACKGROUND", label: "Background", type: "color", fallback: CONFIG.COLOUR_BACKGROUND, required: true, notes: "Hex colour, for example #F8F6F2." },
-        { key: "COLOUR_SURFACE", label: "Surface", type: "color", fallback: CONFIG.COLOUR_SURFACE, required: true, notes: "Hex colour used for raised panels." },
-        { key: "COLOUR_SURFACE_ALT", label: "Alternate surface", type: "color", fallback: CONFIG.COLOUR_SURFACE_ALT, required: true, notes: "Hex colour used for card/table surfaces." },
-        { key: "COLOUR_TEXT", label: "Text", type: "color", fallback: CONFIG.COLOUR_TEXT, required: true, notes: "Main text hex colour." },
-        { key: "COLOUR_TEXT_MUTED", label: "Muted text", type: "color", fallback: CONFIG.COLOUR_TEXT_MUTED, required: true, notes: "Secondary text hex colour." },
-        { key: "COLOUR_BORDER", label: "Border", type: "color", fallback: CONFIG.COLOUR_BORDER, required: true, notes: "Border hex colour." },
-        { key: "COLOUR_PRIMARY", label: "Primary", type: "color", fallback: CONFIG.COLOUR_PRIMARY, required: true, notes: "Primary action and heading hex colour." },
-        { key: "COLOUR_SECONDARY", label: "Secondary", type: "color", fallback: CONFIG.COLOUR_SECONDARY, required: true, notes: "Reserved secondary brand hex colour." },
-        { key: "COLOUR_SUCCESS", label: "Success", type: "color", fallback: CONFIG.COLOUR_SUCCESS, required: true, notes: "Success feedback hex colour." },
-        { key: "COLOUR_WARNING", label: "Warning", type: "color", fallback: CONFIG.COLOUR_WARNING, required: true, notes: "Warning feedback hex colour." },
-        { key: "COLOUR_DANGER", label: "Danger", type: "color", fallback: CONFIG.COLOUR_DANGER, required: true, notes: "Danger/cancel feedback hex colour." },
-        { key: "COLOUR_INFO", label: "Info", type: "color", fallback: CONFIG.COLOUR_INFO, required: true, notes: "Informational accent hex colour." }
+        {
+          key: "AUTOMATION_MODE",
+          label: "Automation mode",
+          type: "select",
+          fallback: CONFIG.AUTOMATION_MODE,
+          options: [
+            { value: "MANUAL", label: "Manual - import only" },
+            { value: "QUOTE_ONLY", label: "Quote only" },
+            { value: "QUOTE_AND_CALENDAR", label: "Quote + calendar" },
+            { value: "FULL", label: "Full automation" }
+          ],
+          notes: "Controls what happens automatically after a booking is imported."
+        },
+        {
+          key: "AUTOMATION_REQUIRE_READY",
+          label: "Only automate READY bookings",
+          type: "checkbox",
+          fallback: CONFIG.AUTOMATION_REQUIRE_READY,
+          notes: "Recommended. Prevents automation running on bookings with validation errors."
+        },
+        {
+          key: "AUTOMATION_ALLOW_CONFIRMATION_EMAILS",
+          label: "Allow automatic confirmation emails",
+          type: "checkbox",
+          fallback: CONFIG.AUTOMATION_ALLOW_CONFIRMATION_EMAILS,
+          notes: "Safety switch. Must be enabled before FULL automation can send client emails."
+        }
       ]
     }
   ];
+}
+
+function getDashboardAbout_() {
+  return {
+    appName: CONFIG.APP_NAME,
+    version: CONFIG.APP_VERSION,
+    releaseName: CONFIG.APP_RELEASE_NAME,
+    developer: CONFIG.APP_DEVELOPER,
+    developerEmail: CONFIG.APP_DEVELOPER_EMAIL,
+    environment: CONFIG.APP_ENVIRONMENT,
+    platform: "Google Apps Script",
+    company: "FIKA Catering"
+  };
 }
 
 function getDashboardSettings() {
@@ -203,6 +396,7 @@ function getDashboardSettings() {
     schema,
     sections: schema,
     values,
+    about: getDashboardAbout_(),
     validation: validateDashboardSettings_(values, schema)
   };
 }
@@ -291,6 +485,7 @@ function importDashboardSettingsDraft(sheetName) {
   }
 
   const headers = values[0].map(header => String(header || "").trim().toLowerCase());
+
   const keyIndex = findSettingsDraftColumn_(headers, [
     "key",
     "setting",
@@ -298,6 +493,7 @@ function importDashboardSettingsDraft(sheetName) {
     "setting_key",
     "name"
   ]);
+
   const valueIndex = findSettingsDraftColumn_(headers, [
     "value",
     "setting value",
@@ -462,6 +658,7 @@ function testDashboardSettingsValidation() {
   invalid.FIKA_LOGO_URL = "not-a-url";
 
   const invalidValidation = validateDashboardSettings_(invalid, schema);
+
   const expectedKeys = [
     "APP_NAME",
     "PRINTER_EMAIL",
@@ -534,6 +731,7 @@ function setSetting_(key, value) {
 
 function getConfiguredValue_(key, fallback) {
   const value = getSetting_(key, fallback);
+
   if (key === "COLOUR_PRIMARY" && String(value).trim().toUpperCase() === "#202020") {
     return fallback;
   }
@@ -548,4 +746,27 @@ function getConfiguredValue_(key, fallback) {
 function getConfiguredNumber_(key, fallback) {
   const value = Number(getConfiguredValue_(key, fallback));
   return isNaN(value) ? fallback : value;
+}
+
+function verifyAdminPin(pin) {
+  const expectedHash = CONFIG.ADMIN_PIN_HASH || "";
+  const actualHash = hashAdminPin_(pin);
+
+  return {
+    ok: expectedHash && actualHash === expectedHash
+  };
+}
+
+function hashAdminPin_(pin) {
+  const raw = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(pin || "")
+  );
+
+  return raw
+    .map(byte => {
+      const v = byte < 0 ? byte + 256 : byte;
+      return v.toString(16).padStart(2, "0");
+    })
+    .join("");
 }

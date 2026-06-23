@@ -1,5 +1,5 @@
 function createCalendarEventForRow(rowNumber) {
-  const sh  = getDashboardSheet_();
+  const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 
   const json = sh.getRange(rowNumber, map.ParsedJSON).getValue();
@@ -9,8 +9,12 @@ function createCalendarEventForRow(rowNumber) {
   if (booking.calendarEventId || booking.calendarEventUrl) {
     throw new Error("Calendar event already exists for this booking.");
   }
-  if (!booking.quoteUrl) throw new Error("Generate quote before creating calendar event.");
-  if (!booking.messageId) throw new Error("Missing source Gmail message ID.");
+  if (
+    getConfiguredValue_("REQUIRE_QUOTE_BEFORE_CALENDAR", true) &&
+    !booking.quoteUrl
+  ) {
+    throw new Error("Generate quote before creating calendar event.");
+  }
   if (!booking.eventDate) throw new Error("Missing event date.");
   if (!booking.serviceTimes || booking.serviceTimes.length === 0) {
     throw new Error("Missing service time.");
@@ -20,12 +24,43 @@ function createCalendarEventForRow(rowNumber) {
   if (!quoteFileId) throw new Error("Could not read quote file ID.");
 
   const quoteFile = DriveApp.getFileById(quoteFileId);
-  const sourceXlsxFile = getOrCreateOriginalBookingXlsxFile_(booking);
+  const sourceBookingFile = getOptionalSourceBookingFile_(booking);
+  const bookingJsonFile = getOrCreateBookingJsonFile_(booking);
+  booking.bookingJsonFileId = bookingJsonFile.getId();
+  booking.bookingJsonFileUrl = bookingJsonFile.getUrl();
+  updateBookingJsonFile_(bookingJsonFile, booking);
+  writeBookingObjectToExistingRow_(rowNumber, booking);
 
-  const attendees = getCalendarAttendeesFromSettings_();
-  const calendarId = getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "primary");
-  const eventDuration = getConfiguredNumber_("CALENDAR_EVENT_DURATION_MINUTES", CONFIG.CALENDAR_EVENT_DURATION_MINUTES || 60);
-  const eventColorId = getConfiguredValue_("CALENDAR_EVENT_COLOR_ID", CONFIG.CALENDAR_EVENT_COLOR_ID || "9");
+  const attendeeConfig = getCalendarAttendeeConfig_();
+  const attendees = attendeeConfig.valid;
+  const calendarId = String(
+    getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "primary")
+  ).trim();
+  const eventDuration = Number(
+    getConfiguredNumber_(
+      "CALENDAR_EVENT_DURATION_MINUTES",
+      CONFIG.CALENDAR_EVENT_DURATION_MINUTES || 60
+    )
+  );
+  const eventColorId = normaliseCalendarColorId_(
+    getConfiguredValue_(
+      "CALENDAR_EVENT_COLOR_ID",
+      CONFIG.CALENDAR_EVENT_COLOR_ID || "9"
+    )
+  );
+
+  if (!calendarId) throw new Error("Calendar ID is blank in Settings.");
+  if (!isFinite(eventDuration) || eventDuration < 1) {
+    throw new Error("Calendar event duration must be at least 1 minute.");
+  }
+  if (attendeeConfig.invalid.length) {
+    throw new Error(
+      "Invalid calendar attendee email address" +
+      (attendeeConfig.invalid.length > 1 ? "es" : "") +
+      ": " +
+      attendeeConfig.invalid.join(", ")
+    );
+  }
 
   const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
 
@@ -37,7 +72,7 @@ function createCalendarEventForRow(rowNumber) {
   const eventResource = {
     summary: title,
     location: `${booking.location || siteName} ${booking.floor || ""}`.trim(),
-    description: "",
+    description: String(booking.notes || "").slice(0, 8000),
     start: {
       dateTime: start.toISOString(),
       timeZone: Session.getScriptTimeZone()
@@ -45,32 +80,59 @@ function createCalendarEventForRow(rowNumber) {
     end: {
       dateTime: end.toISOString(),
       timeZone: Session.getScriptTimeZone()
-    },
-    colorId: eventColorId,
-    attendees: attendees,
-    attachments: [
+    }
+  };
+
+  if (eventColorId) eventResource.colorId = eventColorId;
+  if (attendees.length) eventResource.attendees = attendees;
+
+  const attachments = [
       {
         fileUrl: quoteFile.getUrl(),
         title: quoteFile.getName(),
         mimeType: quoteFile.getMimeType()
       },
       {
-        fileUrl: sourceXlsxFile.getUrl(),
-        title: sourceXlsxFile.getName(),
-        mimeType: sourceXlsxFile.getMimeType()
+        fileUrl: bookingJsonFile.getUrl(),
+        title: bookingJsonFile.getName(),
+        mimeType: bookingJsonFile.getMimeType()
       }
-    ]
-  };
+    ].concat(sourceBookingFile ? [{
+      fileUrl: sourceBookingFile.getUrl(),
+      title: sourceBookingFile.getName(),
+      mimeType: sourceBookingFile.getMimeType()
+    }] : []);
 
-  const created = Calendar.Events.insert(
-    eventResource,
-    calendarId,
-    { supportsAttachments: true, sendUpdates: "all" }
-  );
+  if (attachments.length) eventResource.attachments = attachments;
 
-  booking.originalBookingFileId = sourceXlsxFile.getId();
-  booking.originalBookingFileUrl = sourceXlsxFile.getUrl();
+  let created;
+  try {
+    created = Calendar.Events.insert(
+      eventResource,
+      calendarId,
+      {
+        supportsAttachments: attachments.length > 0,
+        sendUpdates: attendees.length > 0 ? "all" : "none"
+      }
+    );
+  } catch (error) {
+    const diagnostic = buildCalendarDiagnostic_(eventResource, calendarId);
+    console.error("Calendar insert failed", JSON.stringify({
+      error: error && error.message ? error.message : String(error),
+      diagnostic: diagnostic
+    }));
+    throw new Error(
+      "Calendar rejected the event. " +
+      diagnostic +
+      " Original error: " +
+      (error && error.message ? error.message : String(error))
+    );
+  }
 
+  if (sourceBookingFile) {
+    booking.originalBookingFileId = sourceBookingFile.getId();
+    booking.originalBookingFileUrl = sourceBookingFile.getUrl();
+  }
   booking.calendarEventId = created.id || "";
   booking.calendarEventUrl = created.htmlLink || "";
   booking.calendarCreatedAt = new Date();
@@ -79,8 +141,63 @@ function createCalendarEventForRow(rowNumber) {
   booking.calendarStale = false;
 
   writeBookingObjectToExistingRow_(rowNumber, booking);
+  updateBookingJsonFile_(bookingJsonFile, booking);
 
   return { ok: true, eventUrl: created.htmlLink || "" };
+}
+
+function getOrCreateBookingJsonFile_(booking) {
+  let file = null;
+
+  if (booking.bookingJsonFileId) {
+    try {
+      file = DriveApp.getFileById(booking.bookingJsonFileId);
+    } catch (error) {
+      file = null;
+    }
+  }
+
+  if (!file && booking.bookingJsonFileUrl) {
+    const id = extractDriveIdFromUrl_(booking.bookingJsonFileUrl);
+    if (id) {
+      try {
+        file = DriveApp.getFileById(id);
+      } catch (error) {
+        file = null;
+      }
+    }
+  }
+
+  if (!file) {
+    const folder = getQuoteFolderForBooking_(booking);
+    const fileName = makeBookingJsonFileName_(booking);
+    const blob = Utilities.newBlob(
+      serialiseBookingJson_(booking),
+      "application/json",
+      fileName
+    );
+    file = folder.createFile(blob);
+  } else {
+    updateBookingJsonFile_(file, booking);
+  }
+
+  return file;
+}
+
+function updateBookingJsonFile_(file, booking) {
+  file.setName(makeBookingJsonFileName_(booking));
+  file.setContent(serialiseBookingJson_(booking));
+  return file;
+}
+
+function makeBookingJsonFileName_(booking) {
+  const id = String(booking.bookingId || "booking")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-");
+  return "Booking Object - " + id + ".json";
+}
+
+function serialiseBookingJson_(booking) {
+  return JSON.stringify(booking, null, 2);
 }
 
 function getOrCreateOriginalBookingXlsxFile_(booking) {
@@ -132,17 +249,74 @@ function saveOriginalBookingXlsxToDrive_(booking) {
   return folder.createFile(chosen.copyBlob()).setName(fileName);
 }
 
-function getCalendarAttendeesFromSettings_() {
-  return String(
+function getCalendarAttendeeConfig_() {
+  const raw = String(
     getConfiguredValue_(
       "CALENDAR_ATTENDEES",
       (CONFIG.CALENDAR_ATTENDEES || []).join(", ")
     )
-  )
-    .split(",")
+  );
+
+  return parseCalendarAttendees_(raw);
+}
+
+function parseCalendarAttendees_(raw) {
+  const emails = String(raw || "")
+    .split(/[\s,;]+/)
     .map(email => email.trim())
-    .filter(Boolean)
-    .map(email => ({ email }));
+    .filter(Boolean);
+
+  const valid = [];
+  const invalid = [];
+  const seen = {};
+
+  emails.forEach(email => {
+    const lower = email.toLowerCase();
+    if (seen[lower]) return;
+    seen[lower] = true;
+
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      valid.push({ email: email });
+    } else {
+      invalid.push(email);
+    }
+  });
+
+  return { valid: valid, invalid: invalid };
+}
+
+function getCalendarAttendeesFromSettings_() {
+  return getCalendarAttendeeConfig_().valid;
+}
+
+function normaliseCalendarColorId_(value) {
+  const colorId = String(value === null || value === undefined ? "" : value).trim();
+  if (!colorId) return "";
+  return /^(?:[1-9]|1[01])$/.test(colorId) ? colorId : "";
+}
+
+function buildCalendarDiagnostic_(resource, calendarId) {
+  const start = resource.start && resource.start.dateTime
+    ? resource.start.dateTime
+    : "missing";
+  const end = resource.end && resource.end.dateTime
+    ? resource.end.dateTime
+    : "missing";
+  const attendeeCount = Array.isArray(resource.attendees)
+    ? resource.attendees.length
+    : 0;
+  const attachmentCount = Array.isArray(resource.attachments)
+    ? resource.attachments.length
+    : 0;
+
+  return [
+    "Calendar: " + calendarId + ".",
+    "Start: " + start + ".",
+    "End: " + end + ".",
+    "Attendees: " + attendeeCount + ".",
+    "Attachments: " + attachmentCount + ".",
+    "Colour: " + (resource.colorId || "default") + "."
+  ].join(" ");
 }
 
 function makeCalendarTitle_(booking) {
@@ -170,12 +344,13 @@ function makeCalendarTitle_(booking) {
  * @return {Date}
  */
 function buildCalendarStart_(isoDate, timeText) {
-  const parts = String(isoDate).split("-");
-  if (parts.length !== 3) throw new Error("Invalid event date: " + isoDate);
+  const dateText = String(isoDate || "").trim();
+  const match = dateText.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) throw new Error("Invalid event date: " + isoDate);
 
-  const y = Number(parts[0]);
-  const m = Number(parts[1]) - 1;
-  const d = Number(parts[2]);
+  const y = Number(match[1]);
+  const m = Number(match[2]) - 1;
+  const d = Number(match[3]);
 
   // Use the unified parser — handles "8am", "8:30pm", "20:30", "8", "08:30".
   // Falls back to "00:00" if the string is empty or unparseable.
@@ -186,7 +361,14 @@ function buildCalendarStart_(isoDate, timeText) {
   const mm = Number(timeParts[1] || 0);
 
   const dt = new Date(y, m, d, hh, mm, 0, 0);
-  if (isNaN(dt.getTime())) throw new Error("Invalid calendar start time.");
+  if (
+    isNaN(dt.getTime()) ||
+    dt.getFullYear() !== y ||
+    dt.getMonth() !== m ||
+    dt.getDate() !== d
+  ) {
+    throw new Error("Invalid calendar start date or time.");
+  }
 
   return dt;
 }
@@ -214,4 +396,11 @@ function resetCalendarForRow(rowNumber) {
   writeBookingObjectToExistingRow_(rowNumber, booking);
 
   return { ok: true };
+}
+
+function getOptionalSourceBookingFile_(booking) {
+  if (booking.sourceType === "CLIENT_PLATFORM" || String(booking.messageId || "").indexOf("CLIENT:") === 0) {
+    return null;
+  }
+  return getOrCreateOriginalBookingXlsxFile_(booking);
 }

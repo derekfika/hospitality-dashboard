@@ -23,6 +23,7 @@ function scanInboxForDashboardBookings() {
         const key = makeDashboardKey_(msg.getId(), att.getName());
 
         if (isDashboardKeyLogged_(key)) {
+          console.log("Skipped duplicate key: " + key);
           skipped++;
           continue;
         }
@@ -35,6 +36,7 @@ function scanInboxForDashboardBookings() {
 
           writeBookingToSheet_(booking);
           logged++;
+          runPostImportAutomation_(booking);
         } catch (e) {
           errors++;
           Logger.log("Booking scan error: " + e);
@@ -44,7 +46,6 @@ function scanInboxForDashboardBookings() {
   }
 
   if (logged > 0 || skipped > 0) {
-  applyProcessedLabel_(thread);  
   }
 
   setSetting_("LAST_INBOX_SCAN_AT", new Date().toISOString());
@@ -52,12 +53,31 @@ function scanInboxForDashboardBookings() {
     `Dashboard scan complete. Scanned=${scanned}, Logged=${logged}, Skipped=${skipped}, Errors=${errors}`
   );
 
+  archiveOldBookings_();
+  const archiveResult = archiveOldDashboardBookings();
+
   return {
     scanned,
     logged,
     skipped,
-    errors
+    errors,
+    archived: archiveResult.archived
   };
+
+}
+
+function runPostImportAutomation_(booking) {
+  const mode = getConfiguredValue_("AUTOMATION_MODE", "MANUAL");
+  const requireReady = getConfiguredValue_("AUTOMATION_REQUIRE_READY", true);
+
+  if (mode === "MANUAL") return;
+
+  if (requireReady && booking.status !== CONFIG.STATUS.READY) {
+    return;
+  }
+
+  // Placeholder for now
+  Logger.log("Automation queued: " + mode + " for " + booking.bookingId);
 }
 
 function buildInboxScanQuery_() {
@@ -155,10 +175,12 @@ function isBookingOlderThanArchiveThreshold_(eventDate, archiveAfterDays, today)
 }
 
 function makeDashboardKey_(messageId, attachmentName) {
-  return `${messageId}|${attachmentName || ""}`;
+  return `${String(messageId || "").trim()}|${String(attachmentName || "").trim()}`;
 }
 
 function isDashboardKeyLogged_(key) {
+  if (!key) return false;
+
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 
@@ -177,15 +199,19 @@ function isDashboardKeyLogged_(key) {
     .getValues();
 
   for (const row of values) {
-    const existingKey =
-      `${row[messageCol - 1]}|${row[attachmentCol - 1] || ""}`;
+    const messageId = String(row[messageCol - 1] || "").trim();
+    const attachmentName = String(row[attachmentCol - 1] || "").trim();
+
+    // Important: ignore old/manual rows with missing keys
+    if (!messageId || !attachmentName) continue;
+
+    const existingKey = `${messageId}|${attachmentName}`;
 
     if (existingKey === key) return true;
   }
 
   return false;
 }
-
 function buildBookingFromMessageIdAndAttachment_(messageId, attachmentName) {
   const msg = GmailApp.getMessageById(messageId);
   const thread = msg.getThread();
@@ -291,8 +317,10 @@ function scanInboxChunk(offset, limit) {
     try {
       const result = processInboxThread_(thread);
 
-      if (result && result.logged) logged += result.logged;
-      else skipped++;
+      logged += result.logged || 0;
+      skipped += result.skipped || 0;
+      errors += result.errors || 0;
+
     } catch (e) {
       console.log("Scan thread error: " + e);
       errors++;
@@ -302,17 +330,24 @@ function scanInboxChunk(offset, limit) {
   const nextOffset = offset + threads.length;
   const done = threads.length < limit;
 
+  let archiveResult = { checked: 0, archived: 0 };
+
   if (done) {
     setSetting_("LAST_INBOX_SCAN_AT", new Date().toISOString());
+    if (getConfiguredValue_("AUTO_ARCHIVE_ENABLED", true)) {
+      archiveResult = archiveOldDashboardBookings();
+    }
   }
 
-  return {
-    logged,
-    skipped,
-    errors,
-    nextOffset,
-    done
-  };
+
+return {
+  logged,
+  skipped,
+  errors,
+  nextOffset,
+  done,
+  archived: archiveResult.archived
+};
 }
 
 function processInboxThread_(thread) {
@@ -352,7 +387,13 @@ function processInboxThread_(thread) {
         logged++;
 
       } catch (e) {
-        console.log(e);
+        console.error(
+          "Booking import failed:",
+          msg.getSubject(),
+          att.getName(),
+          e
+        );
+
         errors++;
       }
     }
@@ -364,4 +405,111 @@ function processInboxThread_(thread) {
     skipped,
     errors
   };
+}
+
+function archiveOldBookings_() {
+  const sh = getDashboardSheet_();
+  const map = getHeaderMap_();
+
+  const archiveAfterDays =
+    getConfiguredNumber_("ARCHIVE_AFTER_DAYS", 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return;
+
+  const parsedJsonCol = map.ParsedJSON;
+
+  const values = sh
+    .getRange(2, parsedJsonCol, lastRow - 1, 1)
+    .getValues();
+
+  values.forEach((row, i) => {
+    const booking = safeJsonParse_(row[0], null);
+
+    if (!booking) return;
+
+    if (
+      booking.status === CONFIG.STATUS.ARCHIVED ||
+      booking.status === CONFIG.STATUS.CANCELLED
+    ) {
+      return;
+    }
+
+    if (
+      isBookingOlderThanArchiveThreshold_(
+        booking.eventDate,
+        archiveAfterDays,
+        today
+      )
+    ) {
+      booking.status = CONFIG.STATUS.ARCHIVED;
+      booking.updatedAt = new Date();
+
+      writeBookingObjectToExistingRow_(i + 2, booking);
+    }
+  });
+}
+
+function archiveOldDashboardBookings() {
+  const sh = getDashboardSheet_();
+  const map = getHeaderMap_();
+
+  const parsedJsonCol = map.ParsedJSON;
+  if (!parsedJsonCol) {
+    throw new Error("ParsedJSON column not found.");
+  }
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) {
+    return { checked: 0, archived: 0 };
+  }
+
+  const archiveAfterDays = getConfiguredNumber_("ARCHIVE_AFTER_DAYS", 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let checked = 0;
+  let archived = 0;
+
+  const values = sh
+    .getRange(2, parsedJsonCol, lastRow - 1, 1)
+    .getValues();
+
+  values.forEach((row, index) => {
+    const rowNumber = index + 2;
+    const booking = safeJsonParse_(row[0], null);
+
+    if (!booking) return;
+
+    checked++;
+
+    if (
+      booking.status === CONFIG.STATUS.ARCHIVED ||
+      booking.status === CONFIG.STATUS.CANCELLED
+    ) {
+      return;
+    }
+
+    if (!booking.eventDate) return;
+
+    if (
+      isBookingOlderThanArchiveThreshold_(
+        booking.eventDate,
+        archiveAfterDays,
+        today
+      )
+    ) {
+      booking.status = CONFIG.STATUS.ARCHIVED;
+      booking.updatedAt = new Date();
+
+      writeBookingObjectToExistingRow_(rowNumber, booking);
+      archived++;
+    }
+  });
+
+  return { checked, archived };
 }

@@ -14,8 +14,17 @@
   let TOAST_TIMER = null;
   let SETTINGS_STATE = null;
   let ACTIVE_SETTINGS_TAB = "";
+  let ADMIN_UNLOCKED = false;
+  let PENDING_ADMIN_TAB = "";
 
-  console.log("SCRIPT LOADED VERSION BETA TEST");
+  let scanTotals = {
+    logged: 0,
+    skipped: 0,
+    errors: 0,
+    archived: 0
+  };
+
+  console.log("SCRIPT LOADED VERSION BETA TEST v0.9.2");
 
   document.addEventListener("DOMContentLoaded", loadBookings);
 
@@ -62,11 +71,22 @@
     const fallbackSchema = Array.isArray(window.DASHBOARD_SETTINGS_SCHEMA)
       ? window.DASHBOARD_SETTINGS_SCHEMA
       : [];
-    const schema = Array.isArray(state.schema) && state.schema.length
-      ? state.schema
-      : Array.isArray(state.sections) && state.sections.length
-        ? state.sections
-        : fallbackSchema;
+
+    const schema =
+      Array.isArray(state.schema) && state.schema.length
+        ? state.schema
+        : Array.isArray(state.sections) && state.sections.length
+          ? state.sections
+          : fallbackSchema;
+
+    console.log("Settings response debug", {
+      hasStateSchema: Array.isArray(state.schema),
+      stateSchemaLength: Array.isArray(state.schema) ? state.schema.length : null,
+      hasStateSections: Array.isArray(state.sections),
+      stateSectionsLength: Array.isArray(state.sections) ? state.sections.length : null,
+      fallbackSchemaLength: fallbackSchema.length,
+      finalSchemaLength: schema.length
+    });
 
     return {
       ok: state.ok !== false,
@@ -76,6 +96,7 @@
         ...(state.values || {})
       },
       validation: state.validation || { ok: true, errors: [], errorsByKey: {} },
+      about: state.about || {},
       raw: state
     };
   }
@@ -102,7 +123,15 @@
     if (!tabsEl || !formEl) return;
 
     if (!Array.isArray(SETTINGS_STATE.schema) || SETTINGS_STATE.schema.length === 0) {
-      tabsEl.innerHTML = "";
+      console.log(
+        "Admin debug",
+        SETTINGS_STATE.schema.map(s => ({
+          id: s.id,
+          title: s.title,
+          access: s.access,
+          locked: s.access === "admin" && !ADMIN_UNLOCKED
+        }))
+      ); tabsEl.innerHTML = "";
       formEl.innerHTML = `
         <div class="loading">
           Settings schema did not load. Try refreshing the web app after pushing the latest script.
@@ -112,14 +141,24 @@
       return;
     }
 
-    tabsEl.innerHTML = SETTINGS_STATE.schema.map(section => `
-      <button
-        class="settings-tab ${section.id === ACTIVE_SETTINGS_TAB ? "active" : ""} ${sectionHasSettingsErrors_(section) ? "has-error" : ""}"
-        type="button"
-        onclick="selectSettingsTab('${section.id}')">
-        ${escapeHtml(section.title)}
-      </button>
-    `).join("");
+    tabsEl.innerHTML = SETTINGS_STATE.schema.map(section => {
+      const locked =
+        section.access === "admin" &&
+        !ADMIN_UNLOCKED;
+
+      return `
+    <button
+      class="settings-tab
+             ${section.id === ACTIVE_SETTINGS_TAB ? "active" : ""}
+             ${sectionHasSettingsErrors_(section) ? "has-error" : ""}
+             ${locked ? "locked" : ""}"
+      type="button"
+      onclick="selectSettingsTab('${section.id}')">
+      ${locked ? "🔒 " : ""}
+      ${escapeHtml(section.title)}
+    </button>
+  `;
+    }).join("");
 
     const section =
       SETTINGS_STATE.schema.find(item => item.id === ACTIVE_SETTINGS_TAB) ||
@@ -136,6 +175,93 @@
         ${section.fields.map(field => renderSettingsField_(field)).join("")}
       </div>
     `;
+  }
+
+  function openAdminPinModal() {
+    const modal = document.getElementById("adminPinModal");
+    const input = document.getElementById("adminPinInput");
+    const status = document.getElementById("adminPinStatus");
+    console.log("Admin modal found?", !!modal);
+
+    if (!modal) return;
+
+    if (status) {
+      status.textContent = "";
+      status.classList.add("hidden");
+      status.classList.remove("settings-error");
+    }
+
+    if (input) input.value = "";
+
+    modal.classList.remove("hidden");
+
+    setTimeout(() => {
+      if (input) input.focus();
+    }, 50);
+  }
+
+  function closeAdminPinModal() {
+    const modal = document.getElementById("adminPinModal");
+    if (modal) modal.classList.add("hidden");
+
+    PENDING_ADMIN_TAB = "";
+  }
+
+  function submitAdminPin() {
+    const input = document.getElementById("adminPinInput");
+    const status = document.getElementById("adminPinStatus");
+    const pin = input ? input.value : "";
+
+    if (!pin) {
+      if (status) {
+        status.textContent = "Enter the admin PIN.";
+        status.classList.remove("hidden");
+        status.classList.add("settings-error");
+      }
+      return;
+    }
+
+    if (status) {
+      status.textContent = "Checking PIN...";
+      status.classList.remove("hidden");
+      status.classList.remove("settings-error");
+    }
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res && res.ok) {
+          ADMIN_UNLOCKED = true;
+
+          const targetTab = PENDING_ADMIN_TAB;
+          PENDING_ADMIN_TAB = "";
+
+          closeAdminPinModal();
+
+          if (targetTab) {
+            updateSettingsStateFromForm_();
+            ACTIVE_SETTINGS_TAB = targetTab;
+          }
+
+          renderSettingsModal_();
+          setSettingsStatus_("Admin settings unlocked for this session.");
+          showToast("Admin unlocked.", "success");
+          return;
+        }
+
+        if (status) {
+          status.textContent = "Incorrect PIN.";
+          status.classList.remove("hidden");
+          status.classList.add("settings-error");
+        }
+      })
+      .withFailureHandler(err => {
+        if (status) {
+          status.textContent = "PIN check failed: " + (err.message || err);
+          status.classList.remove("hidden");
+          status.classList.add("settings-error");
+        }
+      })
+      .verifyAdminPin(pin);
   }
 
   function renderSettingsField_(field) {
@@ -183,11 +309,18 @@
   }
 
   function selectSettingsTab(tabId) {
+    const section = SETTINGS_STATE.schema.find(item => item.id === tabId);
+
+    if (section && section.access === "admin" && !ADMIN_UNLOCKED) {
+      PENDING_ADMIN_TAB = tabId;
+      openAdminPinModal();
+      return;
+    }
+
     updateSettingsStateFromForm_();
     ACTIVE_SETTINGS_TAB = tabId;
     renderSettingsModal_();
   }
-
   function resetCurrentSettingsTab() {
     if (!SETTINGS_STATE) return;
 
@@ -1099,9 +1232,9 @@
         SCAN_STATE = res;
 
         document.getElementById("scan-found").textContent = res.totalFound || 0;
+        document.getElementById("scan-archived").textContent = "0 ";
         document.getElementById("scan-summary").textContent =
-          `Scan from: ${res.scanFromLabel}. ${res.totalFound} thread(s) found.`;
-
+          `Scan from: ${formatScanDateTime_(res.scanFromLabel)}. ${res.totalFound} thread(s) found.`;
         document.getElementById("scan-ticker").textContent = "Ready to scan.";
         document.getElementById("scan-start-btn").disabled = false;
       })
@@ -1127,6 +1260,12 @@
     document.getElementById("scan-start-btn").disabled = true;
     document.getElementById("scan-close-btn").disabled = true;
     document.getElementById("scan-ticker").textContent = "Scanning...";
+    scanTotals = {
+      logged: 0,
+      skipped: 0,
+      errors: 0,
+      archived: 0
+    };
 
     processScanChunk(0, {
       logged: 0,
@@ -1142,10 +1281,24 @@
         totals.skipped += res.skipped || 0;
         totals.errors += res.errors || 0;
 
+        scanTotals.logged += Number(res.logged || 0);
+        scanTotals.skipped += Number(res.skipped || 0);
+        scanTotals.errors += Number(res.errors || 0);
+        scanTotals.archived += Number(res.archived || 0);
+
+        document.getElementById("scan-logged").textContent = scanTotals.logged + " ";
+        document.getElementById("scan-skipped").textContent = scanTotals.skipped + " ";
+        document.getElementById("scan-errors").textContent = scanTotals.errors + " ";
+        document.getElementById("scan-archived").textContent = scanTotals.archived + " ";
+
         document.getElementById("scan-logged").textContent = totals.logged;
         document.getElementById("scan-skipped").textContent = totals.skipped;
         document.getElementById("scan-errors").textContent = totals.errors;
-
+        if (res.archived !== undefined) {
+          document.getElementById("scan-archived").textContent = String(res.archived) + " ";
+        }
+        scanTotals.archived += Number(res.archived || 0);
+        document.getElementById("scan-archived").textContent = scanTotals.archived + " ";
         document.getElementById("scan-ticker").textContent =
           `Processed ${res.nextOffset} of ${SCAN_STATE.totalFound} thread(s)...`;
 
@@ -1450,6 +1603,21 @@
     };
   }
 
+  function formatScanDateTime_(value) {
+    if (!value) return "recent inbox";
+
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return String(value);
+
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
   window.setView = setView;
   window.openSettingsModal = openSettingsModal;
   window.closeSettingsModal = closeSettingsModal;
@@ -1463,4 +1631,6 @@
   window.changeCalendarWeek = changeCalendarWeek;
   window.goToCurrentWeek = goToCurrentWeek;
   window.runDashboardClientTests = runDashboardClientTests;
+  window.closeAdminPinModal = closeAdminPinModal;
+  window.submitAdminPin = submitAdminPin;
 </script>

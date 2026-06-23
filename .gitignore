@@ -1,2 +1,4 @@
 .npm-cache/
 node_modules/
+cpu-dashboard/qa/
+.artifact-work/

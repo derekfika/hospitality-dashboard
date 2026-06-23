@@ -134,7 +134,6 @@ function applyMeridian_(hh, meridian) {
  * @return {number}
  */
 function collapseHospitalityHour_(hh) {
-  if (hh >= 18 && hh <= 23) return hh - 12;
   return hh;
 }
 
@@ -195,7 +194,19 @@ function parseHospitalityDate_(raw) {
 
   if (!text) return "";
 
+  const dateText = text.replace(
+    /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+/i,
+    ""
+  ).trim();
+
+  const withoutWeekday = text.replace(
+    /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+/i,
+    ""
+  );
+
   let m;
+
+  m = dateText.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{2,4})$/i);
 
   // ── ISO pass-through "yyyy-MM-dd" ─────────────────────────────────────────
   m = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -214,6 +225,8 @@ function parseHospitalityDate_(raw) {
     const d = parseComponents_(m[1], m[2], m[3]);
     if (d) return formatIsoDate_(d);
   }
+
+  m = withoutWeekday.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{2,4})$/i); // ── "dd MMM yyyy" / "d MMMM yyyy" ────────────────────────────────────────
 
   // ── "14 July 2026" / "14 Jul 2026" / "14th July 2026" ────────────────────
   const MONTHS = {
@@ -545,7 +558,8 @@ function parseAngelCourtBookingSheet_(sheet) {
   // Normalise booking-level times
   booking.serviceTimes = serviceTimes
     .map(parseHospitalityTime_)
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 1);
 
   const bookingDefaultTime =
     booking.serviceTimes.length ? booking.serviceTimes[0] : "";
@@ -615,12 +629,10 @@ function parseAngelCourtLineItems_(sheet) {
 
   if (headerRow === -1) return [];
 
-  // Fallback time from the sheet name itself (e.g. "14.06.26 08:30")
   const fallbackTime = extractTimeFromSheetName_(sheet.getName());
 
   const items = [];
   let currentSection = "";
-  let emptyRun = 0;
 
   for (let r = headerRow + 1; r < values.length; r++) {
     const itemRaw = cols.item >= 0 ? values[r][cols.item] : "";
@@ -635,47 +647,40 @@ function parseAngelCourtLineItems_(sheet) {
       (qtyRaw !== "" && qtyRaw !== null) ||
       (commentRaw !== "" && commentRaw !== null);
 
-    if (!hasAny) {
-      continue;
-    }
-
-    if (
-      lowerItem.includes("please note") ||
-      lowerItem.includes("quotes are subject") ||
-      lowerItem.includes("notice") ||
-      lowerItem.includes("cancellation")
-    ) break;
-    
-    emptyRun = 0;
+    if (!hasAny) continue;
 
     const itemText = String(itemRaw || "").trim();
     const infoText = String(infoRaw || "").trim();
     const commentText = String(commentRaw || "").trim();
     const qtyNum = parseRequiredQty_(qtyRaw);
 
+    const lowerItem = itemText.toLowerCase();
+
+    const isFooterRow =
+      lowerItem.startsWith("please note") ||
+      lowerItem.includes("all quotes are subject") ||
+      lowerItem.includes("quotes are subject") ||
+      lowerItem.includes("notice & cancellation policy") ||
+      lowerItem.includes("grand net total");
+
+    if (isFooterRow) {
+      break;
+    }
+
     const isSection =
       itemText &&
       !infoText &&
       !commentText &&
-      (!qtyNum || qtyNum <= 0);
+      (!qtyNum || qtyNum <= 0) &&
+      isLikelySectionHeading_(itemText);
 
     if (isSection) {
-      const lowerItem = itemText.toLowerCase();
-      if (
-        lowerItem.includes("please note") ||
-        lowerItem.includes("quotes are subject") ||
-        lowerItem.includes("notice") ||
-        lowerItem.includes("cancellation")
-      ) break;
-
       currentSection = itemText;
       continue;
     }
 
     if (!qtyNum || qtyNum <= 0) continue;
 
-    // Parse the cell time; fall back to sheet-name time.
-    // A blank time here is fine — normaliseBookingTimes_() will forward-fill.
     const timeText =
       parseHospitalityTime_(timeRaw) ||
       parseHospitalityTime_(fallbackTime) ||
@@ -700,6 +705,44 @@ function parseAngelCourtLineItems_(sheet) {
   return items;
 }
 
+function isLikelySectionHeading_(text) {
+  const s = String(text || "").trim();
+  const lower = s.toLowerCase();
+
+  if (!s) return false;
+
+  const knownSections = [
+    "breakfast",
+    "lunch",
+    "lunch add-on",
+    "events catering",
+    "add-ons",
+    "summer bbq catering",
+    "alcoholic drinks - white wine",
+    "alcoholic drinks - red wine",
+    "alcoholic drinks - rose wine",
+    "alcoholic drinks - sparkling wine",
+    "drinks & drinks packages"
+  ];
+
+  if (knownSections.includes(lower)) return true;
+
+  // Avoid treating long menu descriptions as section headings.
+  if (s.length > 70) return false;
+
+  // Avoid anything that looks like a product description.
+  if (
+    lower.includes("minimum") ||
+    lower.includes("serves") ||
+    lower.includes("please") ||
+    lower.includes("wrapped") ||
+    lower.includes("served with")
+  ) {
+    return false;
+  }
+
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // DATE HELPERS

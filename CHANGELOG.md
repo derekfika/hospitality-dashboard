@@ -8,6 +8,67 @@ The project follows a simple versioning approach:
 * Bug fixes and stability improvements increment the patch version (e.g. v0.9.1 → v0.9.11)
 
 ---
+## v0.9.12 – Admin Settings & Stability Update
+
+### Added
+
+* Added PIN-protected Admin Settings tabs.
+* Added dedicated About tab showing:
+
+  * Application version
+  * Release name
+  * Developer information
+* Added user/admin separation within Settings.
+* Added session-based admin unlock (refreshing the page re-locks admin settings).
+* Added visual lock indicators for protected settings tabs.
+
+### Changed
+
+* Refactored Settings schema into logical groups:
+
+  * General
+  * Operations
+  * Calendar
+  * Branding
+  * Colours
+  * Admin: System
+  * Admin: Inbox
+  * Admin: Quotes
+  * Admin: Calendar
+  * Admin: Advanced Branding
+* Removed obsolete view-toggle logic from the dashboard.
+* Calendar view is now permanently visible alongside the booking table.
+* Improved calendar booking ordering so events display chronologically within each day.
+* Improved duplicate booking detection using Message ID + Attachment Name keys.
+* Improved dashboard write performance by writing complete rows in a single operation rather than updating cells individually.
+* Added validation checks for required dashboard headers.
+
+### Fixed
+
+* Fixed duplicate booking detection issues caused by blank Message ID or Attachment Name values.
+* Fixed scanner incorrectly skipping bookings after duplicate detection changes.
+* Fixed parser error caused by undefined `lowerItem` reference.
+* Fixed parser error caused by undefined `getNotesBlockUnderLabel_` reference.
+* Fixed dashboard import failures caused by malformed hospitality booking forms.
+* Fixed calendar event creation time parsing to use the central hospitality time parser.
+* Fixed multiple Apps Script HTML template rendering issues caused by malformed `<?!= ?>` template tags.
+* Fixed Admin PIN modal rendering issues.
+* Fixed settings schema loading and fallback behaviour.
+* Fixed deployment issues related to stale HTML templates.
+* Fixed calendar event sorting within the weekly calendar view.
+
+### Documentation
+
+* Added project README.
+* Added project changelog.
+* Standardised deployment and versioning process.
+* Published GitHub repository.
+* Added custom FIKA redirect URL for dashboard access.
+
+### Known Issues
+
+* Certain evening hospitality/event booking forms may fail to correctly detect Event Date fields.
+* Multi-time bookings currently use the first detected service time only.
 
 ## v0.9.11 - Code Review & Stability Update
 
@@ -27,6 +88,8 @@ The project follows a simple versioning approach:
 * Improved multi-site readiness through increased use of Settings sheet configuration.
 * Additional code cleanup following external code review.
 * Improved overall application stability and maintainability.
+* Scan inbox modal now displays human readable date/time instead of ISO
+* Added archived stat box to scan inbox modal
 
 ### Reviewed
 

@@ -90,6 +90,7 @@ function makeDashboardTestBooking_() {
   booking.clientCompany = "Example Client";
   booking.hostName = "Alex Example";
   booking.hostEmail = "alex@example.com";
+  booking.invoiceReference = "PO-12345";
   booking.pax = 12;
   booking.eventDate = "2026-07-14";
   booking.serviceTimes = ["08:30"];
@@ -208,6 +209,7 @@ function testQuoteHelpers_() {
   assertDashboardEqual_(formatMoney_(12.5), "GBP 12.50", "Money formatting failed.");
   assertDashboardEqual_(formatUkDate_("2026-07-14"), "14/07/2026", "UK date formatting failed.");
   assertDashboardEqual_(extractDriveIdFromUrl_("https://docs.google.com/document/d/abc1234567890123456789012/edit"), "abc1234567890123456789012", "Drive ID extraction failed.");
+  assertDashboardEqual_(booking.invoiceReference, "PO-12345", "Invoice reference fixture failed.");
 }
 
 function testCalendarHelpers_() {
@@ -219,6 +221,26 @@ function testCalendarHelpers_() {
   assertDashboardEqual_(start.getDate(), 14, "Calendar start date failed.");
   assertDashboardEqual_(start.getHours(), 8, "Calendar start hour failed.");
   assertDashboardTest_(makeCalendarTitle_(booking).indexOf("Example Client") !== -1, "Calendar title missing company.");
+
+  const attendees = parseCalendarAttendees_(
+    "one@example.com\n two@example.com;three@example.com,one@example.com"
+  );
+  assertDashboardEqual_(attendees.valid.length, 3, "Calendar attendee splitting or deduplication failed.");
+  assertDashboardEqual_(attendees.invalid.length, 0, "Valid calendar attendees were rejected.");
+
+  const invalidAttendees = parseCalendarAttendees_("valid@example.com\nnot-an-email");
+  assertDashboardEqual_(invalidAttendees.valid.length, 1, "Valid attendee was not retained.");
+  assertDashboardEqual_(invalidAttendees.invalid[0], "not-an-email", "Invalid attendee was not reported.");
+
+  assertDashboardEqual_(normaliseCalendarColorId_("9"), "9", "Valid calendar colour failed.");
+  assertDashboardEqual_(normaliseCalendarColorId_("99"), "", "Invalid calendar colour should be omitted.");
+  assertDashboardEqual_(
+    makeBookingJsonFileName_(booking),
+    "Booking Object - TEST-BOOKING-001.json",
+    "Booking JSON filename failed."
+  );
+  const bookingJson = JSON.parse(serialiseBookingJson_(booking));
+  assertDashboardEqual_(bookingJson.bookingId, booking.bookingId, "Booking JSON serialization failed.");
 }
 
 function testStatusValidation_() {

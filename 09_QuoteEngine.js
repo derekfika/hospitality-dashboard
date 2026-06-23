@@ -80,6 +80,8 @@ function clearAndRefillQuoteDoc_(doc, booking) {
     "<SERVICETIME>": (booking.serviceTimes || []).join(" / "),
     "<LOCATION>": booking.location || "",
     "<HOST>": booking.hostName || booking.hostEmail || "",
+    "<INVOICEREFERENCE>": booking.invoiceReference || "",
+    "<INVOICE_REFERENCE>": booking.invoiceReference || "",
     "<NOTES>": booking.notes || "",
     "<TOTAL_PRICE>": formatMoney_(booking.totalPrice),
     "<MGMTFEE>": formatMoney_(booking.mgmtFee),
