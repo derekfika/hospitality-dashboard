@@ -75,6 +75,13 @@
             <label class="field"><span>Company name *</span><input name="client.companyName" autocomplete="organization" required></label>
             <label class="field full"><span>Invoice / purchase order reference <small>(optional)</small></span><input name="client.invoiceReference" placeholder="e.g. PO number, cost centre or internal reference"></label>
           </div>
+          <div class="remember-contact-row">
+            <label>
+              <input id="remember-contact" type="checkbox">
+              <span><strong>Remember my contact details on this browser</strong><small>Saved only in this browser.</small></span>
+            </label>
+            <button id="forget-contact" class="forget-contact-button" type="button" hidden>Forget saved details</button>
+          </div>
         </section>
 
         <section class="form-step" data-step="2">
@@ -166,7 +173,10 @@
       <aside class="summary-panel">
         <div class="summary-heading">
           <p class="eyebrow">Your request</p>
-          <span class="summary-live-dot" title="Saved automatically"></span>
+          <div class="save-status" aria-live="polite">
+            <span class="summary-live-dot" title="Saved automatically"></span>
+            <span id="save-status-text"></span>
+          </div>
         </div>
         <div class="summary-meta" id="summary-meta">No occasion selected yet.</div>
         <div id="summary-items" class="summary-items"></div>

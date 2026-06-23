@@ -1428,6 +1428,27 @@
     margin: 0;
   }
 
+  .save-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 20px;
+    color: rgba(255, 255, 255, .72);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  #save-status-text {
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity .2s ease, transform .2s ease;
+  }
+
+  #save-status-text.visible {
+    opacity: 1;
+    transform: none;
+  }
+
   .summary-live-dot {
     width: 9px;
     height: 9px;
@@ -1441,9 +1462,107 @@
     animation: summaryItem .3s var(--ease-out) both;
   }
 
+  .summary-booking-meta,
+  .summary-empty {
+    display: grid;
+    gap: 4px;
+  }
+
+  .summary-booking-meta strong,
+  .summary-empty strong {
+    color: #fff;
+    font-size: 14px;
+  }
+
+  .summary-booking-meta span,
+  .summary-empty span {
+    color: rgba(255, 255, 255, .66);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .summary-empty-menu {
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .18);
+  }
+
   .summary-total strong {
     font-family: "Aptos Display", "Segoe UI", Arial, sans-serif;
     transition: transform .2s var(--ease-out), color .2s ease;
+  }
+
+  .suggestion-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    max-width: 480px;
+    margin-top: 13px;
+    padding: 10px 11px 10px 13px;
+    border: 1px solid rgba(54, 190, 139, .22);
+    border-radius: 12px;
+    background: rgba(117, 239, 184, .13);
+  }
+
+  .suggestion-pill span {
+    display: grid;
+    gap: 1px;
+    color: var(--ink);
+  }
+
+  .suggestion-pill strong { font-size: 12px; }
+  .suggestion-pill small { color: var(--muted); font-size: 10px; }
+
+  .use-suggestion-button {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 999px;
+    color: var(--accent-dark);
+    background: var(--mint);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .remember-contact-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-top: 24px;
+    padding: 16px 18px;
+    border: 1px solid rgba(34, 24, 116, .10);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .58);
+  }
+
+  .remember-contact-row label {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    cursor: pointer;
+  }
+
+  .remember-contact-row input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--accent);
+  }
+
+  .remember-contact-row span { display: grid; gap: 2px; }
+  .remember-contact-row strong { font-size: 13px; }
+  .remember-contact-row small { color: var(--muted); font-size: 11px; }
+
+  .forget-contact-button {
+    padding: 5px 0;
+    border: 0;
+    color: var(--accent);
+    background: transparent;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   body.modal-open {
@@ -1751,6 +1870,16 @@
 
     .modal-actions button {
       width: 100%;
+    }
+
+    .suggestion-pill,
+    .remember-contact-row {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .use-suggestion-button {
+      align-self: flex-start;
     }
   }
 

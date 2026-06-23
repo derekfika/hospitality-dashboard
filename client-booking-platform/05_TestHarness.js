@@ -38,6 +38,7 @@ function runBookingPlatformTests() {
     { name: "dashboard adapter produces quote item shape", ok: dashboardBooking.items[0].section === "Breakfast" && dashboardBooking.items[0].qty === 10 },
     { name: "dashboard adapter preserves client payload", ok: dashboardBooking.clientBooking.bookingId === protectedBooking.bookingId },
     { name: "invoice reference reaches dashboard JSON", ok: dashboardBooking.invoiceReference === "PO-12345" && dashboardBooking.notes.indexOf("PO-12345") !== -1 },
+    { name: "serving suggestion schema is public", ok: getPublicPlatformConfig().menu.find(function(item) { return item.id === "mini_pastries"; }).serves === 12 },
     { name: "spreadsheet URL ID extraction", ok: extractSpreadsheetId_("https://docs.google.com/spreadsheets/d/1ExampleSpreadsheetId123456789/edit#gid=0") === "1ExampleSpreadsheetId123456789" },
     { name: "spreadsheet ID extraction", ok: extractSpreadsheetId_("1ExampleSpreadsheetId123456789") === "1ExampleSpreadsheetId123456789" },
     { name: "sheet gid is rejected", ok: extractSpreadsheetId_("123456789") === "" },

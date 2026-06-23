@@ -1,3 +1,19 @@
+const MENU_SUGGESTIONS = Object.freeze({
+  mini_pastries: { serves: 12, unit: "trays" },
+  sliced_fruit: { serves: 8, unit: "platters" },
+  bagel_box: { serves: 12, unit: "boxes" },
+  salad_box: { serves: 8, unit: "boxes" },
+  exotic_fruit_20: { serves: 20, unit: "boxes" },
+  exotic_fruit_8: { serves: 8, unit: "boxes" },
+  tray_bakes: { serves: 4, unit: "boxes" },
+  celebration_cake: { serves: 12, unit: "cakes" },
+  loaf_cake: { serves: 10, unit: "cakes" },
+  cheese_platter: { serves: 10, unit: "platters" },
+  charcuterie: { serves: 10, unit: "platters" },
+  bread_basket: { serves: 10, unit: "baskets" },
+  nibble_bowls: { serves: 3, unit: "bowls" }
+});
+
 const MENU_SCHEMA = Object.freeze([
   menuItem_("mini_pastries", "Breakfast", "Mini Pastries", "A selection of mini Danish and bite-size chocolate muffins.", "Serves 12", 36, 1, null, 3, [], 10),
   menuItem_("yoghurt_pots", "Breakfast", "Yoghurt pot selection", "", "Per person", 3.5, 1, null, 3, [], 20),
@@ -81,6 +97,7 @@ const MENU_SCHEMA = Object.freeze([
 ]);
 
 function menuItem_(id, category, name, description, servingInfo, unitPrice, minimumQuantity, minimumGuests, noticeRequiredDays, choices, sortOrder) {
+  const suggestion = MENU_SUGGESTIONS[id] || {};
   return Object.freeze({
     id: id,
     category: category,
@@ -92,6 +109,10 @@ function menuItem_(id, category, name, description, servingInfo, unitPrice, mini
     minimumQuantity: minimumQuantity,
     minimumGuests: minimumGuests,
     noticeRequiredDays: noticeRequiredDays,
+    serves: suggestion.serves || null,
+    suggestionType: suggestion.serves ? "ceil_by_guests" : null,
+    suggestionLabel: suggestion.serves ? "Suggested for your guest count" : "",
+    suggestionUnit: suggestion.unit || "units",
     choices: choices || [],
     dietaryTags: [],
     allergens: [],

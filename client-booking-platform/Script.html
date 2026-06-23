@@ -2,6 +2,9 @@
   (() => {
     const config = window.PLATFORM_CONFIG;
     const STORAGE_KEY = `fika-booking-${config.site.siteId}`;
+    const CONTACT_PROFILE_KEY = "fika-booking-contact-profile";
+    const CONTACT_FIELDS = ["client.name", "client.email", "client.phone", "client.companyName"];
+    let saveIndicatorTimer = null;
     const state = {
       step: 0,
       eventType: "",
@@ -18,6 +21,7 @@
     function init() {
       applyBranding();
       restore();
+      loadSavedContactProfile(false);
       renderEventTypes();
       bindFields();
       setMinimumDate();
@@ -25,7 +29,7 @@
       render();
       requestAnimationFrame(() => document.body.classList.add("page-ready"));
       bindRippleEffects();
-      window.addEventListener("beforeunload", persist);
+      window.addEventListener("beforeunload", () => persist(false));
     }
 
     function applyBranding() {
@@ -83,6 +87,8 @@
         }
         const qtyButton = event.target.closest("[data-qty-action]");
         if (qtyButton) changeQuantity(qtyButton.dataset.itemId, qtyButton.dataset.qtyAction === "up" ? 1 : -1);
+        const suggestionButton = event.target.closest("[data-use-suggestion]");
+        if (suggestionButton) applySuggestedQuantity(suggestionButton.dataset.useSuggestion);
         const resetButton = event.target.closest('[data-action="reset"]');
         if (resetButton) {
           event.preventDefault();
@@ -94,7 +100,9 @@
         if (event.target.matches("[name]")) {
           state.fields[event.target.name] = fieldValue(event.target);
           event.target.closest(".field")?.classList.remove("invalid");
-          persist();
+          persist(true);
+          if (CONTACT_FIELDS.includes(event.target.name)) saveContactProfileIfEnabled();
+          if (event.target.name === "event.guestCount") renderMenu();
           renderSummary();
           renderDateGuidance();
         }
@@ -121,6 +129,11 @@
       document.addEventListener("keydown", event => {
         if (event.key === "Escape" && !$("#reset-modal").hidden) closeResetModal();
       });
+      $("#remember-contact").addEventListener("change", () => {
+        saveContactProfileIfEnabled();
+        $("#forget-contact").hidden = !$("#remember-contact").checked;
+      });
+      $("#forget-contact").addEventListener("click", forgetContactProfile);
     }
 
     function render() {
@@ -136,7 +149,7 @@
       renderDateGuidance();
       renderSummary();
       if (state.step === 5) renderReview();
-      persist();
+      persist(false);
       window.scrollTo({ top: document.querySelector(".app-shell").offsetTop - 18, behavior: "smooth" });
     }
 
@@ -228,6 +241,7 @@
     function renderMenuCard(item) {
       const line = ensureLine(item.id);
       const selected = line.quantity > 0;
+      const suggestion = suggestedQuantity(item);
       return `
         <article class="menu-card ${selected ? "selected" : ""}" data-menu-card="${item.id}">
           <div>
@@ -235,6 +249,12 @@
             ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
             <p>${escapeHtml(item.servingInfo)}${item.noticeRequiredDays ? ` · ${item.noticeRequiredDays} days’ notice` : ""}</p>
             <p class="menu-price">${money.format(item.unitPrice)} unit price</p>
+            ${suggestion ? `
+              <div class="suggestion-pill">
+                <span><strong>Suggested: ${suggestion.quantity} ${escapeHtml(suggestion.unit)}</strong><small>Feeds approx. ${suggestion.feeds} guests</small></span>
+                <button class="use-suggestion-button" type="button" data-use-suggestion="${item.id}">Use suggestion</button>
+              </div>
+            ` : ""}
           </div>
           <div class="quantity-control" aria-label="${escapeHtml(item.name)} quantity">
             <button type="button" data-qty-action="down" data-item-id="${item.id}" aria-label="Reduce quantity">−</button>
@@ -288,33 +308,43 @@
       if (input.dataset.itemChoice) line.choices[input.dataset.choiceId] = input.value;
       if (input.dataset.itemComment) line.comments = input.value;
       if (input.dataset.itemTime) line.timeRequired = input.value;
-      persist();
+      persist(true);
       renderSummary();
     }
 
     function updateAfterItemChange() {
       renderMenuList();
       renderSummary();
-      persist();
+      persist(true);
     }
 
     function renderSummary() {
       const type = eventType();
       const guests = Number(value("event.guestCount") || 0);
+      const eventDate = formatDisplayDate(value("event.eventDate"));
+      const serviceTime = value("event.startTime");
 
-      const occasionText = state.eventType
-        ? (type.label || "Occasion selected")
-        : "No occasion selected yet.";
-
-      $("#summary-meta").textContent = guests
-        ? `${occasionText} · ${guests} guests`
-        : occasionText;
+      $("#summary-meta").innerHTML = !state.eventType ? `
+        <div class="summary-empty">
+          <strong>Start building your booking</strong>
+          <span>Choose an occasion to begin.</span>
+        </div>` : `
+        <div class="summary-booking-meta">
+          <strong>${escapeHtml(type.label || "Hospitality booking")}</strong>
+          <span>${guests ? `${guests} guests` : "Add guest count for serving suggestions."}</span>
+          ${eventDate ? `<span>${escapeHtml(eventDate)}</span>` : ""}
+          ${serviceTime ? `<span>${escapeHtml(serviceTime)} service</span>` : ""}
+        </div>`;
 
       const lines = selectedItems();
-      $("#summary-items").innerHTML = lines.map(line => {
+      $("#summary-items").innerHTML = lines.length ? lines.map(line => {
         const item = menuItem(line.itemId);
-        return `<div class="summary-item"><div>${escapeHtml(item.name)}<small>Quantity ${line.quantity}</small></div><strong>${money.format(line.quantity * item.unitPrice)}</strong></div>`;
-      }).join("");
+        return `<div class="summary-item"><div><strong>${line.quantity} × ${escapeHtml(item.name || "Menu item")}</strong><small>${money.format(line.quantity * item.unitPrice)}</small></div></div>`;
+      }).join("") : `
+        <div class="summary-empty summary-empty-menu">
+          <strong>No menu items yet.</strong>
+          <span>Choose from the menu to build your request.</span>
+        </div>`;
 
       const totalElement = $("#summary-total");
       const nextTotal = money.format(total());
@@ -438,10 +468,11 @@
       $$("[data-item-quantity]").forEach(input => input.value = ensureLine(input.dataset.itemQuantity).quantity);
     }
 
-    function persist() {
+    function persist(showIndicator) {
       if (state.submitted) return;
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ step: state.step, eventType: state.eventType, fields: state.fields, items: state.items, activeCategory: state.activeCategory }));
+        if (showIndicator) renderSaveIndicator();
       } catch (_) { }
     }
 
@@ -466,6 +497,7 @@
         input.closest(".field")?.classList.remove("invalid");
         state.fields[input.name] = fieldValue(input);
       });
+      loadSavedContactProfile(true);
 
       const menuSearch = $("#menu-search");
       if (menuSearch) menuSearch.value = "";
@@ -478,6 +510,7 @@
       $("#next-button").disabled = false;
 
       renderEventTypes();
+      bindSavedFields();
       renderMenu();
       render();
 
@@ -604,6 +637,87 @@
 
     function clearMessage() {
       $("#messages").innerHTML = "";
+    }
+
+    function formatDisplayDate(dateString) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateString || ""))) return "";
+      const parts = dateString.split("-").map(Number);
+      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      if (isNaN(date.getTime())) return "";
+      return date.toLocaleDateString(config.site.locale || "en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short"
+      });
+    }
+
+    function suggestedQuantity(item) {
+      const guests = Number(value("event.guestCount") || 0);
+      const serves = Number(item && item.serves || 0);
+      if (!guests || !serves || item.suggestionType !== "ceil_by_guests") return null;
+      const quantity = Math.max(
+        Number(item.minimumQuantity || 1),
+        Math.ceil(guests / serves)
+      );
+      return {
+        quantity: quantity,
+        feeds: quantity * serves,
+        unit: item.suggestionUnit || "units"
+      };
+    }
+
+    function applySuggestedQuantity(itemId) {
+      const item = menuItem(itemId);
+      const suggestion = suggestedQuantity(item);
+      if (!suggestion) return;
+      ensureLine(itemId).quantity = suggestion.quantity;
+      updateAfterItemChange();
+    }
+
+    function loadSavedContactProfile(includeEmptyFields) {
+      try {
+        const profile = JSON.parse(localStorage.getItem(CONTACT_PROFILE_KEY) || "null");
+        if (!profile) return;
+        CONTACT_FIELDS.forEach(field => {
+          const draftHasValue = Object.prototype.hasOwnProperty.call(state.fields, field);
+          if ((!draftHasValue || includeEmptyFields) && profile[field]) {
+            state.fields[field] = profile[field];
+          }
+        });
+        $("#remember-contact").checked = true;
+        $("#forget-contact").hidden = false;
+      } catch (_) { }
+    }
+
+    function saveContactProfileIfEnabled() {
+      const checkbox = $("#remember-contact");
+      if (!checkbox || !checkbox.checked) return;
+      const profile = {};
+      CONTACT_FIELDS.forEach(field => {
+        profile[field] = value(field);
+      });
+      try {
+        localStorage.setItem(CONTACT_PROFILE_KEY, JSON.stringify(profile));
+      } catch (_) { }
+    }
+
+    function forgetContactProfile() {
+      try {
+        localStorage.removeItem(CONTACT_PROFILE_KEY);
+      } catch (_) { }
+      $("#remember-contact").checked = false;
+      $("#forget-contact").hidden = true;
+    }
+
+    function renderSaveIndicator() {
+      const status = $("#save-status-text");
+      if (!status) return;
+      status.textContent = "Progress saved";
+      status.classList.add("visible");
+      clearTimeout(saveIndicatorTimer);
+      saveIndicatorTimer = setTimeout(() => {
+        status.classList.remove("visible");
+      }, 1600);
     }
 
     function bindRippleEffects() {
