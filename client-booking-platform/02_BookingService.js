@@ -9,13 +9,15 @@ function submitBookingRequest(clientPayload) {
     }
 
     const integration = writeBookingRequest_(booking);
+    const notification = sendNewBookingNotification_(booking, integration);
     return {
       ok: true,
       bookingId: booking.bookingId,
       estimatedTotal: booking.order.netTotal,
       currency: SITE_CONFIG.currency,
       dashboardRow: integration.dashboardRow,
-      dashboardStatus: integration.dashboardStatus
+      dashboardStatus: integration.dashboardStatus,
+      notificationSent: notification.sent
     };
   } finally {
     lock.releaseLock();
@@ -50,7 +52,8 @@ function buildServerBooking_(payload) {
       name: clean_(client.name),
       email: clean_(client.email).toLowerCase(),
       phone: clean_(client.phone),
-      companyName: clean_(client.companyName)
+      companyName: clean_(client.companyName),
+      invoiceReference: clean_(client.invoiceReference)
     },
     event: {
       eventDate: clean_(event.eventDate),

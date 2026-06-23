@@ -7,6 +7,7 @@ const SITE_CONFIG = Object.freeze({
   locale: "en-GB",
   timeZone: "Europe/London",
   bookingReferencePrefix: "AC",
+  siteEmailAddress: "seven@fikacatering.com",
   notificationRecipients: [],
   integration: {
     mode: "direct_dashboard",
@@ -61,7 +62,10 @@ const PLATFORM_SETTINGS_SCHEMA = Object.freeze([
   { key: "HERO_BODY", fallback: SITE_CONFIG.branding.heroBody },
   { key: "COLOUR_ACCENT", fallback: SITE_CONFIG.branding.accent },
   { key: "COLOUR_INK", fallback: SITE_CONFIG.branding.ink },
-  { key: "COLOUR_PAPER", fallback: SITE_CONFIG.branding.paper }
+  { key: "COLOUR_PAPER", fallback: SITE_CONFIG.branding.paper },
+  { key: "SITE_EMAIL_ADDRESS", fallback: SITE_CONFIG.siteEmailAddress },
+  { key: "NOTIFICATION_RECIPIENTS", fallback: SITE_CONFIG.notificationRecipients.join(", ") },
+  { key: "DASHBOARD_URL", fallback: "" }
 ]);
 
 const EVENT_TYPES = Object.freeze([

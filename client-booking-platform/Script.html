@@ -301,12 +301,21 @@
     function renderSummary() {
       const type = eventType();
       const guests = Number(value("event.guestCount") || 0);
-      $("#summary-meta").textContent = type ? `${type.label}${guests ? ` · ${guests} guests` : ""}` : "No occasion selected yet.";
+
+      const occasionText = state.eventType
+        ? (type.label || "Occasion selected")
+        : "No occasion selected yet.";
+
+      $("#summary-meta").textContent = guests
+        ? `${occasionText} · ${guests} guests`
+        : occasionText;
+
       const lines = selectedItems();
       $("#summary-items").innerHTML = lines.map(line => {
         const item = menuItem(line.itemId);
         return `<div class="summary-item"><div>${escapeHtml(item.name)}<small>Quantity ${line.quantity}</small></div><strong>${money.format(line.quantity * item.unitPrice)}</strong></div>`;
       }).join("");
+
       const totalElement = $("#summary-total");
       const nextTotal = money.format(total());
       if (totalElement.textContent !== nextTotal) {
@@ -337,7 +346,7 @@
       const lines = selectedItems();
       $("#review-content").innerHTML = `
         <div class="review-block"><h3>Contact</h3>
-          ${reviewRow("Name", value("client.name"))}${reviewRow("Email", value("client.email"))}${reviewRow("Phone", value("client.phone"))}${reviewRow("Company", value("client.companyName"))}
+          ${reviewRow("Name", value("client.name"))}${reviewRow("Email", value("client.email"))}${reviewRow("Phone", value("client.phone"))}${reviewRow("Company", value("client.companyName"))}${value("client.invoiceReference") ? reviewRow("Invoice reference", value("client.invoiceReference")) : ""}
         </div>
         <div class="review-block"><h3>Event</h3>
           ${reviewRow("Occasion", eventType()?.label || "")}${reviewRow("Date", value("event.eventDate"))}${reviewRow("Time", [value("event.startTime"), value("event.endTime")].filter(Boolean).join("–"))}${reviewRow("Guests", value("event.guestCount"))}${reviewRow("Location", [value("event.floorLevel"), value("event.roomOrArea"), value("event.deliveryPoint")].filter(Boolean).join(" · "))}
@@ -375,7 +384,7 @@
       $("#confirmation-reference").textContent = result.bookingId;
       try {
         localStorage.removeItem(STORAGE_KEY);
-      } catch (_) {}
+      } catch (_) { }
       window.scrollTo({ top: document.querySelector(".app-shell").offsetTop - 18, behavior: "smooth" });
     }
 
@@ -422,7 +431,7 @@
         state.items = saved.items && typeof saved.items === "object" ? saved.items : {};
         state.activeCategory = typeof saved.activeCategory === "string" ? saved.activeCategory : "";
         state.submitted = false;
-      } catch (_) {}
+      } catch (_) { }
     }
 
     function hydrateItemInputs() {
@@ -433,13 +442,13 @@
       if (state.submitted) return;
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ step: state.step, eventType: state.eventType, fields: state.fields, items: state.items, activeCategory: state.activeCategory }));
-      } catch (_) {}
+      } catch (_) { }
     }
 
     function resetBooking() {
       try {
         localStorage.removeItem(STORAGE_KEY);
-      } catch (_) {}
+      } catch (_) { }
 
       state.step = 0;
       state.eventType = "";
@@ -529,7 +538,13 @@
     }
 
     function eventType() {
-      return config.eventTypes.find(type => type.id === state.eventType) || { categories: [], allowsEmptyOrder: false };
+      return config.eventTypes.find(type => type.id === state.eventType) || {
+        id: "",
+        label: "",
+        categories: [],
+        noticeType: "standard",
+        allowsEmptyOrder: false
+      };
     }
 
     function menuItem(id) {

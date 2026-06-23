@@ -25,7 +25,10 @@ const PLATFORM_SETTINGS_ROWS = [
   ["HERO_BODY", SITE_CONFIG.branding.heroBody, "Copy", "Hero body copy", "Short introduction below the headline."],
   ["COLOUR_ACCENT", SITE_CONFIG.branding.accent, "Colours", "Primary brand colour", "Hex colour such as #3d21bf."],
   ["COLOUR_INK", SITE_CONFIG.branding.ink, "Colours", "Text colour", "Hex colour such as #221874."],
-  ["COLOUR_PAPER", SITE_CONFIG.branding.paper, "Colours", "Page background colour", "Hex colour such as #f4f4f2."]
+  ["COLOUR_PAPER", SITE_CONFIG.branding.paper, "Colours", "Page background colour", "Hex colour such as #f4f4f2."],
+  ["SITE_EMAIL_ADDRESS", SITE_CONFIG.siteEmailAddress, "Notifications", "Site manager email", "Primary notification inbox for this site. Change this when forking the platform for another location."],
+  ["NOTIFICATION_RECIPIENTS", "", "Notifications", "Additional booking recipients", "Optional comma, semicolon or line-separated CC-style recipients."],
+  ["DASHBOARD_URL", "", "Notifications", "Hospitality dashboard URL", "Optional deployed dashboard URL included in the notification email."]
 ];
 
 const DASHBOARD_REQUIRED_HEADERS = [
@@ -165,6 +168,7 @@ function adaptClientBookingForDashboard_(booking) {
     hostName: booking.client.name,
     hostEmail: booking.client.email,
     hostPhone: booking.client.phone,
+    invoiceReference: booking.client.invoiceReference || "",
     pax: booking.event.guestCount,
     eventDate: booking.event.eventDate,
     serviceTimes: serviceTimes,
@@ -214,6 +218,7 @@ function appendDashboardBooking_(sheet, booking) {
     ClientCompany: booking.clientCompany,
     HostName: booking.hostName,
     HostEmail: booking.hostEmail,
+    InvoiceReference: booking.invoiceReference,
     Pax: booking.pax,
     EventDate: booking.eventDate,
     ServiceTimes: JSON.stringify(booking.serviceTimes),
@@ -275,15 +280,99 @@ function appendClientRequestLog_(sheet, booking) {
 }
 
 function getBookingSpreadsheet_() {
-  const id = String(SITE_CONFIG.integration.spreadsheetId || "").trim();
-  return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  const propertyId = PropertiesService.getScriptProperties()
+    .getProperty("DASHBOARD_SPREADSHEET_ID");
+  const configuredValue = propertyId || SITE_CONFIG.integration.spreadsheetId;
+  const id = extractSpreadsheetId_(configuredValue);
+
+  if (configuredValue && !id) {
+    throw new Error(
+      "The configured dashboard spreadsheet value is not a valid spreadsheet ID or Google Sheets URL. " +
+      "Use the value between /d/ and /edit, not the tab gid."
+    );
+  }
+
+  if (id) return SpreadsheetApp.openById(id);
+
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (!active) {
+    throw new Error(
+      "No dashboard spreadsheet is configured. Run setDashboardSpreadsheetId('YOUR_SPREADSHEET_ID') once."
+    );
+  }
+  return active;
 }
 
 function getDashboardDataSheet_(spreadsheet) {
   const name = SITE_CONFIG.integration.dashboardSheetName;
   const sheet = spreadsheet.getSheetByName(name);
-  if (!sheet) throw new Error("Dashboard sheet '" + name + "' was not found. Check SITE_CONFIG.integration.");
+  if (!sheet) {
+    const available = spreadsheet.getSheets()
+      .map(function(candidate) { return candidate.getName(); })
+      .join(", ");
+    throw new Error(
+      "Dashboard sheet '" + name + "' was not found in spreadsheet '" +
+      spreadsheet.getName() + "'. Available tabs: " + (available || "none") +
+      ". Run testBookingPlatformConnection() for connection details."
+    );
+  }
   return sheet;
+}
+
+function extractSpreadsheetId_(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const urlMatch = text.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (urlMatch) return urlMatch[1];
+
+  if (/^[a-zA-Z0-9-_]{20,}$/.test(text)) return text;
+  return "";
+}
+
+/**
+ * Connects this booking platform to the Angel Court dashboard spreadsheet.
+ * Pass either the full Google Sheets URL or the spreadsheet ID between /d/ and /edit.
+ */
+function setDashboardSpreadsheetId(value) {
+  const id = extractSpreadsheetId_(value);
+  if (!id) {
+    throw new Error(
+      "Invalid spreadsheet value. Paste the full Google Sheets URL or the spreadsheet ID between /d/ and /edit."
+    );
+  }
+
+  const spreadsheet = SpreadsheetApp.openById(id);
+  PropertiesService.getScriptProperties()
+    .setProperty("DASHBOARD_SPREADSHEET_ID", id);
+
+  return testBookingPlatformConnection();
+}
+
+function clearDashboardSpreadsheetId() {
+  PropertiesService.getScriptProperties()
+    .deleteProperty("DASHBOARD_SPREADSHEET_ID");
+  return { ok: true };
+}
+
+function testBookingPlatformConnection() {
+  const spreadsheet = getBookingSpreadsheet_();
+  const tabs = spreadsheet.getSheets()
+    .map(function(sheet) { return sheet.getName(); });
+  const expectedTab = SITE_CONFIG.integration.dashboardSheetName;
+  const found = tabs.indexOf(expectedTab) !== -1;
+
+  return {
+    ok: found,
+    spreadsheetId: spreadsheet.getId(),
+    spreadsheetName: spreadsheet.getName(),
+    expectedDashboardTab: expectedTab,
+    availableTabs: tabs,
+    message: found
+      ? "Connected to '" + spreadsheet.getName() + "' and found '" + expectedTab + "'."
+      : "Connected to '" + spreadsheet.getName() + "' but could not find '" +
+        expectedTab + "'. Available tabs: " + tabs.join(", ")
+  };
 }
 
 function getOrCreateSheet_(spreadsheet, name, headers) {
@@ -321,6 +410,7 @@ function buildDashboardNotes_(booking) {
   return [
     "Submitted through Client Booking Platform.",
     booking.specialInstructions ? "Special instructions: " + booking.specialInstructions : "",
+    booking.client.invoiceReference ? "Invoice reference: " + booking.client.invoiceReference : "",
     booking.event.roomOrArea ? "Room / area: " + booking.event.roomOrArea : "",
     booking.event.deliveryPoint ? "Delivery point: " + booking.event.deliveryPoint : "",
     dietary !== "None declared" ? "Dietaries: " + dietary : "Dietaries: None declared",

@@ -1,6 +1,6 @@
 function runBookingPlatformTests() {
   const payload = {
-    client: { name: "Alex Smith", email: "alex@example.com", phone: "07123456789", companyName: "Example Ltd" },
+    client: { name: "Alex Smith", email: "alex@example.com", phone: "07123456789", companyName: "Example Ltd", invoiceReference: "PO-12345" },
     event: {
       eventDate: futureWeekday_(15),
       startTime: "09:00",
@@ -36,7 +36,13 @@ function runBookingPlatformTests() {
     { name: "structured choice retained", ok: protectedBooking.order.items[0].choices[0].value === "Mixed" },
     { name: "dashboard adapter produces READY booking", ok: dashboardBooking.status === "READY" },
     { name: "dashboard adapter produces quote item shape", ok: dashboardBooking.items[0].section === "Breakfast" && dashboardBooking.items[0].qty === 10 },
-    { name: "dashboard adapter preserves client payload", ok: dashboardBooking.clientBooking.bookingId === protectedBooking.bookingId }
+    { name: "dashboard adapter preserves client payload", ok: dashboardBooking.clientBooking.bookingId === protectedBooking.bookingId },
+    { name: "invoice reference reaches dashboard JSON", ok: dashboardBooking.invoiceReference === "PO-12345" && dashboardBooking.notes.indexOf("PO-12345") !== -1 },
+    { name: "spreadsheet URL ID extraction", ok: extractSpreadsheetId_("https://docs.google.com/spreadsheets/d/1ExampleSpreadsheetId123456789/edit#gid=0") === "1ExampleSpreadsheetId123456789" },
+    { name: "spreadsheet ID extraction", ok: extractSpreadsheetId_("1ExampleSpreadsheetId123456789") === "1ExampleSpreadsheetId123456789" },
+    { name: "sheet gid is rejected", ok: extractSpreadsheetId_("123456789") === "" },
+    { name: "notification recipients parse", ok: parseNotificationRecipients_("one@example.com; two@example.com\none@example.com").valid.length === 2 },
+    { name: "invalid notification recipient is reported", ok: parseNotificationRecipients_("valid@example.com, not-an-email").invalid[0] === "not-an-email" }
   ];
   return { ok: tests.every(function(test) { return test.ok; }), tests: tests };
 }

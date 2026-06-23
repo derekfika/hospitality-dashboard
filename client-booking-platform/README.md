@@ -15,12 +15,16 @@ To fork for another site, change `SITE_CONFIG`, `MENU_SCHEMA`, branding assets/c
 
 ## Setup
 
-1. Create or connect an Apps Script project to the Angel Court dashboard spreadsheet. If the project is standalone or bound elsewhere, add the dashboard spreadsheet ID to `SITE_CONFIG.integration.spreadsheetId`.
+1. Create or connect an Apps Script project to the Angel Court dashboard spreadsheet.
 2. Copy this folder's files into that project.
-3. Confirm `SITE_CONFIG.integration.dashboardSheetName` matches the existing dashboard data sheet.
-4. Run `setupBookingPlatformSheets()` once. It validates the dashboard headers and creates only the client line-item sheet.
-5. Run `runBookingPlatformTests()` and confirm `ok: true`.
-6. Deploy as a web app.
+3. Run `setDashboardSpreadsheetId("FULL_GOOGLE_SHEETS_URL_OR_ID")` once. This stores the connection in Script Properties and avoids requiring a new deployment when the ID changes.
+4. Run `testBookingPlatformConnection()` and confirm it reports the correct spreadsheet and finds `Dashboard Data`.
+5. Confirm `SITE_CONFIG.integration.dashboardSheetName` matches the existing dashboard data tab.
+6. Run `setupBookingPlatformSheets()` once. It validates the dashboard headers and creates only the client line-item/settings sheets.
+7. Run `runBookingPlatformTests()` and confirm `ok: true`.
+8. Deploy as a web app.
+
+Use the spreadsheet ID between `/d/` and `/edit` in the Google Sheets URL. Do not use the numeric `gid` after `#gid=`, which identifies only an individual tab.
 
 ## Branding settings
 
@@ -35,6 +39,20 @@ To fork for another site, change `SITE_CONFIG`, `MENU_SCHEMA`, branding assets/c
 - hero copy and primary colours
 
 Logo values should be direct, publicly readable HTTPS image URLs. When a URL is blank, inaccessible or fails to load, the header automatically shows the configured text wordmark instead.
+
+## New booking notifications
+
+Set these values in `Platform Settings`:
+
+- `SITE_EMAIL_ADDRESS`: the primary site-manager inbox. This is the main value to change when forking the platform for another site.
+- `NOTIFICATION_RECIPIENTS`: optional additional recipients.
+- `DASHBOARD_URL`: optional deployed hospitality dashboard URL. If blank, the spreadsheet URL is used.
+
+Once a booking has been written successfully to `Dashboard Data`, the platform sends a concise manager notification containing the booking reference, company, date, time, guest count, estimated total and dashboard link. Email failure is logged but never rolls back or hides a successfully saved booking.
+
+## Invoice references
+
+Clients can optionally enter an invoice, purchase-order, cost-centre or internal reference. It is stored in the canonical booking JSON as `client.invoiceReference`, mapped to `invoiceReference` in the dashboard booking, included in dashboard notes and notification emails, and exposed to quote templates as either `<INVOICEREFERENCE>` or `<INVOICE_REFERENCE>`.
 
 ## Dashboard compatibility
 
