@@ -1,5 +1,5 @@
 <script>
-  const CLIENT_BUILD = "2026.06.20.18";
+  const CLIENT_BUILD = "2026.06.21.3";
   const PREFS_KEY = "cpu-dashboard-preferences-v1";
   const state = {
     weekStart: startOfWeek(new Date()),
@@ -12,6 +12,7 @@
     selectedProductCategories: new Set(),
     dayFocus: "",
     updatedOnly: false,
+    showUpdatedFlags: false,
     hideCompleted: false,
     kitchenMode: false,
     autoRefreshTimer: null,
@@ -26,6 +27,7 @@
   document.addEventListener("DOMContentLoaded", function() {
     restorePreferences_();
     bindKeyboardShortcuts_();
+    bindDropdownDismiss_();
     renderLoadingSkeleton_();
     loadDashboard();
   });
@@ -55,6 +57,7 @@
     state.deliveries = (data && data.deliveries) || [];
     state.sites = mergeSites((data && data.sites) || [], deriveSites(state.orders));
     state.productCategories = (data && data.productCategories) || [];
+    state.showUpdatedFlags = Boolean(data && data.uiSettings && data.uiSettings.showUpdatedFlags);
     applyOwnerSiteMappings_();
     syncActiveSites(previousSiteIds);
     document.querySelector("h1").textContent = (data && data.appName) || "CPU Production";
@@ -370,7 +373,12 @@
         '<header class="day-header"><div class="day-name">' + formatDay(date) + '</div>' +
         '<div class="day-number">' + date.getDate() + '</div>' +
         '<div class="day-summary">' + dayOrders.length + ' orders · ' + sum(dayOrders, "pax") + ' pax</div>' +
-        (dayDeliveries.length ? '<div class="delivery-day-flag">🚚 ' + dayDeliveries.length + ' delivery scheduled</div>' : '') +
+        (dayDeliveries.length ? '<div class="delivery-day-flag">🚚 ' + dayDeliveries.length +
+          ' delivery scheduled <span class="delivery-driver-dots">' +
+          unique(dayDeliveries.map(function(delivery) {
+            return '<i style="--driver:' + escapeHtml(delivery.driverColour || "#8B8496") +
+              '" title="' + escapeHtml(delivery.driverName || "Unassigned") + '"></i>';
+          })).join("") + '</span></div>' : '') +
         '</header>' +
         '<div class="day-orders">' + (dayOrders.length ? dayOrders.map(orderCard).join("") : '<div class="empty-state">No orders</div>') + '</div></section>';
     });
@@ -385,7 +393,7 @@
       '<div class="order-card-top"><span class="order-site">' + escapeHtml(order.siteCode) + ' / ' +
       escapeHtml(order.siteName) + '</span>' +
       (order.prepped ? '<span class="done-badge">Prepped</span>' :
-        (isRecentlyChanged(order) ? '<span class="updated-badge" title="' + escapeHtml((order.changes || []).join(" / ")) + '">Updated</span>' : "")) +
+        (showUpdatedFlag_(order) ? '<span class="updated-badge" title="' + escapeHtml((order.changes || []).join(" / ")) + '">Updated</span>' : "")) +
       '</div><div class="order-time">' + escapeHtml(order.deliveryTime || formatTime(order.startAt)) +
       (hasWarnings(order) ? '<span class="warning-dot" title="Needs attention"></span>' : "") + '</div>' +
       '<div class="order-company">' + escapeHtml(order.clientCompany) + '</div>' +
@@ -411,7 +419,7 @@
           '<span class="pax-pill">' + (state.selectedProductCategories.size ? selectedQuantity + ' × selected' : Number(order.pax || 0) + ' pax') + '</span>' +
           '<span class="muted">' + escapeHtml([order.location, order.floor].filter(Boolean).join(" · ")) + '</span>' +
           '<span>' + (order.prepped ? '<span class="done-badge">Done</span>' :
-            (isRecentlyChanged(order) ? '<span class="updated-badge">Updated</span>' : (hasWarnings(order) ? "●" : "›"))) + '</span></div>';
+            (showUpdatedFlag_(order) ? '<span class="updated-badge">Updated</span>' : (hasWarnings(order) ? "●" : "›"))) + '</span></div>';
       }).join("") + '</section>';
     }
     document.getElementById("listView").innerHTML = html || '<div class="empty-state">No bookings match these filters.</div>';
@@ -555,16 +563,30 @@
 
   function renderDeliveries() {
     const deliveries = filteredDeliveries_();
+    const byDate = {};
+    deliveries.forEach(function(delivery) {
+      if (!byDate[delivery.eventDate]) byDate[delivery.eventDate] = [];
+      byDate[delivery.eventDate].push(delivery);
+    });
     const html = '<div class="production-heading"><div><p class="eyebrow">Logistics</p><h3>Scheduled deliveries</h3></div>' +
       '<span class="muted">' + deliveries.length + ' this week</span></div>' +
-      deliveries.map(function(delivery) {
-        return '<a class="delivery-row" style="--site:' + escapeHtml(delivery.siteColour || "#4f34c7") +
-          '" href="' + escapeHtml(delivery.eventUrl || "#") + '" target="_blank"><span class="delivery-time">' +
-          escapeHtml(formatTime(delivery.startAt)) + '</span><span class="site-tag">' +
-          escapeHtml(delivery.siteCode || "DEL") + '</span><span><strong>' +
-          escapeHtml(delivery.summary) + '</strong><small>' +
-          escapeHtml([delivery.location, delivery.description].filter(Boolean).join(" · ")) +
-          '</small></span><span>Open calendar ↗</span></a>';
+      Object.keys(byDate).sort().map(function(date) {
+        const dayDeliveries = byDate[date];
+        return '<section class="delivery-day"><header><div><strong>' +
+          escapeHtml(formatFullDate(date)) + '</strong><span>' + dayDeliveries.length +
+          (dayDeliveries.length === 1 ? ' delivery' : ' deliveries') +
+          '</span></div></header>' + dayDeliveries.map(function(delivery) {
+            return '<a class="delivery-row" style="--site:' + escapeHtml(delivery.siteColour || "#4f34c7") +
+              ';--driver:' + escapeHtml(delivery.driverColour || "#8B8496") +
+              '" href="' + escapeHtml(delivery.eventUrl || "#") + '" target="_blank"><span class="delivery-date">' +
+              escapeHtml(formatShortIsoDate(delivery.eventDate)) + '</span><span class="delivery-time">' +
+              escapeHtml(formatTime(delivery.startAt)) + '</span><span class="site-tag">' +
+              escapeHtml(delivery.siteCode || "DEL") + '</span><span class="driver-badge"><i></i>' +
+              escapeHtml(delivery.driverName || "Unassigned") + '</span><span><strong>' +
+              escapeHtml(delivery.summary) + '</strong><small>' +
+              escapeHtml([delivery.location, delivery.description].filter(Boolean).join(" · ")) +
+              '</small></span><span>Open calendar ↗</span></a>';
+          }).join("") + '</section>';
       }).join("");
     document.getElementById("deliveryView").innerHTML = deliveries.length
       ? html
@@ -648,7 +670,7 @@
     const warnings = (order.warnings || []).map(function(warning) {
       return '<div class="warning-card">' + escapeHtml(warning) + '</div>';
     }).join("");
-    const changes = isRecentlyChanged(order)
+    const changes = state.showUpdatedFlags && isRecentlyChanged(order)
       ? (order.changes || []).map(function(change) {
           return '<div class="change-card">' + escapeHtml(change) + '</div>';
         }).join("")
@@ -1026,7 +1048,9 @@
     document.getElementById("scanCurrent").textContent = job.current || "Scanning…";
     document.getElementById("scanSummary").textContent =
       job.status === "RUNNING"
-        ? "Checking bookings in batches. Unchanged bookings are skipped without reopening their quotes."
+        ? job.deepMode
+          ? "Deep scan active. Every booking quote is being reopened and reparsed."
+          : "Fast scan active. Unchanged bookings are skipped without reopening their quotes."
         : job.status === "COMPLETE" ? "Scan complete." : "Scan stopped.";
     const progress = job.status === "COMPLETE"
       ? 100
@@ -1235,6 +1259,20 @@
     });
   }
 
+  function bindDropdownDismiss_() {
+    document.addEventListener("click", function(event) {
+      document.querySelectorAll("details[open]").forEach(function(details) {
+        if (!details.contains(event.target)) details.removeAttribute("open");
+      });
+    });
+    document.addEventListener("keydown", function(event) {
+      if (event.key !== "Escape") return;
+      document.querySelectorAll("details[open]").forEach(function(details) {
+        details.removeAttribute("open");
+      });
+    });
+  }
+
   function renderLoadingSkeleton_() {
     document.getElementById("stats").innerHTML = new Array(5).fill(
       '<article class="stat-card skeleton"><span></span><strong></strong><i></i></article>'
@@ -1353,6 +1391,9 @@
     if (!(order.changes || []).length || !order.changedAt) return false;
     const changedAt = new Date(order.changedAt).getTime();
     return !isNaN(changedAt) && Date.now() - changedAt < 7 * 24 * 60 * 60 * 1000;
+  }
+  function showUpdatedFlag_(order) {
+    return state.showUpdatedFlags && isRecentlyChanged(order);
   }
   function isUrgent(order) {
     if (order.prepped || !order.eventDate) return false;

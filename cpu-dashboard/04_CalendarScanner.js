@@ -1,5 +1,6 @@
 function scanCpuCalendars(options) {
   options = options || {};
+  const deepMode = resolveCpuDeepScanMode_(options);
   const calendars = getCpuCalendars_();
   if (!calendars.length) {
     throw new Error("No calendars are configured. Add the CPU calendar to CPU Settings > CALENDARS_JSON.");
@@ -31,8 +32,8 @@ function scanCpuCalendars(options) {
           }
           if (!(event.attachments || []).length && !looksLikeCpuHospitalityEvent_(event)) return;
           const orderKey = calendar.id + "::" + event.id;
-          const sourceUpdatedAt = String(event.updated || "").trim();
-          if (sourceUpdatedAt && existingSources[orderKey] === sourceUpdatedAt) {
+          const sourceUpdatedAt = getCpuEventSourceVersion_(event);
+          if (!deepMode && sourceUpdatedAt && existingSources[orderKey] === sourceUpdatedAt) {
             unchanged += 1;
             return;
           }
@@ -63,6 +64,7 @@ function scanCpuCalendars(options) {
     calendars: calendars.length,
     orders: saved,
     deliveries: deliveriesSaved,
+    deepMode: deepMode,
     unchanged: unchanged,
     warnings: scanWarnings,
     rangeStart: start.toISOString(),
@@ -81,7 +83,7 @@ function listCpuCalendarEvents_(calendarId, start, end) {
       orderBy: "startTime",
       maxResults: CPU_CONFIG.CALENDAR_PAGE_SIZE,
       pageToken: pageToken || undefined,
-      fields: "items(id,status,summary,description,location,start,end,updated,htmlLink,creator,organizer,attachments),nextPageToken"
+      fields: "items(id,status,summary,description,location,start,end,updated,htmlLink,creator,organizer,attendees,attachments),nextPageToken"
     });
     Array.prototype.push.apply(events, response.items || []);
     pageToken = response.nextPageToken || "";
@@ -112,6 +114,7 @@ function parseCpuDeliveryEvent_(event, sourceCalendar) {
   const endAt = new Date((event.end || {}).dateTime || (event.end || {}).date);
   const ownerEmail = String((event.creator || {}).email || (event.organizer || {}).email || "").toLowerCase();
   const site = resolveCpuSite_(event.location || event.summary || sourceCalendar.name, sourceCalendar, ownerEmail);
+  const driver = resolveCpuDeliveryDriver_(event);
   return {
     deliveryKey: sourceCalendar.id + "::" + event.id,
     calendarId: sourceCalendar.id,
@@ -125,9 +128,24 @@ function parseCpuDeliveryEvent_(event, sourceCalendar) {
     location: event.location || site.name,
     siteId: site.id, siteName: site.name, siteCode: site.code, siteColour: site.colour,
     eventOwnerEmail: ownerEmail,
+    driverEmail: driver.email,
+    driverName: driver.name,
+    driverColour: driver.colour,
     sourceUpdatedAt: event.updated || "",
     scannedAt: new Date().toISOString()
   };
+}
+
+function resolveCpuDeliveryDriver_(event) {
+  const emails = (event.attendees || []).map(function(attendee) {
+    return String(attendee.email || "").trim().toLowerCase();
+  });
+  for (let i = 0; i < CPU_DRIVER_DIRECTORY.length; i++) {
+    if (emails.indexOf(CPU_DRIVER_DIRECTORY[i].email) !== -1) {
+      return CPU_DRIVER_DIRECTORY[i];
+    }
+  }
+  return { email: "", name: "Unassigned", colour: "#8B8496" };
 }
 
 function installCpuRefreshTrigger() {
@@ -148,6 +166,7 @@ function scheduledCpuCalendarRefresh() {
 
 function startCpuCalendarScanJob(options) {
   options = options || {};
+  const deepMode = resolveCpuDeepScanMode_(options);
   const calendars = getCpuCalendars_();
   if (!calendars.length) {
     throw new Error("No calendars are configured.");
@@ -168,6 +187,7 @@ function startCpuCalendarScanJob(options) {
     updatedAt: new Date().toISOString(),
     rangeStart: start.toISOString(),
     rangeEnd: end.toISOString(),
+    deepMode: deepMode,
     calendarIndex: 0,
     pageToken: "",
     current: "Preparing calendar scan…",
@@ -210,7 +230,7 @@ function processCpuCalendarScanChunk(jobId) {
         orderBy: "startTime",
         maxResults: CPU_CONFIG.SCAN_CHUNK_EVENTS,
         pageToken: job.pageToken || undefined,
-        fields: "items(id,status,summary,description,location,start,end,updated,htmlLink,creator,organizer,attachments),nextPageToken"
+        fields: "items(id,status,summary,description,location,start,end,updated,htmlLink,creator,organizer,attendees,attachments),nextPageToken"
       });
       const events = response.items || [];
       const parsedOrders = [];
@@ -235,8 +255,8 @@ function processCpuCalendarScanChunk(jobId) {
             job.counters.skipped += 1;
           } else {
             const orderKey = calendar.id + "::" + event.id;
-            const sourceUpdatedAt = String(event.updated || "").trim();
-            if (sourceUpdatedAt && existingSources[orderKey] === sourceUpdatedAt) {
+            const sourceUpdatedAt = getCpuEventSourceVersion_(event);
+            if (!job.deepMode && sourceUpdatedAt && existingSources[orderKey] === sourceUpdatedAt) {
               job.counters.unchanged = (job.counters.unchanged || 0) + 1;
               continue;
             }
@@ -326,12 +346,21 @@ function cpuPublicScanJob_(job) {
   return {
     id: job.id,
     status: job.status,
+    deepMode: Boolean(job.deepMode),
     current: job.current,
     counters: job.counters,
     errors: job.errors || [],
     rangeStart: job.rangeStart,
     rangeEnd: job.rangeEnd
   };
+}
+
+function resolveCpuDeepScanMode_(options) {
+  if (options && Object.prototype.hasOwnProperty.call(options, "deepMode")) {
+    const value = String(options.deepMode).trim().toUpperCase();
+    return options.deepMode === true || value === "TRUE" || value === "YES" || value === "1";
+  }
+  return cpuBoolSetting_("DEEP_SCAN_MODE", false);
 }
 
 function cpuStartOfDay_(date) {
@@ -342,4 +371,26 @@ function cpuAddDays_(date, days) {
   const copy = new Date(date.getTime());
   copy.setDate(copy.getDate() + days);
   return copy;
+}
+
+function getCpuEventSourceVersion_(event) {
+  const parts = [String(event.updated || "").trim()];
+  const jsonAttachment = (event.attachments || []).filter(function(attachment) {
+    return cpuJsonAttachmentScore_(attachment) > 0;
+  })[0];
+
+  if (jsonAttachment) {
+    const id =
+      jsonAttachment.fileId ||
+      extractCpuDriveId_(jsonAttachment.fileUrl || "");
+    if (id) {
+      try {
+        parts.push(DriveApp.getFileById(id).getLastUpdated().toISOString());
+      } catch (error) {
+        parts.push("json-unreadable");
+      }
+    }
+  }
+
+  return parts.filter(Boolean).join("|");
 }

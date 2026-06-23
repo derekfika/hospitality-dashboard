@@ -85,6 +85,47 @@ function runCpuPureTests() {
       /\.xlsx$/i.test(classified.form.title);
   });
 
+  cpuAssert_(results, "Canonical booking JSON is classified and normalised", function() {
+    const classified = classifyCpuAttachments_([
+      {
+        title: "Quote - Example Client.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      },
+      {
+        title: "Booking Object - AC-TEST-001.json",
+        mimeType: "application/json"
+      }
+    ]);
+    const normalised = normaliseCpuBookingJson_({
+      bookingId: "AC-TEST-001",
+      clientCompany: "Example Client",
+      pax: 12,
+      serviceType: "Breakfast",
+      serviceTimes: ["08:30"],
+      location: "1 Angel Court, London",
+      floor: "7",
+      items: [
+        { name: "Mini Pastries", qty: 2, info: "Serves 12", detail: "Mixed" }
+      ],
+      clientBooking: {
+        dietaries: { vegetarian: 2, allergyDetails: "Nut allergy" }
+      }
+    });
+    return classified.json &&
+      /\.json$/i.test(classified.json.title) &&
+      normalised.clientCompany === "Example Client" &&
+      normalised.items.length === 1 &&
+      normalised.items[0].quantity === 2 &&
+      normalised.dietary.indexOf("Nut allergy") !== -1;
+  });
+
+  cpuAssert_(results, "Calendar event without JSON keeps event update fingerprint", function() {
+    return getCpuEventSourceVersion_({
+      updated: "2026-06-22T12:00:00.000Z",
+      attachments: []
+    }) === "2026-06-22T12:00:00.000Z";
+  });
+
   cpuAssert_(results, "Allergen quantity is not a line item", function() {
     const parsed = parseCpuTextFields_([
       "Number: x16",

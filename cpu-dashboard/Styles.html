@@ -183,6 +183,8 @@
   .day-number { margin-top: 4px; font-family: "VIM", serif; font-size: 28px; }
   .day-summary { margin-top: 4px; color: var(--muted); font-size: 11px; }
   .delivery-day-flag { margin-top: 8px; padding: 5px 7px; border-radius: 8px; background: #e9e3ff; color: var(--purple-dark); font-size: 10px; font-weight: 700; }
+  .delivery-driver-dots { display: inline-flex; gap: 4px; margin-left: 5px; }
+  .delivery-driver-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--driver); }
   .day-orders { padding: 10px; }
   .order-card { position: relative; margin-bottom: 9px; padding: 11px 10px 10px 14px; border: 1px solid var(--border); border-radius: 14px; background: white; cursor: pointer; box-shadow: 0 4px 12px rgba(36,31,51,.05); }
   .order-card::before { content: ""; position: absolute; inset: 10px auto 10px 0; width: 4px; border-radius: 0 4px 4px 0; background: var(--site); }
@@ -250,11 +252,19 @@
   .production-booking button { padding: 5px 6px; border: 0; border-radius: 7px; background: #ece8ff; color: var(--purple-dark); cursor: pointer; font-size: 9px; font-weight: 700; }
   .production-booking.prepped button { background: rgba(255,255,255,.2); color: white; }
   .delivery-view { padding: 22px; }
-  .delivery-row { display: grid; grid-template-columns: 70px 80px minmax(220px,1fr) auto; gap: 12px; align-items: center; margin-bottom: 9px; padding: 14px; border: 1px solid var(--border); border-left: 6px solid var(--site); border-radius: 14px; background: white; color: var(--ink); text-decoration: none; }
+  .delivery-day { margin-top: 20px; }
+  .delivery-day > header { margin-bottom: 10px; padding-bottom: 9px; border-bottom: 2px solid var(--ink); }
+  .delivery-day > header div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .delivery-day > header strong { font-size: 17px; }
+  .delivery-day > header span { color: var(--muted); font-size: 12px; }
+  .delivery-row { display: grid; grid-template-columns: 78px 60px 80px 105px minmax(220px,1fr) auto; gap: 12px; align-items: center; margin-bottom: 9px; padding: 14px; border: 1px solid var(--border); border-left: 6px solid var(--driver); border-radius: 14px; background: white; color: var(--ink); text-decoration: none; }
   .delivery-row:hover { border-color: var(--site); box-shadow: var(--shadow); }
   .delivery-row .site-tag { background: var(--site); }
   .delivery-row small { display: block; margin-top: 4px; color: var(--muted); }
   .delivery-time { color: var(--purple); font-weight: 700; }
+  .delivery-date { color: var(--muted); font-size: 11px; font-weight: 700; }
+  .driver-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
+  .driver-badge i { width: 10px; height: 10px; border-radius: 50%; background: var(--driver); }
   .dietary-view { padding: 22px; }
   .dietary-site { margin-bottom: 20px; }
   .dietary-site > header { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }

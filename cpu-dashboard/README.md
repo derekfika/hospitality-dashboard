@@ -5,7 +5,7 @@ It scans hospitality and delivery events from configured Google Calendars,
 reads attached Google Docs and Microsoft Office quotes, caches the resulting
 production data in Google Sheets, and presents a multi-site operational view.
 
-Current build: `2026.06.20.14`
+Current build: `2026.06.21.3`
 
 ## Core capabilities
 
@@ -19,7 +19,7 @@ Current build: `2026.06.20.14`
 - Needs Attention panel for missing or unreadable production information
 - Dedicated scheduled-delivery records and calendar day badges
 - Next-week bookings and pax forecast
-- Incremental scanning that skips unchanged attachments
+- Incremental scanning that skips unchanged attachments, with an optional deep-scan mode
 - Persistent user filters and view preferences
 - Keyboard navigation, loading skeletons and urgent-order highlighting
 - Print styling retained in code for possible future chef requirements
@@ -34,10 +34,10 @@ collection wording are stored separately in the `CPU Deliveries` sheet.
 For bookings, the scanner:
 
 1. Resolves the site from the event creator/organiser email.
-2. Finds quote and booking-form attachments or Drive links in the description.
+2. Finds the canonical booking JSON, generated quote, and any legacy booking-form attachments.
 3. Reads Google Docs, DOCX, Sheets/XLSX and Slides/PPTX content.
 4. Extracts dates, times, pax, products, notes and dietary requirements.
-5. Stores the normalised booking in `CPU Orders`.
+5. Uses the booking JSON as the preferred source of truth, with quote/form parsing as a legacy fallback, then stores the normalised booking in `CPU Orders`.
 6. Skips attachment parsing on later scans when the event has not changed.
 
 The quote parser contains regression coverage for the different legacy quote
@@ -59,6 +59,8 @@ The settings sheet includes:
 - `SITES_JSON`
 - `PRODUCT_CATEGORIES_JSON`
 - Scan lookback/lookahead settings
+- `DEEP_SCAN_MODE` (`FALSE` for fast scans, `TRUE` to reopen and reparse every quote)
+- `SHOW_UPDATED_FLAGS` (`FALSE` hides booking badges while retaining update history)
 
 Product categories are editable without changing code. Run
 `installCpuProductCategories()` to restore the built-in category schema.

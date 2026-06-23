@@ -1,5 +1,23 @@
 # CPU Dashboard Changelog
 
+## 2026.06.21.3
+
+- The booking editor now also hides update notes when `SHOW_UPDATED_FLAGS` is `FALSE`.
+- Stored change history remains intact and reappears if the setting is enabled.
+
+## 2026.06.21.2
+
+- Added `SHOW_UPDATED_FLAGS` to CPU Settings.
+- Updated badges are hidden by default to keep booking cards tidy.
+- Change history and the Updated Only filter remain available.
+
+## 2026.06.21.1
+
+- Added `DEEP_SCAN_MODE` to the CPU Settings sheet.
+- Fast mode continues to skip unchanged bookings.
+- Deep mode reopens and reparses every quote in the selected scan range.
+- The scan modal now identifies whether a fast or deep scan is running.
+
 ## 2026.06.20.14
 
 ### Changed

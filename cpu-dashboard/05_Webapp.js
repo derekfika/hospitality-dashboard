@@ -15,13 +15,15 @@ function getCpuDashboardData(request) {
   request = request || {};
   const rangeStart = normaliseCpuRangeDate_(request.start, "0000-00-00");
   const rangeEnd = normaliseCpuRangeDate_(request.end, "9999-99-99");
+  const showUpdatedFlags = cpuBoolSetting_("SHOW_UPDATED_FLAGS", false);
   const cache = CacheService.getScriptCache();
   const cacheKey = [
     "CPU_DASHBOARD",
     CPU_CONFIG.BUILD,
     getCpuDataVersion_(),
     rangeStart,
-    rangeEnd
+    rangeEnd,
+    showUpdatedFlags ? "UPDATES_ON" : "UPDATES_OFF"
   ].join("_");
   const cached = cache.get(cacheKey);
   if (cached) {
@@ -41,6 +43,9 @@ function getCpuDashboardData(request) {
     generatedAt: new Date().toISOString(),
     sites: sites,
     productCategories: getCpuProductCategories_(),
+    uiSettings: {
+      showUpdatedFlags: showUpdatedFlags
+    },
     orders: orders,
     deliveries: deliveries,
     configured: getCpuCalendars_().length > 0,

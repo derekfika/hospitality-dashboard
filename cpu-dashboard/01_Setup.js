@@ -93,6 +93,10 @@ function ensureCpuSettingsSheet_() {
         notes = 'Optional site registry: [{"name":"One Angel Court","code":"OAC","colour":"#4F34C7","aliases":["Angel Court"]}]';
       } else if (key === "PRODUCT_CATEGORIES_JSON") {
         notes = "Run installCpuProductCategories once, then edit category names, order and keywords in this row.";
+      } else if (key === "DEEP_SCAN_MODE") {
+        notes = "FALSE keeps scans fast by skipping unchanged bookings. TRUE reopens and reparses every quote in the scan range.";
+      } else if (key === "SHOW_UPDATED_FLAGS") {
+        notes = "TRUE displays Updated badges. FALSE hides them while retaining change history and filtering.";
       }
       const value = key === "PRODUCT_CATEGORIES_JSON"
         ? JSON.stringify(CPU_PRODUCT_CATEGORIES)

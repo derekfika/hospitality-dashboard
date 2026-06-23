@@ -152,7 +152,9 @@ function upsertCpuDeliveries_(deliveries) {
         Summary: delivery.summary, Description: delivery.description, Location: delivery.location,
         SiteId: delivery.siteId, SiteName: delivery.siteName, SiteCode: delivery.siteCode,
         SiteColour: delivery.siteColour, EventOwnerEmail: delivery.eventOwnerEmail,
-        SourceUpdatedAt: delivery.sourceUpdatedAt, ScannedAt: delivery.scannedAt
+        SourceUpdatedAt: delivery.sourceUpdatedAt, ScannedAt: delivery.scannedAt,
+        DriverEmail: delivery.driverEmail, DriverName: delivery.driverName,
+        DriverColour: delivery.driverColour
       };
       return map[header] || "";
     });
@@ -192,7 +194,10 @@ function getCpuDeliveries_(rangeStart, rangeEnd) {
         siteId: String(row[map.SiteId] || ""),
         siteName: String(row[map.SiteName] || ""),
         siteCode: String(row[map.SiteCode] || ""),
-        siteColour: String(row[map.SiteColour] || "")
+        siteColour: String(row[map.SiteColour] || ""),
+        driverEmail: map.DriverEmail ? String(row[map.DriverEmail] || "") : "",
+        driverName: map.DriverName ? String(row[map.DriverName] || "") : "",
+        driverColour: map.DriverColour ? String(row[map.DriverColour] || "") : ""
       };
     });
 }

@@ -5,6 +5,9 @@ function parseCpuEvent_(event, sourceCalendar) {
   );
   const classified = classifyCpuAttachments_(attachments);
   const titleData = parseCpuCalendarTitle_(event.summary || "");
+  const jsonData = classified.json
+    ? readCpuBookingJsonAttachment_(classified.json)
+    : { data: {}, warnings: [] };
   const quoteData = classified.quote
     ? readCpuQuoteAttachment_(classified.quote)
     : { data: {}, warnings: ["Quote attachment missing"] };
@@ -14,7 +17,7 @@ function parseCpuEvent_(event, sourceCalendar) {
 
   const startAt = new Date((event.start || {}).dateTime || (event.start || {}).date);
   const endAt = new Date((event.end || {}).dateTime || (event.end || {}).date);
-  const merged = mergeCpuBookingData_(quoteData.data, formData.data, titleData);
+  const merged = mergeCpuBookingData_(jsonData.data, quoteData.data, formData.data, titleData);
   const eventOwnerEmail = String(
     (event.creator || {}).email || (event.organizer || {}).email || ""
   ).trim().toLowerCase();
@@ -24,6 +27,7 @@ function parseCpuEvent_(event, sourceCalendar) {
     eventOwnerEmail
   );
   const warnings = []
+    .concat(jsonData.warnings || [])
     .concat(quoteData.warnings || [])
     .concat(formData.warnings || []);
 
@@ -56,14 +60,18 @@ function parseCpuEvent_(event, sourceCalendar) {
     items: merged.items,
     quoteUrl: classified.quote ? classified.quote.fileUrl || "" : "",
     quoteName: classified.quote ? classified.quote.title || "Quote" : "",
-    bookingFormUrl: classified.form ? classified.form.fileUrl || "" : "",
-    bookingFormName: classified.form ? classified.form.title || "Booking form" : "",
+    bookingFormUrl: classified.json
+      ? classified.json.fileUrl || ""
+      : classified.form ? classified.form.fileUrl || "" : "",
+    bookingFormName: classified.json
+      ? classified.json.title || "Booking JSON"
+      : classified.form ? classified.form.title || "Booking form" : "",
     attachmentCount: attachments.length,
     status: event.status === "cancelled"
       ? CPU_CONFIG.STATUS.CANCELLED
       : warnings.length ? CPU_CONFIG.STATUS.NEEDS_ATTENTION : CPU_CONFIG.STATUS.READY,
     warnings: uniqueCpuStrings_(warnings),
-    sourceUpdatedAt: event.updated || "",
+    sourceUpdatedAt: getCpuEventSourceVersion_(event),
     scannedAt: new Date().toISOString(),
     raw: {
       summary: event.summary || "",
@@ -77,6 +85,11 @@ function parseCpuEvent_(event, sourceCalendar) {
 
 function classifyCpuAttachments_(attachments) {
   const values = attachments || [];
+  const rankedJson = values
+    .map(function(attachment) {
+      return { attachment: attachment, score: cpuJsonAttachmentScore_(attachment) };
+    })
+    .sort(function(a, b) { return b.score - a.score; });
   const rankedQuotes = values
     .map(function(attachment) {
       return { attachment: attachment, score: cpuQuoteAttachmentScore_(attachment) };
@@ -95,7 +108,82 @@ function classifyCpuAttachments_(attachments) {
     return item.score > 0 && (!quote || cpuAttachmentKey_(item.attachment) !== cpuAttachmentKey_(quote));
   })[0];
   const form = formCandidate ? formCandidate.attachment : null;
-  return { quote: quote, form: form };
+  const json = rankedJson.length && rankedJson[0].score > 0
+    ? rankedJson[0].attachment
+    : null;
+  return { quote: quote, form: form, json: json };
+}
+
+function readCpuBookingJsonAttachment_(attachment) {
+  const id = attachment.fileId || extractCpuDriveId_(attachment.fileUrl || "");
+  if (!id) return { data: {}, warnings: ["Booking JSON link is unreadable"] };
+
+  try {
+    const file = DriveApp.getFileById(id);
+    const parsed = JSON.parse(file.getBlob().getDataAsString("UTF-8"));
+    return {
+      data: normaliseCpuBookingJson_(parsed),
+      warnings: []
+    };
+  } catch (error) {
+    return { data: {}, warnings: [cpuFileReadWarning_("Booking JSON", error)] };
+  }
+}
+
+function normaliseCpuBookingJson_(booking) {
+  booking = booking || {};
+  const clientBooking = booking.clientBooking || {};
+  const client = clientBooking.client || {};
+  const event = clientBooking.event || {};
+  const dietaries = clientBooking.dietaries || {};
+  const serviceTimes = Array.isArray(booking.serviceTimes) ? booking.serviceTimes : [];
+  const sourceItems = Array.isArray(booking.items)
+    ? booking.items
+    : clientBooking.order && Array.isArray(clientBooking.order.items)
+      ? clientBooking.order.items
+      : [];
+
+  return {
+    clientCompany: booking.clientCompany || client.companyName || "",
+    hostName: booking.hostName || client.name || "",
+    invoiceReference: booking.invoiceReference || client.invoiceReference || "",
+    pax: Number(booking.pax || event.guestCount || 0),
+    serviceType: booking.serviceType || (clientBooking.order || {}).eventType || "",
+    deliveryTime: serviceTimes[0] || event.startTime || "",
+    serviceTime: serviceTimes[0] || event.startTime || "",
+    location: booking.location || event.roomOrArea || event.deliveryPoint || "",
+    floor: booking.floor || event.floorLevel || "",
+    notes: booking.notes || clientBooking.specialInstructions || "",
+    dietary: buildCpuDietaryFromJson_(dietaries),
+    items: sourceItems.map(function(item) {
+      return {
+        name: item.name || item.itemName || "",
+        quantity: Number(item.qty || item.quantity || 0),
+        notes: [
+          item.detail || "",
+          item.info || item.servingInfo || "",
+          item.comment || item.comments || ""
+        ].filter(Boolean).join(" · ")
+      };
+    }).filter(function(item) {
+      return item.name && item.quantity > 0;
+    })
+  };
+}
+
+function buildCpuDietaryFromJson_(dietaries) {
+  if (!dietaries || !Object.keys(dietaries).length) return "";
+  return [
+    dietaries.vegetarian ? "Vegetarian " + dietaries.vegetarian : "",
+    dietaries.vegan ? "Vegan " + dietaries.vegan : "",
+    dietaries.glutenFree ? "Gluten-free " + dietaries.glutenFree : "",
+    dietaries.coeliac ? "Coeliac " + dietaries.coeliac : "",
+    dietaries.dairyFree ? "Dairy-free " + dietaries.dairyFree : "",
+    dietaries.halal ? "Halal " + dietaries.halal : "",
+    dietaries.otherCount ? "Other " + dietaries.otherCount : "",
+    dietaries.allergyDetails ? "Allergies: " + dietaries.allergyDetails : "",
+    dietaries.freeText || ""
+  ].filter(Boolean).join(" · ");
 }
 
 function readCpuQuoteAttachment_(attachment) {
@@ -837,6 +925,16 @@ function cpuFormAttachmentScore_(attachment) {
   if (name.indexOf("booking form") !== -1 || name.indexOf("original booking") !== -1) score += 100;
   if (name.indexOf("quote") !== -1) score -= 100;
   if (isCpuSpreadsheet_(mime, name) || mime === MimeType.GOOGLE_SHEETS) score += 40;
+  return score;
+}
+
+function cpuJsonAttachmentScore_(attachment) {
+  const name = String(attachment.title || "").toLowerCase();
+  const mime = String(attachment.mimeType || "").toLowerCase();
+  let score = 0;
+  if (name.indexOf("booking object") !== -1 || name.indexOf("booking json") !== -1) score += 120;
+  if (/\.json$/i.test(name)) score += 80;
+  if (mime === "application/json") score += 80;
   return score;
 }
 
