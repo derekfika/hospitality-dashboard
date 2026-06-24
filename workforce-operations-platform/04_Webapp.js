@@ -186,8 +186,16 @@ function saveWorkforceAgencyContactFromUi(contact) {
   return saveWorkforceAgencyContact(contact);
 }
 
+function setReliefTeamMemberFromUi(employeeId, employeeName, isReliefTeam) {
+  return setWorkforceReliefTeamMember(employeeId, employeeName, isReliefTeam);
+}
+
 function saveRotaTemplateFromUi(template) {
   return saveWorkforceRotaTemplate(template);
+}
+
+function dedupeRotaTemplatesFromUi() {
+  return dedupeWorkforceRotaTemplates();
 }
 
 function safeGetWorkforceSpreadsheet_() {

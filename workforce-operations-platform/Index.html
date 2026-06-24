@@ -218,8 +218,28 @@
             <div><strong id="exceptionCount">—</strong><span>Rota exceptions</span></div>
           </div>
           <div class="settings-forms">
+            <div class="mini-form wide-form">
+              <div class="form-title-row">
+                <h4>Relief team selector</h4>
+                <span class="soft-pill" id="reliefTeamCount">0 relief team</span>
+              </div>
+              <p class="muted-text form-copy">
+                Mark the people Gill should see first when assigning cover. Everyone else stays hidden unless she deliberately enables all employees.
+              </p>
+              <select id="reliefStaffSelect"></select>
+              <div class="action-row compact-actions">
+                <button id="addReliefBtn" type="button">Add to relief team</button>
+                <button id="removeReliefBtn" class="secondary" type="button">Remove from relief team</button>
+              </div>
+              <div class="relief-chip-list" id="reliefTeamList">
+                <div class="empty-state compact">No relief team loaded yet</div>
+              </div>
+            </div>
             <form id="rotaTemplateForm" class="mini-form wide-form">
-              <h4>Add/update standard rota row</h4>
+              <div class="form-title-row">
+                <h4>Add/update standard rota row</h4>
+                <button id="dedupeTemplatesBtn" class="secondary mini" type="button">Clean duplicate rota rows</button>
+              </div>
               <select name="siteId" id="templateSiteSelect"></select>
               <select name="weekday">
                 <option value="">Weekday</option>
@@ -274,6 +294,10 @@
           <input type="hidden" name="action">
           <label class="cover-only">Cover person
             <select name="coverName" id="coverPersonSelect"></select>
+          </label>
+          <label class="cover-only toggle-row">
+            <input type="checkbox" name="enableAllEmployees" id="enableAllEmployeesCover">
+            <span>Enable all employees to cover</span>
           </label>
           <label class="cover-only">Cover type
             <select name="coverType">

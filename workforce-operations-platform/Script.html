@@ -62,6 +62,18 @@
       event.preventDefault();
       saveRotaTemplateFromForm();
     });
+    onClick("dedupeTemplatesBtn", () => {
+      runAction("Cleaning duplicate rota rows…", "dedupeRotaTemplatesFromUi");
+    });
+    onClick("addReliefBtn", () => {
+      updateReliefTeamSelection(true);
+    });
+    onClick("removeReliefBtn", () => {
+      updateReliefTeamSelection(false);
+    });
+    onClick("enableAllEmployeesCover", () => {
+      refreshCoverPersonSelect();
+    });
     onSubmit("gapActionForm", event => {
       event.preventDefault();
       submitGapActionForm();
@@ -138,6 +150,7 @@
     if (functionName === "clearLegacyRotaShiftNoiseFromUi") runner.clearLegacyRotaShiftNoiseFromUi();
     if (functionName === "detectCoverageGapsFromUi") runner.detectCoverageGapsFromUi();
     if (functionName === "generateReliefSuggestionsFromUi") runner.generateReliefSuggestionsFromUi();
+    if (functionName === "dedupeRotaTemplatesFromUi") runner.dedupeRotaTemplatesFromUi();
   }
 
   function loadRotaBoard() {
@@ -352,21 +365,87 @@
     const sites = (settings && settings.sites) || [];
     const staff = ((settings && settings.staff) || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     const agencies = ((settings && settings.agencyContacts) || []).filter(item => String(item.Active).toUpperCase() !== "FALSE");
+    const reliefStaff = staff.filter(person => person.reliefTeam);
 
     fillSelect("templateSiteSelect", sites.map(site => ({
       value: site["Site ID"],
       label: site["Site Name"] || site["Site ID"]
     })), "Choose site");
 
-    fillSelect("coverPersonSelect", staff.map(person => ({
-      value: person.name,
+    fillSelect("reliefStaffSelect", staff.map(person => ({
+      value: person.employeeId || person.name,
       label: person.name + (person.role ? " · " + person.role : "") + (person.reliefTeam ? " · Relief" : "")
-    })), "Choose cover person");
+    })), "Choose staff member");
 
     fillSelect("agencySelect", agencies.map(agency => ({
       value: agency["Agency ID"],
       label: agency["Agency Name"] + (agency["Contact Name"] ? " · " + agency["Contact Name"] : "")
     })), "Choose agency");
+
+    text("reliefTeamCount", reliefStaff.length + " relief team");
+    renderReliefTeamList(reliefStaff);
+    refreshCoverPersonSelect();
+  }
+
+  function refreshCoverPersonSelect() {
+    const staff = ((state.settings && state.settings.staff) || []).slice().sort((a, b) => {
+      if (a.reliefTeam !== b.reliefTeam) return a.reliefTeam ? -1 : 1;
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
+    const enableAll = document.getElementById("enableAllEmployeesCover");
+    const showAll = Boolean(enableAll && enableAll.checked);
+    const people = showAll ? staff : staff.filter(person => person.reliefTeam);
+    fillSelect("coverPersonSelect", people.map(person => ({
+      value: person.name,
+      label: person.name + (person.role ? " · " + person.role : "") + (person.reliefTeam ? " · Relief" : "")
+    })), showAll ? "Choose cover person" : "Choose relief team member");
+  }
+
+  function renderReliefTeamList(reliefStaff) {
+    const list = document.getElementById("reliefTeamList");
+    if (!list) return;
+    if (!reliefStaff.length) {
+      list.innerHTML = '<div class="empty-state compact">No relief team selected yet</div>';
+      return;
+    }
+    list.innerHTML = reliefStaff.map(person => `
+      <button class="relief-chip" type="button" data-employee-id="${escapeHtml(person.employeeId || "")}" data-employee-name="${escapeHtml(person.name || "")}">
+        <strong>${escapeHtml(person.name || "")}</strong>
+        <span>${escapeHtml(person.role || "Relief")}</span>
+      </button>
+    `).join("");
+    list.querySelectorAll(".relief-chip").forEach(button => {
+      button.addEventListener("click", () => {
+        const select = document.getElementById("reliefStaffSelect");
+        if (select) select.value = button.dataset.employeeId || button.dataset.employeeName || "";
+      });
+    });
+  }
+
+  function updateReliefTeamSelection(isReliefTeam) {
+    const select = document.getElementById("reliefStaffSelect");
+    if (!select || !select.value) {
+      showToast("Choose a staff member first.");
+      return;
+    }
+    const staff = ((state.settings && state.settings.staff) || []);
+    const person = staff.find(item => String(item.employeeId || item.name) === String(select.value));
+    if (!person) {
+      showToast("Could not find that staff member.");
+      return;
+    }
+    showToast(isReliefTeam ? "Adding to relief team…" : "Removing from relief team…");
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(result => {
+        showToast((result && result.message) || "Relief team updated.");
+        loadDashboard();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not update relief team.");
+        setBusy(false);
+      })
+      .setReliefTeamMemberFromUi(person.employeeId || "", person.name || "", isReliefTeam);
   }
 
   function fillSelect(id, options, placeholder) {
@@ -460,6 +539,9 @@
     form.reset();
     form.elements.gapId.value = gapId;
     form.elements.action.value = action;
+    const enableAll = document.getElementById("enableAllEmployeesCover");
+    if (enableAll) enableAll.checked = false;
+    refreshCoverPersonSelect();
     text("gapModalTitle", action === "agency" ? "Request agency cover" : "Assign internal cover");
     text("gapModalSummary", [
       gap["Site Name"],
@@ -483,7 +565,7 @@
     const data = Object.fromEntries(new FormData(form).entries());
     if (!data.gapId) return;
     if (data.action === "cover" && !data.coverName) {
-      showToast("Choose who is covering.");
+      showToast(data.enableAllEmployees ? "Choose who is covering." : "Choose a relief team member, or tick Enable all employees to cover.");
       return;
     }
     if (data.action === "agency" && !data.agencyId) {

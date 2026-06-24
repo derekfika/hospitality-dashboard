@@ -291,6 +291,16 @@
     box-shadow: inset 0 0 0 1px var(--line);
   }
 
+  .soft-pill {
+    align-self: center;
+    padding: 8px 11px;
+    border-radius: 999px;
+    background: rgba(117,239,184,.25);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 900;
+  }
+
   .checklist {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -566,9 +576,79 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .wide-form h4,
   .wide-form button {
     grid-column: 1 / -1;
+  }
+
+  .form-title-row {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .form-title-row h4 {
+    margin: 0;
+  }
+
+  .form-title-row button {
+    grid-column: auto;
+  }
+
+  .form-copy {
+    grid-column: 1 / -1;
+    margin-bottom: 2px;
+  }
+
+  .compact-actions {
+    margin: 0;
+  }
+
+  .relief-chip-list {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 48px;
+  }
+
+  .relief-chip {
+    display: grid;
+    gap: 2px;
+    padding: 9px 12px;
+    border-radius: 14px;
+    color: var(--ink);
+    background: rgba(117,239,184,.2);
+    box-shadow: inset 0 0 0 1px rgba(39,122,85,.18);
+  }
+
+  .relief-chip span {
+    color: #277a55;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .empty-state.compact {
+    min-height: 48px;
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(33,21,95,.055);
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 13px;
+  }
+
+  .toggle-row input {
+    width: auto;
   }
 
   .mini-form {
@@ -607,8 +687,9 @@
     position: fixed;
     inset: 0;
     z-index: 30;
-    display: grid;
-    place-items: center;
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
     padding: 24px;
     background: rgba(18,12,52,.42);
     backdrop-filter: blur(8px);
@@ -616,12 +697,19 @@
 
   .modal-card {
     position: relative;
-    width: min(620px, 100%);
+    width: min(520px, 100%);
+    min-height: calc(100vh - 48px);
     padding: 28px;
     border-radius: 28px;
     background: rgba(255,255,255,.94);
     box-shadow: var(--shadow);
     border: 1px solid rgba(255,255,255,.7);
+    animation: drawerIn .22s ease both;
+  }
+
+  @keyframes drawerIn {
+    from { transform: translateX(24px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
   }
 
   .modal-close {
@@ -644,7 +732,10 @@
     nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .hero { grid-template-columns: 1fr; }
     .metrics, .checklist, .two-col, .timeline, .settings-grid, .settings-forms, .gap-card, .control-row, .wide-form { grid-template-columns: 1fr; }
-    .wide-form h4,
+    .form-title-row,
     .wide-form button { grid-column: auto; }
+    .form-title-row { align-items: stretch; flex-direction: column; }
+    .modal-backdrop { padding: 12px; }
+    .modal-card { min-height: auto; }
   }
 </style>

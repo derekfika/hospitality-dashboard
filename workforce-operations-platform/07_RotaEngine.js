@@ -25,12 +25,12 @@ function getWeeklyRotaBoard(siteId, weekStartDate) {
   if (!cleanSiteId) throw new Error("Choose a site first.");
   const weekStart = normaliseWeekStart_(weekStartDate);
   const weekDates = getWeekDates_(weekStart);
-  const templates = readWorkforceObjects_(
+  const templates = uniqueWorkforceRotaTemplates_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates)
   ).filter(function(template) {
     return String(template["Site ID"] || "") === cleanSiteId &&
       workforceBoolean_(template.Active);
-  });
+  }));
   const absences = buildAbsenceIndex_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences)
   ));
@@ -108,17 +108,17 @@ function generateReliefSuggestions(daysAhead) {
   ).filter(function(gap) {
     return String(gap.Status || "").toLowerCase() !== "resolved";
   });
-  const staff = readWorkforceObjects_(
-    spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory)
-  ).filter(function(person) {
-    return isReliefCandidate_(person, reliefAvailability);
-  });
   const absences = buildAbsenceIndex_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences)
   ));
   const reliefAvailability = buildReliefAvailabilityIndex_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefAvailability)
   ));
+  const staff = readWorkforceObjects_(
+    spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory)
+  ).filter(function(person) {
+    return isReliefCandidate_(person, reliefAvailability);
+  });
   const suggestions = [];
 
   gaps.forEach(function(gap) {
@@ -311,6 +311,31 @@ function getCoverDateRoleKey_(siteId, dateText, role) {
 
 function normaliseRoleForCover_(role) {
   return String(role || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function uniqueWorkforceRotaTemplates_(templates) {
+  const byKey = {};
+  (templates || []).forEach(function(template) {
+    const key = getRotaTemplateDuplicateKey_(template);
+    if (!key) return;
+    const existing = byKey[key];
+    if (!existing ||
+        String(existing.Source || "") !== "Web App" ||
+        String(template.Source || "") === "Web App") {
+      byKey[key] = template;
+    }
+  });
+  return Object.keys(byKey).map(function(key) { return byKey[key]; });
+}
+
+function getRotaTemplateDuplicateKey_(template) {
+  return [
+    String(template["Site ID"] || "").trim().toLowerCase(),
+    String(template.Weekday || "").trim().toLowerCase(),
+    normaliseRoleForCover_(template.Role),
+    normaliseWorkforcePerson_(template["Employee Name"]),
+    String(template["Standard Status"] || "").trim().toUpperCase()
+  ].join("|");
 }
 
 function normaliseWeekStart_(value) {

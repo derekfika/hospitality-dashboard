@@ -69,6 +69,39 @@ function saveWorkforceAgencyContact(contact) {
   return { ok: true, agencyId: id, message: "Agency contact saved." };
 }
 
+function setWorkforceReliefTeamMember(employeeId, employeeName, isReliefTeam) {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory);
+  const map = workforceHeaderMap_(sheet);
+  const reliefColumn = map["Relief Team"];
+  if (!reliefColumn) throw new Error("Staff Directory is missing Relief Team column.");
+  const idColumn = map["Employee ID"];
+  const nameColumn = map.Name;
+  if (!idColumn && !nameColumn) throw new Error("Staff Directory is missing employee identifiers.");
+  const targetId = String(employeeId || "").trim();
+  const targetName = normaliseWorkforcePerson_(employeeName);
+  if (!targetId && !targetName) throw new Error("Choose a staff member first.");
+  const rows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
+    : [];
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    const rowId = idColumn ? String(row[idColumn - 1] || "").trim() : "";
+    const rowName = nameColumn ? normaliseWorkforcePerson_(row[nameColumn - 1]) : "";
+    if ((targetId && rowId === targetId) || (!targetId && targetName && rowName === targetName)) {
+      sheet.getRange(index + 2, reliefColumn).setValue(Boolean(isReliefTeam));
+      return {
+        ok: true,
+        employeeId: rowId,
+        employeeName: row[nameColumn - 1] || employeeName,
+        reliefTeam: Boolean(isReliefTeam),
+        message: (row[nameColumn - 1] || employeeName) + (isReliefTeam ? " added to relief team." : " removed from relief team.")
+      };
+    }
+  }
+  throw new Error("Staff member was not found.");
+}
+
 function saveWorkforceRotaTemplate(template) {
   const spreadsheet = getWorkforceSpreadsheet_();
   const siteId = String(template.siteId || template["Site ID"] || "").trim();
@@ -84,14 +117,24 @@ function saveWorkforceRotaTemplate(template) {
   if (!employeeName && standardStatus.toUpperCase() === "IN") {
     throw new Error("Employee name is required for an IN rota row.");
   }
-  const id = [
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates);
+  const row = {
+    "Site ID": siteId,
+    "Site Name": siteName || siteId,
+    "Weekday": weekday,
+    "Role": role,
+    "Employee Name": employeeName,
+    "Standard Status": standardStatus
+  };
+  const existingId = findExistingRotaTemplateId_(sheet, row);
+  const id = existingId || [
     "template",
     siteId,
     weekday,
     slugifyWorkforce_(role),
     slugifyWorkforce_(employeeName || standardStatus)
   ].join("_");
-  upsertWorkforceRows_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates), "Template ID", [{
+  upsertWorkforceRows_(sheet, "Template ID", [{
     "Template ID": id,
     "Site ID": siteId,
     "Site Name": siteName || siteId,
@@ -103,11 +146,97 @@ function saveWorkforceRotaTemplate(template) {
     "Observations": template.notes || "",
     "Active": true
   }]);
+  const duplicatesDeactivated = deactivateDuplicateRotaTemplatesForKey_(sheet, row, id);
   return {
     ok: true,
     templateId: id,
-    message: "Standard rota row saved."
+    duplicatesDeactivated: duplicatesDeactivated,
+    message: duplicatesDeactivated
+      ? "Standard rota row saved. " + duplicatesDeactivated + " duplicate row(s) were disabled."
+      : "Standard rota row saved."
   };
+}
+
+function dedupeWorkforceRotaTemplates() {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates);
+  if (!sheet || sheet.getLastRow() < 3) {
+    return { ok: true, duplicatesDeactivated: 0, message: "No duplicate rota templates found." };
+  }
+  const templates = readWorkforceObjects_(sheet);
+  const keepByKey = {};
+  let disabled = 0;
+  templates.forEach(function(template) {
+    if (!workforceBoolean_(template.Active)) return;
+    const key = getRotaTemplateDuplicateKey_(template);
+    if (!key) return;
+    const keep = keepByKey[key];
+    if (!keep) {
+      keepByKey[key] = template;
+      return;
+    }
+    const currentIsWeb = String(template.Source || "") === "Web App";
+    const keepIsWeb = String(keep.Source || "") === "Web App";
+    if (currentIsWeb && !keepIsWeb) {
+      disabled += setRotaTemplateActive_(sheet, keep["Template ID"], false, "Disabled duplicate; kept " + template["Template ID"]);
+      keepByKey[key] = template;
+    } else {
+      disabled += setRotaTemplateActive_(sheet, template["Template ID"], false, "Disabled duplicate; kept " + keep["Template ID"]);
+    }
+  });
+  return {
+    ok: true,
+    duplicatesDeactivated: disabled,
+    message: disabled
+      ? disabled + " duplicate rota template row(s) disabled."
+      : "No duplicate rota templates found."
+  };
+}
+
+function findExistingRotaTemplateId_(sheet, template) {
+  const targetKey = getRotaTemplateDuplicateKey_(template);
+  if (!targetKey) return "";
+  return readWorkforceObjects_(sheet)
+    .filter(function(row) {
+      return workforceBoolean_(row.Active) &&
+        getRotaTemplateDuplicateKey_(row) === targetKey;
+    })
+    .map(function(row) { return String(row["Template ID"] || ""); })[0] || "";
+}
+
+function deactivateDuplicateRotaTemplatesForKey_(sheet, template, keepId) {
+  const targetKey = getRotaTemplateDuplicateKey_(template);
+  if (!targetKey || !keepId) return 0;
+  let disabled = 0;
+  readWorkforceObjects_(sheet).forEach(function(row) {
+    const id = String(row["Template ID"] || "");
+    if (id && id !== keepId && workforceBoolean_(row.Active) && getRotaTemplateDuplicateKey_(row) === targetKey) {
+      disabled += setRotaTemplateActive_(sheet, id, false, "Disabled duplicate; kept " + keepId);
+    }
+  });
+  return disabled;
+}
+
+function setRotaTemplateActive_(sheet, templateId, active, note) {
+  if (!sheet || !templateId) return 0;
+  const map = workforceHeaderMap_(sheet);
+  const idColumn = map["Template ID"];
+  if (!idColumn || !map.Active) return 0;
+  const ids = sheet.getLastRow() > 1
+    ? sheet.getRange(2, idColumn, sheet.getLastRow() - 1, 1).getDisplayValues()
+    : [];
+  for (let index = 0; index < ids.length; index++) {
+    if (String(ids[index][0] || "") === String(templateId)) {
+      const rowNumber = index + 2;
+      sheet.getRange(rowNumber, map.Active).setValue(active);
+      if (map.Observations && note) {
+        const existing = String(sheet.getRange(rowNumber, map.Observations).getDisplayValue() || "");
+        sheet.getRange(rowNumber, map.Observations).setValue([existing, note].filter(Boolean).join("\n"));
+      }
+      return 1;
+    }
+  }
+  return 0;
 }
 
 function getWorkforceSiteName_(spreadsheet, siteId) {

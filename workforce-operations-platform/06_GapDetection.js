@@ -1,12 +1,12 @@
 function detectCoverageGaps(daysAhead) {
   setupWorkforceOperationsPlatform();
   const spreadsheet = getWorkforceSpreadsheet_();
-  const templates = readWorkforceObjects_(
+  const templates = uniqueWorkforceRotaTemplates_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates)
   ).filter(function(row) {
     return workforceBoolean_(row.Active) &&
       String(row["Standard Status"] || "").toUpperCase() === "IN";
-  });
+  }));
   const absences = readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences)
   );
