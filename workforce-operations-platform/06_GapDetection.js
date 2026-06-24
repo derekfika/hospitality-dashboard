@@ -110,6 +110,68 @@ function markCoverageGap_(gapId, action, details) {
   };
 }
 
+function assignCoverForGap_(gapId, details) {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const gap = getCoverageGapById_(spreadsheet, gapId);
+  const coverName = String(details.coverName || "").trim();
+  const coverType = String(details.coverType || "Relief").trim() || "Relief";
+  const notes = String(details.notes || "").trim();
+  if (!coverName) throw new Error("Choose who is covering this gap.");
+  const date = normaliseWorkforceDate_(gap.Date);
+  const exceptionId = [
+    "cover",
+    gap["Gap ID"],
+    slugifyWorkforce_(coverName)
+  ].join("_");
+  upsertWorkforceRows_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaExceptions), "Exception ID", [{
+    "Exception ID": exceptionId,
+    "Site ID": gap["Site ID"],
+    "Site Name": gap["Site Name"],
+    "Date": date,
+    "Weekday": gap.Weekday,
+    "Role": gap.Role,
+    "Employee Name": coverName,
+    "Standard Status": "",
+    "Actual Status": "IN",
+    "Exception Type": coverType,
+    "Source": "Web App",
+    "Notes": [
+      "Cover for " + (gap["Employee Name"] || "gap"),
+      notes
+    ].filter(Boolean).join(" | ")
+  }]);
+  markCoverageGap_(gapId, "resolved", {
+    notes: coverType + " cover assigned: " + coverName + (notes ? " | " + notes : "")
+  });
+  return {
+    ok: true,
+    exceptionId: exceptionId,
+    message: "Cover assigned to " + coverName + "."
+  };
+}
+
+function requestAgencyForGap_(gapId, agencyId, details) {
+  const result = createAgencyRequestForGap(gapId, agencyId);
+  markCoverageGap_(gapId, "agency_requested", {
+    notes: String((details && details.notes) || "").trim()
+  });
+  return {
+    ok: true,
+    agencyRequestId: result.agencyRequestId,
+    message: "Agency request created and gap marked as agency requested."
+  };
+}
+
+function getCoverageGapById_(spreadsheet, gapId) {
+  const cleanGapId = String(gapId || "").trim();
+  const gap = readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.coverageGaps))
+    .filter(function(row) {
+      return String(row["Gap ID"] || "").trim() === cleanGapId;
+    })[0];
+  if (!gap) throw new Error("Gap was not found.");
+  return gap;
+}
+
 function normaliseGapActionLabel_(action) {
   const text = String(action || "").toLowerCase();
   if (text === "self_cover") return "Self cover";

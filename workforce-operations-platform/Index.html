@@ -218,6 +218,28 @@
             <div><strong id="exceptionCount">—</strong><span>Rota exceptions</span></div>
           </div>
           <div class="settings-forms">
+            <form id="rotaTemplateForm" class="mini-form wide-form">
+              <h4>Add/update standard rota row</h4>
+              <select name="siteId" id="templateSiteSelect"></select>
+              <select name="weekday">
+                <option value="">Weekday</option>
+                <option>Monday</option>
+                <option>Tuesday</option>
+                <option>Wednesday</option>
+                <option>Thursday</option>
+                <option>Friday</option>
+                <option>Saturday</option>
+                <option>Sunday</option>
+              </select>
+              <input name="role" placeholder="Role e.g. KP, Barista, Chef">
+              <input name="employeeName" placeholder="Employee name">
+              <select name="standardStatus">
+                <option value="IN">Standard status: IN</option>
+                <option value="OFF">Standard status: OFF</option>
+              </select>
+              <input name="notes" placeholder="Notes">
+              <button type="submit">Save standard rota row</button>
+            </form>
             <form id="managerForm" class="mini-form">
               <h4>Add/update manager</h4>
               <input name="managerName" placeholder="Manager name">
@@ -239,6 +261,36 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div class="modal-backdrop hidden" id="gapModal">
+      <div class="modal-card">
+        <button class="modal-close secondary mini" id="closeGapModal" type="button">Close</button>
+        <p class="eyebrow">Gap action</p>
+        <h3 id="gapModalTitle">Manage gap</h3>
+        <p class="muted-text" id="gapModalSummary"></p>
+        <form id="gapActionForm" class="mini-form">
+          <input type="hidden" name="gapId">
+          <input type="hidden" name="action">
+          <label class="cover-only">Cover person
+            <select name="coverName" id="coverPersonSelect"></select>
+          </label>
+          <label class="cover-only">Cover type
+            <select name="coverType">
+              <option value="Relief">Relief</option>
+              <option value="Support">Support</option>
+              <option value="Self cover">Self cover</option>
+            </select>
+          </label>
+          <label class="agency-only">Agency
+            <select name="agencyId" id="agencySelect"></select>
+          </label>
+          <label>Notes
+            <input name="notes" placeholder="Anything Gill should know">
+          </label>
+          <button type="submit" id="gapActionSubmit">Save action</button>
+        </form>
+      </div>
     </div>
 
     <div class="toast" id="toast"></div>

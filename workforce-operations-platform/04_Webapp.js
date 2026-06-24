@@ -19,6 +19,7 @@ function getWorkforceDashboardData() {
     const gaps = spreadsheet ? safeGetCoverageGapSummary_() : { count: 0, gaps: [] };
     const relief = spreadsheet ? safeGetReliefSuggestionSummary_() : { count: 0, suggestions: [] };
     const options = spreadsheet ? safeGetRotaAppOptions_() : { sites: [], defaultWeekStart: "" };
+    const settings = spreadsheet ? safeGetWorkforceSettingsData_() : getEmptyWorkforceSettingsData_();
     return toPlainWorkforceResponse_(buildWorkforceDashboardResponse_({
       ok: true,
       brightHr: status,
@@ -44,7 +45,8 @@ function getWorkforceDashboardData() {
       summary: summary,
       gaps: gaps,
       relief: relief,
-      options: options
+      options: options,
+      settings: settings
     }));
   } catch (error) {
     return toPlainWorkforceResponse_(buildWorkforceDashboardResponse_({
@@ -55,7 +57,8 @@ function getWorkforceDashboardData() {
       summary: getEmptyWorkforceSummary_(),
       gaps: { count: 0, gaps: [] },
       relief: { count: 0, suggestions: [] },
-      options: { sites: [], defaultWeekStart: "" }
+      options: { sites: [], defaultWeekStart: "" },
+      settings: getEmptyWorkforceSettingsData_()
     }));
   }
 }
@@ -95,11 +98,19 @@ function syncWorkforceFromUi() {
   } catch (error) {
     result.warnings.push(error.message || String(error));
   }
+  try {
+    result.gaps = detectCoverageGaps(28);
+    result.suggestions = generateReliefSuggestions(28);
+  } catch (error) {
+    result.warnings.push("Rota analysis needs attention: " + (error.message || String(error)));
+  }
   result.message = [
     "Sync complete.",
     result.employees ? (result.employees.synced || 0) + " employee(s) updated." : "",
     result.absences ? (result.absences.synced || 0) + " absence row(s) updated." : "",
-    result.warnings.length ? "Absences need attention: " + result.warnings.join(" ") : ""
+    result.gaps ? (result.gaps.gapsFound || 0) + " gap(s) found." : "",
+    result.suggestions ? (result.suggestions.suggestionsCreated || 0) + " relief suggestion(s)." : "",
+    result.warnings.length ? "Needs attention: " + result.warnings.join(" ") : ""
   ].filter(Boolean).join(" ");
   return result;
 }
@@ -155,6 +166,14 @@ function markCoverageGapFromUi(gapId, action, details) {
   return markCoverageGap_(gapId, action, details || {});
 }
 
+function assignCoverForGapFromUi(gapId, details) {
+  return assignCoverForGap_(gapId, details || {});
+}
+
+function requestAgencyForGapFromUi(gapId, agencyId, details) {
+  return requestAgencyForGap_(gapId, agencyId, details || {});
+}
+
 function getWorkforceSettingsDataFromUi() {
   return getWorkforceSettingsData();
 }
@@ -165,6 +184,10 @@ function saveWorkforceManagerFromUi(manager) {
 
 function saveWorkforceAgencyContactFromUi(contact) {
   return saveWorkforceAgencyContact(contact);
+}
+
+function saveRotaTemplateFromUi(template) {
+  return saveWorkforceRotaTemplate(template);
 }
 
 function safeGetWorkforceSpreadsheet_() {
@@ -215,6 +238,29 @@ function safeGetRotaAppOptions_() {
   }
 }
 
+function safeGetWorkforceSettingsData_() {
+  try {
+    return getWorkforceSettingsData();
+  } catch (error) {
+    const settings = getEmptyWorkforceSettingsData_();
+    settings.error = error.message || String(error);
+    return settings;
+  }
+}
+
+function getEmptyWorkforceSettingsData_() {
+  return {
+    ok: false,
+    managers: [],
+    agencyContacts: [],
+    roles: [],
+    shiftPatterns: [],
+    sites: [],
+    staff: [],
+    rotaTemplates: []
+  };
+}
+
 function buildWorkforceDashboardResponse_(payload) {
   payload = payload || {};
   const summary = payload.summary || getEmptyWorkforceSummary_();
@@ -231,6 +277,7 @@ function buildWorkforceDashboardResponse_(payload) {
     gaps: payload.gaps || { count: 0, gaps: [] },
     relief: payload.relief || { count: 0, suggestions: [] },
     options: payload.options || { sites: [], defaultWeekStart: "" },
+    settings: payload.settings || getEmptyWorkforceSettingsData_(),
     modules: [
       { id: "staff", label: "Staff Directory", status: summary.staffCount ? "Live" : "Ready" },
       { id: "absence", label: "Absence Sync", status: summary.absenceCount ? "Live" : "Needs endpoint" },
@@ -258,6 +305,7 @@ function toPlainWorkforceResponse_(response) {
       gaps: { count: 0, gaps: [] },
       relief: { count: 0, suggestions: [] },
       options: { sites: [], defaultWeekStart: "" },
+      settings: getEmptyWorkforceSettingsData_(),
       modules: []
     };
   }

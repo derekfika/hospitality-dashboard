@@ -5,7 +5,23 @@ function getWorkforceSettingsData() {
     managers: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.managers)),
     agencyContacts: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.agencyContacts)),
     roles: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.roleLibrary)),
-    shiftPatterns: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.shiftPatterns))
+    shiftPatterns: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.shiftPatterns)),
+    sites: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.sites)),
+    staff: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory))
+      .filter(function(person) {
+        return String(person.Name || "").trim() &&
+          String(person["Employment Status"] || "").toLowerCase() !== "terminated" &&
+          !workforceBoolean_(person.Terminated);
+      })
+      .map(function(person) {
+        return {
+          employeeId: person["Employee ID"],
+          name: person.Name,
+          role: person.Role,
+          reliefTeam: workforceBoolean_(person["Relief Team"])
+        };
+      }),
+    rotaTemplates: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates))
   };
 }
 
@@ -51,6 +67,56 @@ function saveWorkforceAgencyContact(contact) {
     "Notes": contact.notes || ""
   }]);
   return { ok: true, agencyId: id, message: "Agency contact saved." };
+}
+
+function saveWorkforceRotaTemplate(template) {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const siteId = String(template.siteId || template["Site ID"] || "").trim();
+  const siteName = String(template.siteName || template["Site Name"] || "").trim() ||
+    getWorkforceSiteName_(spreadsheet, siteId);
+  const weekday = String(template.weekday || template.Weekday || "").trim();
+  const role = String(template.role || template.Role || "").trim();
+  const employeeName = String(template.employeeName || template["Employee Name"] || "").trim();
+  const standardStatus = String(template.standardStatus || template["Standard Status"] || "IN").trim() || "IN";
+  if (!siteId) throw new Error("Choose a site for this rota template.");
+  if (!weekday) throw new Error("Choose a weekday for this rota template.");
+  if (!role) throw new Error("Role is required.");
+  if (!employeeName && standardStatus.toUpperCase() === "IN") {
+    throw new Error("Employee name is required for an IN rota row.");
+  }
+  const id = [
+    "template",
+    siteId,
+    weekday,
+    slugifyWorkforce_(role),
+    slugifyWorkforce_(employeeName || standardStatus)
+  ].join("_");
+  upsertWorkforceRows_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates), "Template ID", [{
+    "Template ID": id,
+    "Site ID": siteId,
+    "Site Name": siteName || siteId,
+    "Weekday": weekday,
+    "Role": role,
+    "Employee Name": employeeName,
+    "Standard Status": standardStatus,
+    "Source": "Web App",
+    "Observations": template.notes || "",
+    "Active": true
+  }]);
+  return {
+    ok: true,
+    templateId: id,
+    message: "Standard rota row saved."
+  };
+}
+
+function getWorkforceSiteName_(spreadsheet, siteId) {
+  const cleanSiteId = String(siteId || "");
+  const site = readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.sites))
+    .filter(function(row) {
+      return String(row["Site ID"] || "") === cleanSiteId;
+    })[0];
+  return site ? String(site["Site Name"] || "") : "";
 }
 
 function isWorkforceEmail_(value) {

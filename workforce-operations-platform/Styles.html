@@ -561,6 +561,16 @@
     margin-top: 20px;
   }
 
+  .wide-form {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .wide-form h4,
+  .wide-form button {
+    grid-column: 1 / -1;
+  }
+
   .mini-form {
     display: grid;
     gap: 10px;
@@ -593,6 +603,37 @@
 
   .toast.show { transform: translateY(0); opacity: 1; }
 
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(18,12,52,.42);
+    backdrop-filter: blur(8px);
+  }
+
+  .modal-card {
+    position: relative;
+    width: min(620px, 100%);
+    padding: 28px;
+    border-radius: 28px;
+    background: rgba(255,255,255,.94);
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,255,255,.7);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+  }
+
+  .modal-card .mini-form {
+    margin-top: 18px;
+  }
+
   .hidden {
     display: none !important;
   }
@@ -602,6 +643,8 @@
     .sidebar { position: relative; height: auto; }
     nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .hero { grid-template-columns: 1fr; }
-    .metrics, .checklist, .two-col, .timeline, .settings-grid, .settings-forms, .gap-card, .control-row { grid-template-columns: 1fr; }
+    .metrics, .checklist, .two-col, .timeline, .settings-grid, .settings-forms, .gap-card, .control-row, .wide-form { grid-template-columns: 1fr; }
+    .wide-form h4,
+    .wide-form button { grid-column: auto; }
   }
 </style>

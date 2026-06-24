@@ -1,5 +1,5 @@
 <script>
-  const state = { loading: false };
+  const state = { loading: false, settings: {}, gapsById: {} };
 
   document.addEventListener("DOMContentLoaded", () => {
     bindActions();
@@ -58,6 +58,15 @@
       event.preventDefault();
       saveAgencyFromForm();
     });
+    onSubmit("rotaTemplateForm", event => {
+      event.preventDefault();
+      saveRotaTemplateFromForm();
+    });
+    onSubmit("gapActionForm", event => {
+      event.preventDefault();
+      submitGapActionForm();
+    });
+    onClick("closeGapModal", closeGapModal);
   }
 
   function onClick(id, handler) {
@@ -239,6 +248,7 @@
     setCheck("checkLegacyRota", legacyRota.configured);
     setCheck("checkReliefRota", reliefRota.configured);
     renderOptions(data.options || {});
+    renderSettingsSelectors(data.settings || {});
     renderGaps(data.gaps || { gaps: [] });
     renderRelief(data.relief || { suggestions: [] });
   }
@@ -255,7 +265,8 @@
       summary: {},
       gaps: { gaps: [] },
       relief: { suggestions: [] },
-      options: { sites: [], defaultWeekStart: "" }
+      options: { sites: [], defaultWeekStart: "" },
+      settings: {}
     };
   }
 
@@ -301,6 +312,27 @@
       .saveWorkforceAgencyContactFromUi(data);
   }
 
+  function saveRotaTemplateFromForm() {
+    const form = document.getElementById("rotaTemplateForm");
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.siteId || !data.weekday || !data.role) {
+      showToast("Site, weekday and role are required.");
+      return;
+    }
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(result => {
+        showToast(result.message || "Standard rota row saved.");
+        form.reset();
+        loadDashboard();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not save standard rota row.");
+        setBusy(false);
+      })
+      .saveRotaTemplateFromUi(data);
+  }
+
   function renderOptions(options) {
     const siteSelect = document.getElementById("siteSelect");
     if (!siteSelect) return;
@@ -313,6 +345,38 @@
     if (!siteSelect.value && sites[0]) siteSelect.value = sites[0].siteId;
     const weekInput = document.getElementById("weekStartInput");
     if (weekInput && !weekInput.value && options.defaultWeekStart) weekInput.value = options.defaultWeekStart;
+  }
+
+  function renderSettingsSelectors(settings) {
+    state.settings = settings || {};
+    const sites = (settings && settings.sites) || [];
+    const staff = ((settings && settings.staff) || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    const agencies = ((settings && settings.agencyContacts) || []).filter(item => String(item.Active).toUpperCase() !== "FALSE");
+
+    fillSelect("templateSiteSelect", sites.map(site => ({
+      value: site["Site ID"],
+      label: site["Site Name"] || site["Site ID"]
+    })), "Choose site");
+
+    fillSelect("coverPersonSelect", staff.map(person => ({
+      value: person.name,
+      label: person.name + (person.role ? " · " + person.role : "") + (person.reliefTeam ? " · Relief" : "")
+    })), "Choose cover person");
+
+    fillSelect("agencySelect", agencies.map(agency => ({
+      value: agency["Agency ID"],
+      label: agency["Agency Name"] + (agency["Contact Name"] ? " · " + agency["Contact Name"] : "")
+    })), "Choose agency");
+  }
+
+  function fillSelect(id, options, placeholder) {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = [`<option value="">${escapeHtml(placeholder || "Choose")}</option>`]
+      .concat((options || []).map(option => `<option value="${escapeHtml(option.value || "")}">${escapeHtml(option.label || option.value || "")}</option>`))
+      .join("");
+    if (current) select.value = current;
   }
 
   function renderRotaBoard(board) {
@@ -351,6 +415,10 @@
     const list = document.getElementById("gapList");
     if (!list) return;
     const gaps = gapSummary.gaps || [];
+    state.gapsById = {};
+    gaps.forEach(gap => {
+      if (gap["Gap ID"]) state.gapsById[gap["Gap ID"]] = gap;
+    });
     if (!gaps.length) {
       list.innerHTML = '<div class="empty-state">No open gaps found</div>';
       return;
@@ -367,17 +435,78 @@
         </div>
         <em>${escapeHtml(gap["Gap Type"] || "Gap")}</em>
         <div class="gap-actions">
-          <button class="secondary mini" data-gap-action="self_cover" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Self cover</button>
-          <button class="secondary mini" data-gap-action="agency_requested" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Agency requested</button>
+          <button class="secondary mini" data-gap-action="cover" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Assign cover</button>
+          <button class="secondary mini" data-gap-action="agency" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Request agency</button>
           <button class="secondary mini" data-gap-action="resolved" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Resolved</button>
         </div>
       </article>
     `).join("");
     list.querySelectorAll("[data-gap-action]").forEach(button => {
       button.addEventListener("click", () => {
-        markGap(button.dataset.gapId, button.dataset.gapAction);
+        if (button.dataset.gapAction === "resolved") {
+          markGap(button.dataset.gapId, "resolved");
+        } else {
+          openGapModal(button.dataset.gapId, button.dataset.gapAction);
+        }
       });
     });
+  }
+
+  function openGapModal(gapId, action) {
+    const modal = document.getElementById("gapModal");
+    const form = document.getElementById("gapActionForm");
+    const gap = state.gapsById[gapId] || {};
+    if (!modal || !form) return;
+    form.reset();
+    form.elements.gapId.value = gapId;
+    form.elements.action.value = action;
+    text("gapModalTitle", action === "agency" ? "Request agency cover" : "Assign internal cover");
+    text("gapModalSummary", [
+      gap["Site Name"],
+      gap.FriendlyDate || gap.Date,
+      gap.Role,
+      gap["Employee Name"] ? "for " + gap["Employee Name"] : ""
+    ].filter(Boolean).join(" · "));
+    document.querySelectorAll(".cover-only").forEach(el => el.classList.toggle("hidden", action !== "cover"));
+    document.querySelectorAll(".agency-only").forEach(el => el.classList.toggle("hidden", action !== "agency"));
+    text("gapActionSubmit", action === "agency" ? "Create agency request" : "Assign cover");
+    modal.classList.remove("hidden");
+  }
+
+  function closeGapModal() {
+    const modal = document.getElementById("gapModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function submitGapActionForm() {
+    const form = document.getElementById("gapActionForm");
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.gapId) return;
+    if (data.action === "cover" && !data.coverName) {
+      showToast("Choose who is covering.");
+      return;
+    }
+    if (data.action === "agency" && !data.agencyId) {
+      showToast("Choose an agency.");
+      return;
+    }
+    showToast("Saving gap action…");
+    setBusy(true);
+    const runner = google.script.run
+      .withSuccessHandler(result => {
+        closeGapModal();
+        showToast((result && result.message) || "Gap action saved.");
+        loadDashboard();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not save gap action.");
+        setBusy(false);
+      });
+    if (data.action === "cover") {
+      runner.assignCoverForGapFromUi(data.gapId, data);
+    } else {
+      runner.requestAgencyForGapFromUi(data.gapId, data.agencyId, data);
+    }
   }
 
   function markGap(gapId, action) {
