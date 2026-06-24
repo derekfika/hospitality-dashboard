@@ -241,12 +241,17 @@
               <div class="relief-chip-list" id="reliefTeamList">
                 <div class="empty-state compact">No relief team loaded yet</div>
               </div>
+              <div class="settings-table-wrap" id="reliefDirectoryTable"></div>
             </div>
             <form id="rotaTemplateForm" class="mini-form wide-form settings-tab-panel hidden" data-panel-id="rotaSettings">
               <div class="form-title-row">
                 <h4>Add/update standard rota row</h4>
                 <button id="dedupeTemplatesBtn" class="secondary mini" type="button">Clean duplicate rota rows</button>
               </div>
+              <div class="settings-filter-row">
+                <label>View site rota <select id="standardRotaSiteFilter"></select></label>
+              </div>
+              <div class="settings-table-wrap" id="standardRotaTable"></div>
               <select name="siteId" id="templateSiteSelect"></select>
               <select name="weekday">
                 <option value="">Weekday</option>
@@ -274,6 +279,7 @@
               <input name="phone" placeholder="Phone">
               <input name="primarySiteId" placeholder="Primary site ID">
               <button type="submit">Save manager</button>
+              <div class="settings-table-wrap" id="managerDirectoryTable"></div>
             </form>
             <form id="agencyForm" class="mini-form settings-tab-panel hidden" data-panel-id="agencySettings">
               <h4>Add/update agency contact</h4>
@@ -284,6 +290,7 @@
               <input name="rolesSupplied" placeholder="Roles supplied">
               <input name="defaultRate" placeholder="Default rate">
               <button type="submit">Save agency</button>
+              <div class="settings-table-wrap" id="agencyDirectoryTable"></div>
             </form>
           </div>
         </section>

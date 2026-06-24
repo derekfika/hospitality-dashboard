@@ -1,6 +1,6 @@
 const WORKFORCE_CONFIG = Object.freeze({
   appName: "FIKA Workforce Operations Platform",
-  appVersion: "v0.6.0",
+  appVersion: "v0.6.1",
   timeZone: "Europe/London",
   hrProvider: "brighthr",
   brightHr: {

@@ -760,6 +760,51 @@
     grid-template-columns: 1fr;
   }
 
+  .settings-filter-row,
+  .settings-table-wrap {
+    grid-column: 1 / -1;
+  }
+
+  .settings-filter-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 360px);
+  }
+
+  .settings-table-wrap {
+    overflow-x: auto;
+    border-radius: 18px;
+    background: rgba(255,255,255,.72);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .settings-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 620px;
+  }
+
+  .settings-data-table th,
+  .settings-data-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(33,21,95,.08);
+    text-align: left;
+    vertical-align: top;
+    font-size: 13px;
+  }
+
+  .settings-data-table th {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: 11px;
+    font-weight: 900;
+    background: rgba(33,21,95,.045);
+  }
+
+  .settings-data-table tr:last-child td {
+    border-bottom: 0;
+  }
+
   .hidden {
     display: none !important;
   }

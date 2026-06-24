@@ -80,6 +80,8 @@
     onClick("enableAllEmployeesCover", () => {
       refreshCoverPersonSelect();
     });
+    const rotaFilter = document.getElementById("standardRotaSiteFilter");
+    if (rotaFilter) rotaFilter.addEventListener("change", renderStandardRotaTable);
     onSubmit("gapActionForm", event => {
       event.preventDefault();
       submitGapActionForm();
@@ -410,6 +412,10 @@
       value: site["Site ID"],
       label: site["Site Name"] || site["Site ID"]
     })), "Choose site");
+    fillSelect("standardRotaSiteFilter", sites.map(site => ({
+      value: site["Site ID"],
+      label: site["Site Name"] || site["Site ID"]
+    })), "Choose site");
 
     fillSelect("reliefStaffSelect", staff.map(person => ({
       value: person.employeeId || person.name,
@@ -423,7 +429,122 @@
 
     text("reliefTeamCount", reliefStaff.length + " relief team");
     renderReliefTeamList(reliefStaff);
+    renderSettingsTables();
     refreshCoverPersonSelect();
+  }
+
+  function renderSettingsTables() {
+    renderReliefDirectoryTable();
+    renderStandardRotaTable();
+    renderManagerDirectoryTable();
+    renderAgencyDirectoryTable();
+  }
+
+  function renderReliefDirectoryTable() {
+    const staff = ((state.settings && state.settings.staff) || [])
+      .filter(person => person.reliefTeam)
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    renderTable("reliefDirectoryTable", ["Name", "Email", "Role"], staff.map(person => ({
+      Name: person.name || "",
+      Email: person.email || "",
+      Role: person.role || ""
+    })), "No relief contacts selected yet.");
+  }
+
+  function renderStandardRotaTable() {
+    const select = document.getElementById("standardRotaSiteFilter");
+    const sites = (state.settings && state.settings.sites) || [];
+    const templates = ((state.settings && state.settings.rotaTemplates) || [])
+      .filter(row => String(row.Active).toUpperCase() !== "FALSE");
+    if (select && !select.value && sites[0]) select.value = sites[0]["Site ID"];
+    const siteId = select ? select.value : "";
+    const rows = templates
+      .filter(row => !siteId || String(row["Site ID"] || "") === String(siteId))
+      .sort((a, b) => weekdayOrder_(a.Weekday) - weekdayOrder_(b.Weekday) ||
+        String(a.Role || "").localeCompare(String(b.Role || "")) ||
+        String(a["Employee Name"] || "").localeCompare(String(b["Employee Name"] || "")))
+      .map(row => ({
+        Weekday: row.Weekday || "",
+        Role: row.Role || "",
+        Employee: row["Employee Name"] || "",
+        Status: row["Standard Status"] || "",
+        Source: row.Source || "",
+        Action: `<button class="secondary mini" type="button" data-edit-template="${escapeHtml(row["Template ID"] || "")}">Edit</button>`
+      }));
+    renderTable("standardRotaTable", ["Weekday", "Role", "Employee", "Status", "Source", "Action"], rows, "No standard rota rows for this site yet.");
+    const table = document.getElementById("standardRotaTable");
+    if (table) {
+      table.querySelectorAll("[data-edit-template]").forEach(button => {
+        button.addEventListener("click", () => fillRotaTemplateForm(button.dataset.editTemplate));
+      });
+    }
+  }
+
+  function renderManagerDirectoryTable() {
+    const managers = ((state.settings && state.settings.managers) || [])
+      .filter(row => String(row.Active).toUpperCase() !== "FALSE")
+      .sort((a, b) => String(a["Manager Name"] || "").localeCompare(String(b["Manager Name"] || "")));
+    renderTable("managerDirectoryTable", ["Manager", "Email", "Phone", "Primary Site", "Alerts"], managers.map(row => ({
+      Manager: row["Manager Name"] || "",
+      Email: row.Email || "",
+      Phone: row.Phone || "",
+      "Primary Site": row["Primary Site ID"] || "",
+      Alerts: truthyLabel_(row["Receives Gap Alerts"])
+    })), "No managers saved yet.");
+  }
+
+  function renderAgencyDirectoryTable() {
+    const agencies = ((state.settings && state.settings.agencyContacts) || [])
+      .filter(row => String(row.Active).toUpperCase() !== "FALSE")
+      .sort((a, b) => String(a["Agency Name"] || "").localeCompare(String(b["Agency Name"] || "")));
+    renderTable("agencyDirectoryTable", ["Agency", "Contact", "Email", "Phone", "Roles", "Rate"], agencies.map(row => ({
+      Agency: row["Agency Name"] || "",
+      Contact: row["Contact Name"] || "",
+      Email: row.Email || "",
+      Phone: row.Phone || "",
+      Roles: row["Roles Supplied"] || "",
+      Rate: row["Default Rate"] || ""
+    })), "No agency contacts saved yet.");
+  }
+
+  function renderTable(id, headers, rows, emptyMessage) {
+    const root = document.getElementById(id);
+    if (!root) return;
+    if (!rows.length) {
+      root.innerHTML = `<div class="empty-state compact">${escapeHtml(emptyMessage || "No data yet.")}</div>`;
+      return;
+    }
+    root.innerHTML = `
+      <table class="settings-data-table">
+        <thead><tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rows.map(row => `<tr>${headers.map(header => `<td>${header === "Action" ? (row[header] || "") : escapeHtml(row[header] || "")}</td>`).join("")}</tr>`).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function fillRotaTemplateForm(templateId) {
+    const row = ((state.settings && state.settings.rotaTemplates) || [])
+      .find(item => String(item["Template ID"] || "") === String(templateId));
+    const form = document.getElementById("rotaTemplateForm");
+    if (!row || !form) return;
+    form.elements.siteId.value = row["Site ID"] || "";
+    form.elements.weekday.value = row.Weekday || "";
+    form.elements.role.value = row.Role || "";
+    form.elements.employeeName.value = row["Employee Name"] || "";
+    form.elements.standardStatus.value = row["Standard Status"] || "IN";
+    form.elements.notes.value = row.Observations || "";
+    showToast("Standard rota row loaded for editing.");
+  }
+
+  function weekdayOrder_(weekday) {
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+      .indexOf(String(weekday || ""));
+  }
+
+  function truthyLabel_(value) {
+    return value === true || String(value).toUpperCase() === "TRUE" || String(value).toUpperCase() === "YES" ? "Yes" : "No";
   }
 
   function refreshCoverPersonSelect() {
