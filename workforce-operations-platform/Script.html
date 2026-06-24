@@ -1,0 +1,452 @@
+<script>
+  const state = { loading: false };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    bindActions();
+    bindNavigation();
+    loadDashboard();
+  });
+
+  function bindNavigation() {
+    document.querySelectorAll(".sidebar nav a[href^='#']").forEach(link => {
+      link.addEventListener("click", event => {
+        event.preventDefault();
+        const target = document.querySelector(link.getAttribute("href"));
+        if (!target) return;
+        document.querySelectorAll(".sidebar nav a").forEach(item => {
+          item.classList.toggle("active", item === link);
+        });
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        history.replaceState(null, "", link.getAttribute("href"));
+      });
+    });
+  }
+
+  function bindActions() {
+    onClick("syncEverythingBtn", () => {
+      runAction("Syncing workforce data…", "syncWorkforceFromUi");
+    });
+    onClick("previewLegacyBtn", () => {
+      runLegacyPreview();
+    });
+    onClick("previewReliefImportBtn", () => {
+      runReliefPreview();
+    });
+    onClick("importReliefBtn", () => {
+      runAction("Importing relief rota…", "importReliefRotaFromUi");
+    });
+    onClick("importLegacyBtn", () => {
+      runAction("Importing legacy rota…", "importLegacyRotaFromUi");
+    });
+    onClick("clearLegacyNoiseBtn", () => {
+      runAction("Clearing noisy legacy rows…", "clearLegacyRotaShiftNoiseFromUi");
+    });
+    onClick("detectGapsBtn", () => {
+      runAction("Detecting staffing gaps…", "detectCoverageGapsFromUi");
+    });
+    onClick("loadRotaBtn", () => {
+      loadRotaBoard();
+    });
+    onClick("generateReliefBtn", () => {
+      runAction("Generating relief suggestions…", "generateReliefSuggestionsFromUi");
+    });
+    onSubmit("managerForm", event => {
+      event.preventDefault();
+      saveManagerFromForm();
+    });
+    onSubmit("agencyForm", event => {
+      event.preventDefault();
+      saveAgencyFromForm();
+    });
+  }
+
+  function onClick(id, handler) {
+    const element = document.getElementById(id);
+    if (element) element.addEventListener("click", handler);
+  }
+
+  function onSubmit(id, handler) {
+    const element = document.getElementById(id);
+    if (element) element.addEventListener("submit", handler);
+  }
+
+  function loadDashboard() {
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(data => {
+        if (!data) {
+          data = emptyDashboardData();
+          showToast("Dashboard returned no data. Checking server connection...");
+          checkDashboardPing();
+        } else if (data.ok === false && data.error) {
+          showToast(data.error);
+        }
+        renderDashboard(data);
+        setBusy(false);
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not load workforce dashboard.");
+        setBusy(false);
+      })
+      .getWorkforceDashboardData();
+  }
+
+  function checkDashboardPing() {
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result && result.ok) {
+          showToast("Server is responding, but dashboard data is empty. Run getWorkforceDashboardData in Apps Script to see the backend error.");
+        } else {
+          showToast("Server ping returned no data. Push and update the deployment again.");
+        }
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Server ping failed. Check deployment permissions.");
+      })
+      .getWorkforceDashboardPing();
+  }
+
+  function runAction(loadingMessage, functionName) {
+    showToast(loadingMessage);
+    setBusy(true);
+    const runner = google.script.run
+      .withSuccessHandler(result => {
+        result = result || {};
+        showToast(result.message || `Done. ${result.synced || 0} record(s) updated.`);
+        loadDashboard();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Action failed.");
+        setBusy(false);
+      });
+
+    if (functionName === "setupWorkforceFromUi") runner.setupWorkforceFromUi();
+    if (functionName === "syncBrightHrEmployeesFromUi") runner.syncBrightHrEmployeesFromUi();
+    if (functionName === "syncBrightHrAbsencesFromUi") runner.syncBrightHrAbsencesFromUi();
+    if (functionName === "syncWorkforceFromUi") runner.syncWorkforceFromUi();
+    if (functionName === "importLegacyRotaFromUi") runner.importLegacyRotaFromUi();
+    if (functionName === "importReliefRotaFromUi") runner.importReliefRotaFromUi();
+    if (functionName === "clearLegacyRotaShiftNoiseFromUi") runner.clearLegacyRotaShiftNoiseFromUi();
+    if (functionName === "detectCoverageGapsFromUi") runner.detectCoverageGapsFromUi();
+    if (functionName === "generateReliefSuggestionsFromUi") runner.generateReliefSuggestionsFromUi();
+  }
+
+  function loadRotaBoard() {
+    const siteId = document.getElementById("siteSelect").value;
+    const weekStart = document.getElementById("weekStartInput").value;
+    if (!siteId) {
+      showToast("Choose a site first.");
+      return;
+    }
+    showToast("Loading rota board…");
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(board => {
+        board = board || { days: [], siteName: "", weekStart: "", totalRows: 0, totalGaps: 0 };
+        renderRotaBoard(board);
+        setBusy(false);
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not load rota board.");
+        setBusy(false);
+      })
+      .getWeeklyRotaBoardFromUi(siteId, weekStart);
+  }
+
+  function runLegacyPreview() {
+    showToast("Previewing legacy rota import…");
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(result => {
+        result = result || {};
+        const summary = document.getElementById("legacyImportSummary");
+        summary.innerHTML = `
+          <div>
+            <strong>${result.rawShiftsFound || 0}</strong> raw shifts compressed into
+            <strong>${result.templatesFound || 0}</strong> templates and
+            <strong>${result.exceptionsFound || 0}</strong> exceptions, with
+            <strong>${result.agencyRequestsFound || 0}</strong> agency rows and 
+            <strong>${result.sitesFound || 0}</strong> sites found in
+            <strong>${result.sampledSheets || 0}</strong> sampled sheet(s).
+            Estimated rows saved: <strong>${result.estimatedRowsSaved || 0}</strong>.
+          </div>
+        `;
+        showToast("Legacy preview ready.");
+        setBusy(false);
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Legacy preview failed.");
+        setBusy(false);
+      })
+      .previewLegacyRotaImportFromUi();
+  }
+
+  function runReliefPreview() {
+    showToast("Previewing relief rota import…");
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(result => {
+        result = result || {};
+        const summary = document.getElementById("reliefImportSummary");
+        summary.innerHTML = `
+          <div>
+            <strong>${result.availabilityRowsFound || 0}</strong> relief availability rows and
+            <strong>${result.sitesFound || 0}</strong> sites found from
+            <strong>${escapeHtml(result.sourceSpreadsheetName || "relief rota")}</strong>.
+          </div>
+        `;
+        showToast("Relief preview ready.");
+        setBusy(false);
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Relief preview failed.");
+        setBusy(false);
+      })
+      .previewReliefRotaImportFromUi();
+  }
+
+  function renderDashboard(data) {
+    data = data || emptyDashboardData();
+    const summary = data.summary || {};
+    const brightHr = data.brightHr || {};
+    const spreadsheet = data.spreadsheet || {};
+    const legacyRota = data.legacyRota || {};
+    const reliefRota = data.reliefRota || {};
+    const hasCredentials = brightHr.hasClientId && brightHr.hasClientSecret;
+    const ready = spreadsheet.configured && hasCredentials;
+    const coverCount = Number(summary.reliefSuggestionCount || 0) + Number(summary.agencyRequestCount || 0);
+
+    text("appVersion", data.appVersion || "local");
+    text("systemStatus", ready ? "Ready to run" : "Setup needed");
+    text("staffCount", summary.staffCount || 0);
+    text("absenceCount", summary.absenceCount || 0);
+    text("siteCount", summary.siteCount || 0);
+    text("coverCount", coverCount);
+    text("gapCount", summary.coverageGapCount || 0);
+    text("managerCount", summary.managerCount || 0);
+    text("agencyContactCount", summary.agencyContactCount || 0);
+    text("templateCount", summary.rotaTemplateCount || 0);
+    text("exceptionCount", summary.rotaExceptionCount || 0);
+
+    const status = document.getElementById("brightHrStatus");
+    status.textContent = hasCredentials ? "BrightHR connected" : "Credentials needed";
+    status.classList.toggle("warn", !hasCredentials);
+
+    setCheck("checkSpreadsheet", spreadsheet.configured);
+    setCheck("checkCredentials", hasCredentials);
+    setCheck("checkToken", brightHr.hasCachedAccessToken);
+    setCheck("checkAbsenceEndpoint", brightHr.hasAbsencesPath);
+    setCheck("checkLegacyRota", legacyRota.configured);
+    setCheck("checkReliefRota", reliefRota.configured);
+    renderOptions(data.options || {});
+    renderGaps(data.gaps || { gaps: [] });
+    renderRelief(data.relief || { suggestions: [] });
+  }
+
+  function emptyDashboardData() {
+    return {
+      ok: false,
+      appName: "FIKA Workforce Operations",
+      appVersion: "local",
+      brightHr: {},
+      legacyRota: {},
+      reliefRota: {},
+      spreadsheet: {},
+      summary: {},
+      gaps: { gaps: [] },
+      relief: { suggestions: [] },
+      options: { sites: [], defaultWeekStart: "" }
+    };
+  }
+
+  function saveManagerFromForm() {
+    const form = document.getElementById("managerForm");
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.managerName || !data.email) {
+      showToast("Manager name and email are required.");
+      return;
+    }
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(result => {
+        showToast(result.message || "Manager saved.");
+        form.reset();
+        loadDashboard();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Manager save failed.");
+        setBusy(false);
+      })
+      .saveWorkforceManagerFromUi(data);
+  }
+
+  function saveAgencyFromForm() {
+    const form = document.getElementById("agencyForm");
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.agencyName || !data.email) {
+      showToast("Agency name and email are required.");
+      return;
+    }
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(result => {
+        showToast(result.message || "Agency contact saved.");
+        form.reset();
+        loadDashboard();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Agency save failed.");
+        setBusy(false);
+      })
+      .saveWorkforceAgencyContactFromUi(data);
+  }
+
+  function renderOptions(options) {
+    const siteSelect = document.getElementById("siteSelect");
+    if (!siteSelect) return;
+    const current = siteSelect.value;
+    const sites = options.sites || [];
+    siteSelect.innerHTML = ['<option value="">Choose site…</option>']
+      .concat(sites.map(site => `<option value="${escapeHtml(site.siteId)}">${escapeHtml(site.siteName)}</option>`))
+      .join("");
+    if (current) siteSelect.value = current;
+    if (!siteSelect.value && sites[0]) siteSelect.value = sites[0].siteId;
+    const weekInput = document.getElementById("weekStartInput");
+    if (weekInput && !weekInput.value && options.defaultWeekStart) weekInput.value = options.defaultWeekStart;
+  }
+
+  function renderRotaBoard(board) {
+    const root = document.getElementById("rotaBoard");
+    board = board || { days: [] };
+    if (!board.days || !board.days.length) {
+      root.innerHTML = '<div class="empty-state">No rota templates found for this site</div>';
+      return;
+    }
+    root.innerHTML = `
+      <div class="rota-summary">
+        <strong>${escapeHtml(board.siteName)}</strong>
+        <span>${escapeHtml(board.weekStart)} · ${board.totalRows || 0} rota rows · ${board.totalGaps || 0} gaps</span>
+      </div>
+      <div class="rota-days">
+        ${board.days.map(day => `
+          <section class="rota-day ${day.gapCount ? "has-gap" : ""}">
+            <h4>${escapeHtml(day.weekday)}<span>${escapeHtml(day.date)}</span></h4>
+            ${(day.rows || []).length ? day.rows.map(row => `
+              <div class="rota-row ${row.hasGap ? "gap" : ""} ${row.coverName ? "covered" : ""}">
+                <div>
+                  <b>${escapeHtml(row.role || "Role")}</b>
+                  <span>${escapeHtml(row.employeeName || "Unassigned")}</span>
+                  ${row.coverName ? `<small>Covered by ${escapeHtml(row.coverName)} · ${escapeHtml(row.coverType || "Cover")}</small>` : ""}
+                </div>
+                <em>${escapeHtml(row.status || "—")}</em>
+              </div>
+            `).join("") : '<p class="quiet">No planned rota</p>'}
+          </section>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function renderGaps(gapSummary) {
+    const list = document.getElementById("gapList");
+    if (!list) return;
+    const gaps = gapSummary.gaps || [];
+    if (!gaps.length) {
+      list.innerHTML = '<div class="empty-state">No open gaps found</div>';
+      return;
+    }
+    list.innerHTML = gaps.map(gap => `
+      <article class="gap-card priority-${gap.Priority || 3}">
+        <div>
+          <strong>${escapeHtml(gap["Site Name"] || "")}</strong>
+          <span>${escapeHtml(gap.FriendlyDate || gap.Date || "")} · ${escapeHtml(gap.Weekday || "")}</span>
+        </div>
+        <div>
+          <b>${escapeHtml(gap.Role || "Role")}</b>
+          <span>${escapeHtml(gap["Employee Name"] || "")}</span>
+        </div>
+        <em>${escapeHtml(gap["Gap Type"] || "Gap")}</em>
+        <div class="gap-actions">
+          <button class="secondary mini" data-gap-action="self_cover" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Self cover</button>
+          <button class="secondary mini" data-gap-action="agency_requested" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Agency requested</button>
+          <button class="secondary mini" data-gap-action="resolved" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Resolved</button>
+        </div>
+      </article>
+    `).join("");
+    list.querySelectorAll("[data-gap-action]").forEach(button => {
+      button.addEventListener("click", () => {
+        markGap(button.dataset.gapId, button.dataset.gapAction);
+      });
+    });
+  }
+
+  function markGap(gapId, action) {
+    if (!gapId) return;
+    showToast("Updating gap…");
+    setBusy(true);
+    google.script.run
+      .withSuccessHandler(result => {
+        showToast((result && result.message) || "Gap updated.");
+        loadDashboard();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not update gap.");
+        setBusy(false);
+      })
+      .markCoverageGapFromUi(gapId, action, {});
+  }
+
+  function renderRelief(reliefSummary) {
+    const list = document.getElementById("reliefList");
+    if (!list) return;
+    const suggestions = reliefSummary.suggestions || [];
+    if (!suggestions.length) {
+      list.innerHTML = '<div class="empty-state">No suggestions yet</div>';
+      return;
+    }
+    list.innerHTML = suggestions.map(item => `
+      <article class="relief-card">
+        <strong>${escapeHtml(item["Suggested Employee Name"] || "")}</strong>
+        <span>${escapeHtml(item.Date || "")} · ${escapeHtml(item.Role || "")}</span>
+        <small>${escapeHtml(item.Reason || "")}</small>
+        <em>Score ${escapeHtml(item.Score || "")}</em>
+      </article>
+    `).join("");
+  }
+
+  function setCheck(id, ok) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle("muted", !ok);
+  }
+
+  function text(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function setBusy(isBusy) {
+    state.loading = isBusy;
+    document.querySelectorAll("button").forEach(button => {
+      button.disabled = isBusy;
+    });
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add("show");
+    window.clearTimeout(showToast.timer);
+    showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 4200);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+</script>

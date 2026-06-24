@@ -10,7 +10,7 @@ echo.
 echo Separate commits will be created for:
 echo   1. Client Booking Platform
 echo   2. CPU Dashboard
-echo   3. 58VE Dashboard
+echo   3. Workforce Operations Platform
 echo   4. Angel Court Hospitality Dashboard and root scripts
 echo.
 echo Existing unstaged changes inside those project folders will
@@ -29,7 +29,7 @@ if errorlevel 1 goto :failed
 call :commit_folder "CPU Dashboard" "cpu-dashboard" "%MESSAGE% - CPU dashboard"
 if errorlevel 1 goto :failed
 
-call :commit_folder "58VE Dashboard" "58ve-dashboard" "%MESSAGE% - 58VE dashboard"
+call :commit_folder "Workforce Operations Platform" "workforce-operations-platform" "%MESSAGE% - workforce operations platform"
 if errorlevel 1 goto :failed
 
 echo.
@@ -44,7 +44,7 @@ git add -- ^
   11_Triggers.js 12_TestHarness.js appsscript.json ^
   Index.html Styles.html Script.html Icons.html ^
   README.md CHANGELOG.md ^
-  push-apps-script.bat push-git-projects.bat
+  push-apps-script.bat push-git-projects.bat workforcepush.bat
 if errorlevel 1 goto :failed
 
 call :commit_staged "%MESSAGE% - Angel Court dashboard"
