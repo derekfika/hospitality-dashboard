@@ -458,26 +458,39 @@
       .filter(row => String(row.Active).toUpperCase() !== "FALSE");
     if (select && !select.value && sites[0]) select.value = sites[0]["Site ID"];
     const siteId = select ? select.value : "";
-    const rows = templates
-      .filter(row => !siteId || String(row["Site ID"] || "") === String(siteId))
-      .sort((a, b) => weekdayOrder_(a.Weekday) - weekdayOrder_(b.Weekday) ||
-        String(a.Role || "").localeCompare(String(b.Role || "")) ||
-        String(a["Employee Name"] || "").localeCompare(String(b["Employee Name"] || "")))
-      .map(row => ({
-        Weekday: row.Weekday || "",
-        Role: row.Role || "",
-        Employee: row["Employee Name"] || "",
-        Status: row["Standard Status"] || "",
-        Source: row.Source || "",
-        Action: `<button class="secondary mini" type="button" data-edit-template="${escapeHtml(row["Template ID"] || "")}">Edit</button>`
-      }));
-    renderTable("standardRotaTable", ["Weekday", "Role", "Employee", "Status", "Source", "Action"], rows, "No standard rota rows for this site yet.");
-    const table = document.getElementById("standardRotaTable");
-    if (table) {
-      table.querySelectorAll("[data-edit-template]").forEach(button => {
-        button.addEventListener("click", () => fillRotaTemplateForm(button.dataset.editTemplate));
-      });
+    const root = document.getElementById("standardRotaTable");
+    if (!root) return;
+    const rows = templates.filter(row => !siteId || String(row["Site ID"] || "") === String(siteId));
+    if (!rows.length) {
+      root.innerHTML = '<div class="empty-state compact">No standard rota rows for this site yet.</div>';
+      return;
     }
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    root.innerHTML = `
+      <div class="standard-rota-calendar">
+        ${days.map(day => {
+          const dayRows = rows
+            .filter(row => String(row.Weekday || "") === day)
+            .sort((a, b) => String(a.Role || "").localeCompare(String(b.Role || "")) ||
+              String(a["Employee Name"] || "").localeCompare(String(b["Employee Name"] || "")));
+          return `
+            <section class="standard-rota-day">
+              <h5>${escapeHtml(day)}<span>${dayRows.length} row${dayRows.length === 1 ? "" : "s"}</span></h5>
+              ${dayRows.length ? dayRows.map(row => `
+                <button class="standard-rota-shift" type="button" data-edit-template="${escapeHtml(row["Template ID"] || "")}">
+                  <strong>${escapeHtml(row.Role || "Role")}</strong>
+                  <span>${escapeHtml(row["Employee Name"] || "Unassigned")}</span>
+                  <em>${escapeHtml(row["Standard Status"] || "IN")}</em>
+                </button>
+              `).join("") : '<p class="quiet">No standard cover</p>'}
+            </section>
+          `;
+        }).join("")}
+      </div>
+    `;
+    root.querySelectorAll("[data-edit-template]").forEach(button => {
+      button.addEventListener("click", () => fillRotaTemplateForm(button.dataset.editTemplate));
+    });
   }
 
   function renderManagerDirectoryTable() {

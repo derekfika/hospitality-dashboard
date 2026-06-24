@@ -1,6 +1,6 @@
 const WORKFORCE_CONFIG = Object.freeze({
   appName: "FIKA Workforce Operations Platform",
-  appVersion: "v0.6.1",
+  appVersion: "v0.6.2",
   timeZone: "Europe/London",
   hrProvider: "brighthr",
   brightHr: {
@@ -16,6 +16,7 @@ const WORKFORCE_CONFIG = Object.freeze({
     brightHrTokenUrl: "BRIGHTHR_TOKEN_URL",
     brightHrApiBaseUrl: "BRIGHTHR_API_BASE_URL",
     brightHrAbsencesPath: "BRIGHTHR_ABSENCES_PATH",
+    brightHrAbsencesMethod: "BRIGHTHR_ABSENCES_METHOD",
     brightHrAccessToken: "BRIGHTHR_ACCESS_TOKEN",
     brightHrAccessTokenExpiresAt: "BRIGHTHR_ACCESS_TOKEN_EXPIRES_AT"
   },

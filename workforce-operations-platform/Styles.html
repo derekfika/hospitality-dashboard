@@ -805,6 +805,69 @@
     border-bottom: 0;
   }
 
+  .standard-rota-calendar {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(160px, 1fr));
+    gap: 10px;
+    min-width: 980px;
+    padding: 10px;
+  }
+
+  .standard-rota-day {
+    min-height: 180px;
+    padding: 10px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .standard-rota-day h5 {
+    margin: 0 0 10px;
+    font-size: 14px;
+  }
+
+  .standard-rota-day h5 span {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .standard-rota-shift {
+    width: 100%;
+    display: grid;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 10px;
+    border-radius: 14px;
+    color: var(--ink);
+    text-align: left;
+    background: rgba(33,21,95,.045);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .standard-rota-shift:hover {
+    background: rgba(117,239,184,.18);
+  }
+
+  .standard-rota-shift span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .standard-rota-shift em {
+    justify-self: start;
+    padding: 4px 7px;
+    border-radius: 999px;
+    color: #277a55;
+    background: rgba(117,239,184,.24);
+    font-style: normal;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
   .hidden {
     display: none !important;
   }

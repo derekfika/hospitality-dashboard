@@ -85,6 +85,10 @@ function syncBrightHrAbsencesFromUi() {
   return syncBrightHrAbsences();
 }
 
+function discoverBrightHrAbsenceEndpointFromUi() {
+  return discoverBrightHrAbsenceEndpoint();
+}
+
 function syncWorkforceFromUi() {
   const result = {
     ok: true,
