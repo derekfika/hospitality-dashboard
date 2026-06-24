@@ -148,6 +148,7 @@ function generateReliefSuggestions(daysAhead) {
       ].join("_");
       suggestions.push({
         "Suggestion ID": id,
+        "Gap ID": gap["Gap ID"],
         "Site ID": gap["Site ID"],
         "Date": normaliseWorkforceDate_(gap.Date),
         "Role": gap.Role,
@@ -195,6 +196,75 @@ function getReliefSuggestionSummary(limit) {
     ok: true,
     count: suggestions.length,
     suggestions: suggestions.slice(0, Math.max(1, Number(limit || 12)))
+  };
+}
+
+function generateReliefRotaAssignments(daysAhead) {
+  setupWorkforceOperationsPlatform();
+  const suggestionResult = generateReliefSuggestions(daysAhead || 28);
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const gapsById = {};
+  readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.coverageGaps))
+    .filter(function(gap) {
+      return String(gap.Status || "").toLowerCase() !== "resolved";
+    })
+    .forEach(function(gap) {
+      gapsById[String(gap["Gap ID"] || "")] = gap;
+    });
+  const suggestions = readWorkforceObjects_(
+    spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefSuggestions)
+  ).sort(function(a, b) {
+    return String(a.Date || "").localeCompare(String(b.Date || "")) ||
+      Number(b.Score || 0) - Number(a.Score || 0);
+  });
+  const staffByName = {};
+  readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory))
+    .forEach(function(person) {
+      staffByName[normaliseWorkforcePerson_(person.Name)] = person;
+    });
+  const usedByDate = {};
+  const assignedGaps = {};
+  const now = new Date();
+  const assignments = [];
+  suggestions.forEach(function(suggestion) {
+    const gapId = String(suggestion["Gap ID"] || "");
+    const gap = gapsById[gapId];
+    if (!gap || assignedGaps[gapId]) return;
+    const date = normaliseWorkforceDate_(suggestion.Date);
+    const personName = String(suggestion["Suggested Employee Name"] || "");
+    const personKey = normaliseWorkforcePerson_(personName);
+    const datePersonKey = date + "|" + personKey;
+    if (usedByDate[datePersonKey]) return;
+    const person = staffByName[personKey] || {};
+    usedByDate[datePersonKey] = true;
+    assignedGaps[gapId] = true;
+    assignments.push({
+      "Assignment ID": "relief_assignment_" + gapId + "_" + slugifyWorkforce_(personName),
+      "Gap ID": gapId,
+      "Site ID": gap["Site ID"],
+      "Site Name": gap["Site Name"],
+      "Date": date,
+      "Weekday": gap.Weekday,
+      "Role": gap.Role,
+      "Covering Employee ID": person["Employee ID"] || suggestion["Suggested Employee ID"],
+      "Covering Employee Name": personName,
+      "Covering Email": person.Email || "",
+      "Covered Employee Name": gap["Employee Name"],
+      "Status": "Draft",
+      "Score": suggestion.Score,
+      "Reason": suggestion.Reason,
+      "Generated At": now,
+      "Notes": "Generated from relief rota engine"
+    });
+  });
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefAssignments);
+  clearWorkforceSheetData_(sheet);
+  upsertWorkforceRows_(sheet, "Assignment ID", assignments);
+  return {
+    ok: true,
+    suggestionsCreated: suggestionResult.suggestionsCreated,
+    assignmentsCreated: assignments.length,
+    message: assignments.length + " draft relief assignment(s) generated."
   };
 }
 

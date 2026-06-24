@@ -158,6 +158,10 @@ function generateReliefSuggestionsFromUi() {
   return generateReliefSuggestions(28);
 }
 
+function generateReliefRotaAssignmentsFromUi() {
+  return generateReliefRotaAssignments(28);
+}
+
 function createAgencyRequestForGapFromUi(gapId, agencyId) {
   return createAgencyRequestForGap(gapId, agencyId);
 }
@@ -326,6 +330,7 @@ function getWorkforceSummary_(spreadsheet) {
     siteCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.sites),
     rotaShiftCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.rotaShifts),
     reliefSuggestionCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefSuggestions),
+    reliefAssignmentCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefAssignments),
     agencyRequestCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.agencyRequests)
     ,
     managerCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.managers),
@@ -343,6 +348,7 @@ function getEmptyWorkforceSummary_() {
     siteCount: 0,
     rotaShiftCount: 0,
     reliefSuggestionCount: 0,
+    reliefAssignmentCount: 0,
     agencyRequestCount: 0
     ,
     managerCount: 0,

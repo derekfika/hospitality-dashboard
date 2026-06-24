@@ -17,6 +17,7 @@ function getWorkforceSettingsData() {
         return {
           employeeId: person["Employee ID"],
           name: person.Name,
+          email: person.Email,
           role: person.Role,
           reliefTeam: workforceBoolean_(person["Relief Team"])
         };

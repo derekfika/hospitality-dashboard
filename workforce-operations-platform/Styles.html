@@ -564,6 +564,10 @@
     font-weight: 800;
   }
 
+  .settings-summary-copy {
+    margin: 16px 0 0;
+  }
+
   .settings-forms {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -720,6 +724,40 @@
 
   .modal-card .mini-form {
     margin-top: 18px;
+  }
+
+  .settings-modal-card {
+    width: min(980px, 100%);
+    overflow: auto;
+  }
+
+  .settings-modal-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 18px 0;
+    padding: 8px;
+    border-radius: 18px;
+    background: rgba(33,21,95,.055);
+  }
+
+  .settings-tab {
+    padding: 10px 12px;
+    border-radius: 13px;
+    color: var(--muted);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .settings-tab.active,
+  .settings-tab:hover {
+    color: var(--ink);
+    background: #fff;
+    box-shadow: 0 10px 22px rgba(36,17,118,.08);
+  }
+
+  #settingsModalBody .settings-forms {
+    grid-template-columns: 1fr;
   }
 
   .hidden {

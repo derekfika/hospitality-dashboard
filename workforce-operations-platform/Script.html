@@ -2,6 +2,7 @@
   const state = { loading: false, settings: {}, gapsById: {} };
 
   document.addEventListener("DOMContentLoaded", () => {
+    mountSettingsModal();
     bindActions();
     bindNavigation();
     loadDashboard();
@@ -50,6 +51,11 @@
     onClick("generateReliefBtn", () => {
       runAction("Generating relief suggestions…", "generateReliefSuggestionsFromUi");
     });
+    onClick("generateReliefRotaBtn", () => {
+      runAction("Generating relief rota…", "generateReliefRotaAssignmentsFromUi");
+    });
+    onClick("openSettingsBtn", openSettingsModal);
+    onClick("closeSettingsModal", closeSettingsModal);
     onSubmit("managerForm", event => {
       event.preventDefault();
       saveManagerFromForm();
@@ -150,7 +156,38 @@
     if (functionName === "clearLegacyRotaShiftNoiseFromUi") runner.clearLegacyRotaShiftNoiseFromUi();
     if (functionName === "detectCoverageGapsFromUi") runner.detectCoverageGapsFromUi();
     if (functionName === "generateReliefSuggestionsFromUi") runner.generateReliefSuggestionsFromUi();
+    if (functionName === "generateReliefRotaAssignmentsFromUi") runner.generateReliefRotaAssignmentsFromUi();
     if (functionName === "dedupeRotaTemplatesFromUi") runner.dedupeRotaTemplatesFromUi();
+  }
+
+  function mountSettingsModal() {
+    const forms = document.querySelector("#settings .settings-forms");
+    const body = document.getElementById("settingsModalBody");
+    if (forms && body && forms.parentElement !== body) body.appendChild(forms);
+    document.querySelectorAll("[data-settings-tab]").forEach(tab => {
+      tab.addEventListener("click", () => activateSettingsTab(tab.dataset.settingsTab));
+    });
+    activateSettingsTab("reliefSettings");
+  }
+
+  function openSettingsModal() {
+    const modal = document.getElementById("settingsModal");
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  function closeSettingsModal() {
+    const modal = document.getElementById("settingsModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function activateSettingsTab(tabId) {
+    document.querySelectorAll("[data-settings-tab]").forEach(tab => {
+      tab.classList.toggle("active", tab.dataset.settingsTab === tabId);
+    });
+    document.querySelectorAll(".settings-tab-panel").forEach(panel => {
+      const panelId = panel.dataset.panelId || panel.id;
+      panel.classList.toggle("hidden", panelId !== tabId);
+    });
   }
 
   function loadRotaBoard() {
@@ -236,7 +273,9 @@
     const reliefRota = data.reliefRota || {};
     const hasCredentials = brightHr.hasClientId && brightHr.hasClientSecret;
     const ready = spreadsheet.configured && hasCredentials;
-    const coverCount = Number(summary.reliefSuggestionCount || 0) + Number(summary.agencyRequestCount || 0);
+    const coverCount = Number(summary.reliefSuggestionCount || 0) +
+      Number(summary.reliefAssignmentCount || 0) +
+      Number(summary.agencyRequestCount || 0);
 
     text("appVersion", data.appVersion || "local");
     text("systemStatus", ready ? "Ready to run" : "Setup needed");
@@ -411,7 +450,7 @@
     list.innerHTML = reliefStaff.map(person => `
       <button class="relief-chip" type="button" data-employee-id="${escapeHtml(person.employeeId || "")}" data-employee-name="${escapeHtml(person.name || "")}">
         <strong>${escapeHtml(person.name || "")}</strong>
-        <span>${escapeHtml(person.role || "Relief")}</span>
+        <span>${escapeHtml([person.role || "Relief", person.email || ""].filter(Boolean).join(" · "))}</span>
       </button>
     `).join("");
     list.querySelectorAll(".relief-chip").forEach(button => {

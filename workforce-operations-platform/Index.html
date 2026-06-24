@@ -126,7 +126,10 @@
                   Generate internal cover suggestions before escalating to agency.
                 </p>
               </div>
-              <button id="generateReliefBtn">Suggest relief</button>
+              <div class="action-row compact-actions">
+                <button id="generateReliefBtn">Suggest relief</button>
+                <button id="generateReliefRotaBtn" class="secondary">Generate relief rota</button>
+              </div>
             </div>
             <div class="relief-list" id="reliefList">
               <div class="empty-state">No suggestions yet</div>
@@ -210,6 +213,7 @@
               <p class="eyebrow">Settings library</p>
               <h3>The control room for managers, agencies, roles and emails.</h3>
             </div>
+            <button id="openSettingsBtn" type="button">Open settings</button>
           </div>
           <div class="settings-grid">
             <div><strong id="managerCount">—</strong><span>Managers</span></div>
@@ -217,8 +221,11 @@
             <div><strong id="templateCount">—</strong><span>Rota templates</span></div>
             <div><strong id="exceptionCount">—</strong><span>Rota exceptions</span></div>
           </div>
+          <p class="muted-text settings-summary-copy">
+            Contact directories, relief team membership, standard rota rows and agency contacts are managed in the settings modal.
+          </p>
           <div class="settings-forms">
-            <div class="mini-form wide-form">
+            <div class="mini-form wide-form settings-tab-panel" id="reliefSettings">
               <div class="form-title-row">
                 <h4>Relief team selector</h4>
                 <span class="soft-pill" id="reliefTeamCount">0 relief team</span>
@@ -235,7 +242,7 @@
                 <div class="empty-state compact">No relief team loaded yet</div>
               </div>
             </div>
-            <form id="rotaTemplateForm" class="mini-form wide-form">
+            <form id="rotaTemplateForm" class="mini-form wide-form settings-tab-panel hidden" data-panel-id="rotaSettings">
               <div class="form-title-row">
                 <h4>Add/update standard rota row</h4>
                 <button id="dedupeTemplatesBtn" class="secondary mini" type="button">Clean duplicate rota rows</button>
@@ -260,7 +267,7 @@
               <input name="notes" placeholder="Notes">
               <button type="submit">Save standard rota row</button>
             </form>
-            <form id="managerForm" class="mini-form">
+            <form id="managerForm" class="mini-form settings-tab-panel hidden" data-panel-id="managerSettings">
               <h4>Add/update manager</h4>
               <input name="managerName" placeholder="Manager name">
               <input name="email" placeholder="Email">
@@ -268,7 +275,7 @@
               <input name="primarySiteId" placeholder="Primary site ID">
               <button type="submit">Save manager</button>
             </form>
-            <form id="agencyForm" class="mini-form">
+            <form id="agencyForm" class="mini-form settings-tab-panel hidden" data-panel-id="agencySettings">
               <h4>Add/update agency contact</h4>
               <input name="agencyName" placeholder="Agency name e.g. Berkeley Scott">
               <input name="contactName" placeholder="Contact name">
@@ -281,6 +288,22 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div class="modal-backdrop hidden" id="settingsModal">
+      <div class="modal-card settings-modal-card">
+        <button class="modal-close secondary mini" id="closeSettingsModal" type="button">Close</button>
+        <p class="eyebrow">Settings</p>
+        <h3>Workforce control room</h3>
+        <p class="muted-text">Manage site contacts, relief team contacts, standard rota rows and Berkeley Scott agency details.</p>
+        <div class="settings-modal-tabs">
+          <button class="settings-tab active" type="button" data-settings-tab="reliefSettings">Relief team</button>
+          <button class="settings-tab" type="button" data-settings-tab="rotaSettings">Standard rota</button>
+          <button class="settings-tab" type="button" data-settings-tab="managerSettings">Managers</button>
+          <button class="settings-tab" type="button" data-settings-tab="agencySettings">Agency</button>
+        </div>
+        <div id="settingsModalBody"></div>
+      </div>
     </div>
 
     <div class="modal-backdrop hidden" id="gapModal">

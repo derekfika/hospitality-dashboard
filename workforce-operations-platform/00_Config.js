@@ -1,6 +1,6 @@
 const WORKFORCE_CONFIG = Object.freeze({
   appName: "FIKA Workforce Operations Platform",
-  appVersion: "v0.5.2",
+  appVersion: "v0.6.0",
   timeZone: "Europe/London",
   hrProvider: "brighthr",
   brightHr: {
@@ -35,6 +35,7 @@ const WORKFORCE_CONFIG = Object.freeze({
     rotaExceptions: "Rota Exceptions",
     rotaShifts: "Rota Shifts",
     reliefSuggestions: "Relief Suggestions",
+    reliefAssignments: "Relief Assignments",
     agencyRequests: "Agency Requests",
     coverageGaps: "Coverage Gaps",
     reliefAvailability: "Relief Availability",

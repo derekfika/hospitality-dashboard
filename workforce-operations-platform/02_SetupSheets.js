@@ -69,8 +69,13 @@ function setupWorkforceOperationsPlatform() {
     "Employee Name", "Start Time", "End Time", "Status", "Source", "Notes"
   ]);
   setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefSuggestions, [
-    "Suggestion ID", "Site ID", "Date", "Role", "Suggested Employee ID",
+    "Suggestion ID", "Gap ID", "Site ID", "Date", "Role", "Suggested Employee ID",
     "Suggested Employee Name", "Reason", "Score", "Reviewed", "Approved"
+  ]);
+  setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefAssignments, [
+    "Assignment ID", "Gap ID", "Site ID", "Site Name", "Date", "Weekday",
+    "Role", "Covering Employee ID", "Covering Employee Name", "Covering Email",
+    "Covered Employee Name", "Status", "Score", "Reason", "Generated At", "Notes"
   ]);
   setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.agencyRequests, [
     "Agency Request ID", "Site ID", "Date", "Role", "Agency", "Rate",
