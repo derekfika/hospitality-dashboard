@@ -63,6 +63,123 @@ function getWorkforceDashboardData() {
   }
 }
 
+function getWorkforceDashboardSummaryFromUi() {
+  try {
+    const status = safeGetBrightHrApiStatus_();
+    const properties = PropertiesService.getScriptProperties();
+    const spreadsheet = safeGetWorkforceSpreadsheet_();
+    const response = buildWorkforceDashboardResponse_({
+      ok: true,
+      brightHr: status,
+      legacyRota: {
+        configured: Boolean(
+          properties.getProperty(WORKFORCE_CONFIG.scriptProperties.legacyRotaSpreadsheetId)
+        )
+      },
+      reliefRota: {
+        configured: Boolean(
+          properties.getProperty(WORKFORCE_CONFIG.scriptProperties.reliefRotaSpreadsheetId)
+        )
+      },
+      spreadsheet: spreadsheet ? getWorkforceSpreadsheetMeta_(spreadsheet) : {
+        configured: false,
+        name: "",
+        url: ""
+      },
+      summary: spreadsheet ? getWorkforceSummary_(spreadsheet) : getEmptyWorkforceSummary_(),
+      options: spreadsheet ? safeGetRotaAppOptions_() : { sites: [], defaultWeekStart: "" }
+    });
+    delete response.gaps;
+    delete response.relief;
+    delete response.settings;
+    return toPlainJson_(response);
+  } catch (error) {
+    const response = buildWorkforceDashboardResponse_({
+      ok: false,
+      error: error.message || String(error),
+      brightHr: safeGetBrightHrApiStatus_(),
+      spreadsheet: { configured: false, name: "", url: "" },
+      summary: getEmptyWorkforceSummary_(),
+      options: { sites: [], defaultWeekStart: "" }
+    });
+    delete response.gaps;
+    delete response.relief;
+    delete response.settings;
+    return toPlainJson_(response);
+  }
+}
+
+function getCoverageGapsFromUi(limit) {
+  return toPlainJson_(safeGetCoverageGapSummary_(limit || 40));
+}
+
+function getReliefSuggestionsForGapFromUi(gapId, limit) {
+  try {
+    const spreadsheet = getWorkforceSpreadsheet_();
+    const cleanGapId = String(gapId || "").trim();
+    if (!cleanGapId) return { ok: true, count: 0, suggestions: [] };
+    const suggestions = readWorkforceObjects_(
+      spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefSuggestions)
+    ).filter(function(row) {
+      return String(row["Gap ID"] || "").trim() === cleanGapId &&
+        String(row.Approved || "").toUpperCase() !== "TRUE";
+    }).sort(function(a, b) {
+      return Number(b.Score || 0) - Number(a.Score || 0);
+    });
+    return toPlainJson_({
+      ok: true,
+      gapId: cleanGapId,
+      count: suggestions.length,
+      suggestions: suggestions.slice(0, Math.max(1, Number(limit || 8)))
+    });
+  } catch (error) {
+    return toPlainJson_({
+      ok: false,
+      error: error.message || String(error),
+      gapId: String(gapId || ""),
+      count: 0,
+      suggestions: []
+    });
+  }
+}
+
+function getSettingsLibraryFromUi() {
+  try {
+    const spreadsheet = safeGetWorkforceSpreadsheet_();
+    return toPlainJson_({
+      ok: true,
+      settings: spreadsheet ? safeGetWorkforceSettingsData_() : getEmptyWorkforceSettingsData_(),
+      options: spreadsheet ? safeGetRotaAppOptions_() : { sites: [], defaultWeekStart: "" }
+    });
+  } catch (error) {
+    return toPlainJson_({
+      ok: false,
+      error: error.message || String(error),
+      settings: getEmptyWorkforceSettingsData_(),
+      options: { sites: [], defaultWeekStart: "" }
+    });
+  }
+}
+
+function getStaffDirectoryLiteFromUi() {
+  try {
+    return toPlainJson_({
+      ok: true,
+      staff: getStaffDirectoryLite_()
+    });
+  } catch (error) {
+    return toPlainJson_({
+      ok: false,
+      error: error.message || String(error),
+      staff: []
+    });
+  }
+}
+
+function getRotaBoardFromUi(siteId, weekStartDate) {
+  return toPlainJson_(getWeeklyRotaBoard(siteId, weekStartDate));
+}
+
 function getWorkforceDashboardPing() {
   return {
       ok: true,
@@ -97,24 +214,10 @@ function syncWorkforceFromUi() {
     warnings: []
   };
   result.employees = syncBrightHrEmployees();
-  try {
-    result.absences = syncBrightHrAbsences();
-  } catch (error) {
-    result.warnings.push(error.message || String(error));
-  }
-  try {
-    result.gaps = detectCoverageGaps(28);
-    result.suggestions = generateReliefSuggestions(28);
-  } catch (error) {
-    result.warnings.push("Rota analysis needs attention: " + (error.message || String(error)));
-  }
   result.message = [
-    "Sync complete.",
+    "Employee sync complete.",
     result.employees ? (result.employees.synced || 0) + " employee(s) updated." : "",
-    result.absences ? (result.absences.synced || 0) + " absence row(s) updated." : "",
-    result.gaps ? (result.gaps.gapsFound || 0) + " gap(s) found." : "",
-    result.suggestions ? (result.suggestions.suggestionsCreated || 0) + " relief suggestion(s)." : "",
-    result.warnings.length ? "Needs attention: " + result.warnings.join(" ") : ""
+    "Run absence sync, gap detection and relief planning separately."
   ].filter(Boolean).join(" ");
   return result;
 }
@@ -155,7 +258,7 @@ function detectCoverageGapsFromUi() {
 }
 
 function getWeeklyRotaBoardFromUi(siteId, weekStartDate) {
-  return getWeeklyRotaBoard(siteId, weekStartDate);
+  return getRotaBoardFromUi(siteId, weekStartDate);
 }
 
 function generateReliefSuggestionsFromUi() {
@@ -230,9 +333,9 @@ function safeGetBrightHrApiStatus_() {
   }
 }
 
-function safeGetCoverageGapSummary_() {
+function safeGetCoverageGapSummary_(limit) {
   try {
-    return getCoverageGapSummary(8);
+    return getCoverageGapSummary(limit || 8);
   } catch (error) {
     return { count: 0, gaps: [], error: error.message || String(error) };
   }
@@ -327,6 +430,25 @@ function toPlainWorkforceResponse_(response) {
   }
 }
 
+function toPlainJson_(value) {
+  try {
+    return JSON.parse(JSON.stringify(value || {}));
+  } catch (error) {
+    return {
+      ok: false,
+      error: "Response could not be prepared: " + (error.message || String(error))
+    };
+  }
+}
+
+function getWorkforceSpreadsheetMeta_(spreadsheet) {
+  return {
+    configured: true,
+    name: spreadsheet.getName(),
+    url: spreadsheet.getUrl()
+  };
+}
+
 function getWorkforceSummary_(spreadsheet) {
   return {
     staffCount: getActiveStaffCount_(spreadsheet),
@@ -369,11 +491,67 @@ function getWorkforceSheetRecordCount_(spreadsheet, sheetName) {
 }
 
 function getActiveStaffCount_(spreadsheet) {
-  return readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory))
-    .filter(function(person) {
-      const employmentStatus = String(person["Employment Status"] || "").toLowerCase();
-      return String(person.Name || "").trim() &&
-        employmentStatus !== "terminated" &&
-        !workforceBoolean_(person.Terminated);
-    }).length;
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory);
+  if (!sheet || sheet.getLastRow() < 2) return 0;
+  const map = workforceHeaderMap_(sheet);
+  const lastRow = sheet.getLastRow();
+  const rowCount = lastRow - 1;
+  const nameColumn = map.Name;
+  if (!nameColumn) return 0;
+  const names = sheet.getRange(2, nameColumn, rowCount, 1).getDisplayValues();
+  const statuses = map["Employment Status"]
+    ? sheet.getRange(2, map["Employment Status"], rowCount, 1).getDisplayValues()
+    : [];
+  const terminated = map.Terminated
+    ? sheet.getRange(2, map.Terminated, rowCount, 1).getDisplayValues()
+    : [];
+  let count = 0;
+  names.forEach(function(row, index) {
+    const name = String(row[0] || "").trim();
+    const employmentStatus = String((statuses[index] && statuses[index][0]) || "").toLowerCase();
+    const isTerminated = workforceBoolean_((terminated[index] && terminated[index][0]) || "");
+    if (name && employmentStatus !== "terminated" && !isTerminated) count += 1;
+  });
+  return count;
+}
+
+function getStaffDirectoryLite_() {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const map = workforceHeaderMap_(sheet);
+  const rowCount = sheet.getLastRow() - 1;
+  const fields = [
+    { key: "employeeId", header: "Employee ID" },
+    { key: "name", header: "Name" },
+    { key: "email", header: "Email" },
+    { key: "role", header: "Role" },
+    { key: "primarySite", header: "Primary Site" },
+    { key: "secondarySites", header: "Secondary Sites" },
+    { key: "contractHours", header: "Contract Hours" },
+    { key: "employmentStatus", header: "Employment Status" },
+    { key: "reliefTeam", header: "Relief Team" },
+    { key: "eventTeam", header: "Event Team" },
+    { key: "manager", header: "Manager" }
+  ].filter(function(field) {
+    return map[field.header];
+  });
+  if (!fields.length) return [];
+  const columns = {};
+  fields.forEach(function(field) {
+    columns[field.key] = sheet.getRange(2, map[field.header], rowCount, 1).getDisplayValues();
+  });
+  const staff = [];
+  for (let index = 0; index < rowCount; index += 1) {
+    const person = {};
+    fields.forEach(function(field) {
+      person[field.key] = (columns[field.key][index] && columns[field.key][index][0]) || "";
+    });
+    if (!String(person.name || "").trim()) continue;
+    person.reliefTeam = workforceBoolean_(person.reliefTeam);
+    person.eventTeam = workforceBoolean_(person.eventTeam);
+    person.manager = workforceBoolean_(person.manager);
+    staff.push(person);
+  }
+  return staff;
 }

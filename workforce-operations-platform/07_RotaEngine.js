@@ -31,15 +31,26 @@ function getWeeklyRotaBoard(siteId, weekStartDate) {
     return String(template["Site ID"] || "") === cleanSiteId &&
       workforceBoolean_(template.Active);
   }));
+  if (!templates.length) {
+    return {
+      ok: true,
+      siteId: cleanSiteId,
+      siteName: cleanSiteId,
+      weekStart: weekStart,
+      days: [],
+      totalRows: 0,
+      totalGaps: 0,
+      message: "No standard rota templates found for this site."
+    };
+  }
   const absences = buildAbsenceIndex_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences)
   ));
-  const exceptions = buildRotaExceptionIndex_(readWorkforceObjects_(
+  const rotaExceptions = readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaExceptions)
-  ));
-  const coverIndex = buildRotaCoverIndex_(readWorkforceObjects_(
-    spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaExceptions)
-  ));
+  );
+  const exceptions = buildRotaExceptionIndex_(rotaExceptions);
+  const coverIndex = buildRotaCoverIndex_(rotaExceptions);
   const gapsByKey = buildCoverageGapIndex_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.coverageGaps)
   ));

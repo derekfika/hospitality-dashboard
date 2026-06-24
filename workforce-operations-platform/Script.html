@@ -1,5 +1,11 @@
 <script>
-  const state = { loading: false, settings: {}, gapsById: {} };
+  const state = {
+    loading: false,
+    settings: {},
+    settingsLoaded: false,
+    gapsLoaded: false,
+    gapsById: {}
+  };
 
   document.addEventListener("DOMContentLoaded", () => {
     mountSettingsModal();
@@ -17,6 +23,8 @@
         document.querySelectorAll(".sidebar nav a").forEach(item => {
           item.classList.toggle("active", item === link);
         });
+        if (link.getAttribute("href") === "#gaps" && !state.gapsLoaded) loadCoverageGaps();
+        if (link.getAttribute("href") === "#settings" && !state.settingsLoaded) loadSettingsLibrary();
         target.scrollIntoView({ behavior: "smooth", block: "start" });
         history.replaceState(null, "", link.getAttribute("href"));
       });
@@ -100,7 +108,8 @@
   }
 
   function loadDashboard() {
-    setBusy(true);
+    if (!state.gapsLoaded) setPanelLoading("gapList", "Coverage gaps load when you open Coverage.");
+    setPanelLoading("reliefList", "Relief suggestions load from each gap.");
     google.script.run
       .withSuccessHandler(data => {
         if (!data) {
@@ -111,13 +120,11 @@
           showToast(data.error);
         }
         renderDashboard(data);
-        setBusy(false);
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not load workforce dashboard.");
-        setBusy(false);
       })
-      .getWorkforceDashboardData();
+      .getWorkforceDashboardSummaryFromUi();
   }
 
   function checkDashboardPing() {
@@ -136,17 +143,17 @@
   }
 
   function runAction(loadingMessage, functionName) {
-    showToast(loadingMessage);
-    setBusy(true);
+    showLoading(loadingMessage, "Please keep this tab open while the app updates.");
     const runner = google.script.run
       .withSuccessHandler(result => {
         result = result || {};
+        hideLoading();
         showToast(result.message || `Done. ${result.synced || 0} record(s) updated.`);
-        loadDashboard();
+        refreshAfterAction(functionName);
       })
       .withFailureHandler(error => {
+        hideLoading();
         showToast(error.message || "Action failed.");
-        setBusy(false);
       });
 
     if (functionName === "setupWorkforceFromUi") runner.setupWorkforceFromUi();
@@ -162,6 +169,27 @@
     if (functionName === "dedupeRotaTemplatesFromUi") runner.dedupeRotaTemplatesFromUi();
   }
 
+  function refreshAfterAction(functionName) {
+    if (functionName === "detectCoverageGapsFromUi") {
+      state.gapsLoaded = false;
+      loadDashboard();
+      loadCoverageGaps();
+      return;
+    }
+    if (functionName === "generateReliefSuggestionsFromUi") {
+      loadDashboard();
+      if (state.gapsLoaded) loadCoverageGaps();
+      return;
+    }
+    if (functionName === "dedupeRotaTemplatesFromUi" || functionName === "importReliefRotaFromUi") {
+      state.settingsLoaded = false;
+      loadDashboard();
+      loadSettingsLibrary();
+      return;
+    }
+    loadDashboard();
+  }
+
   function mountSettingsModal() {
     const forms = document.querySelector("#settings .settings-forms");
     const body = document.getElementById("settingsModalBody");
@@ -175,6 +203,7 @@
   function openSettingsModal() {
     const modal = document.getElementById("settingsModal");
     if (modal) modal.classList.remove("hidden");
+    if (!state.settingsLoaded) loadSettingsLibrary();
   }
 
   function closeSettingsModal() {
@@ -199,19 +228,49 @@
       showToast("Choose a site first.");
       return;
     }
-    showToast("Loading rota board…");
-    setBusy(true);
+    showLoading("Loading rota board…", "Building the weekly rota view.");
     google.script.run
       .withSuccessHandler(board => {
         board = board || { days: [], siteName: "", weekStart: "", totalRows: 0, totalGaps: 0 };
         renderRotaBoard(board);
-        setBusy(false);
+        hideLoading();
       })
       .withFailureHandler(error => {
+        hideLoading();
         showToast(error.message || "Could not load rota board.");
-        setBusy(false);
       })
-      .getWeeklyRotaBoardFromUi(siteId, weekStart);
+      .getRotaBoardFromUi(siteId, weekStart);
+  }
+
+  function loadCoverageGaps() {
+    setPanelLoading("gapList", "Loading current coverage gaps…");
+    google.script.run
+      .withSuccessHandler(summary => {
+        state.gapsLoaded = true;
+        renderGaps(summary || { gaps: [] });
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not load coverage gaps.");
+        renderGaps({ gaps: [] });
+      })
+      .getCoverageGapsFromUi(60);
+  }
+
+  function loadSettingsLibrary() {
+    setSettingsLoading("Loading settings library…");
+    google.script.run
+      .withSuccessHandler(result => {
+        result = result || {};
+        if (result.ok === false && result.error) showToast(result.error);
+        renderOptions(result.options || {});
+        renderSettingsSelectors(result.settings || {});
+        state.settingsLoaded = true;
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not load settings.");
+        state.settingsLoaded = false;
+      })
+      .getSettingsLibraryFromUi();
   }
 
   function runLegacyPreview() {
@@ -302,9 +361,12 @@
     setCheck("checkLegacyRota", legacyRota.configured);
     setCheck("checkReliefRota", reliefRota.configured);
     renderOptions(data.options || {});
-    renderSettingsSelectors(data.settings || {});
-    renderGaps(data.gaps || { gaps: [] });
-    renderRelief(data.relief || { suggestions: [] });
+    if (data.settings) renderSettingsSelectors(data.settings);
+    if (data.gaps) {
+      state.gapsLoaded = true;
+      renderGaps(data.gaps);
+    }
+    if (data.relief) renderRelief(data.relief);
   }
 
   function emptyDashboardData() {
@@ -336,7 +398,9 @@
       .withSuccessHandler(result => {
         showToast(result.message || "Manager saved.");
         form.reset();
+        state.settingsLoaded = false;
         loadDashboard();
+        loadSettingsLibrary();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Manager save failed.");
@@ -357,7 +421,9 @@
       .withSuccessHandler(result => {
         showToast(result.message || "Agency contact saved.");
         form.reset();
+        state.settingsLoaded = false;
         loadDashboard();
+        loadSettingsLibrary();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Agency save failed.");
@@ -378,7 +444,9 @@
       .withSuccessHandler(result => {
         showToast(result.message || "Standard rota row saved.");
         form.reset();
+        state.settingsLoaded = false;
         loadDashboard();
+        loadSettingsLibrary();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not save standard rota row.");
@@ -612,7 +680,9 @@
     google.script.run
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Relief team updated.");
+        state.settingsLoaded = false;
         loadDashboard();
+        loadSettingsLibrary();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not update relief team.");
@@ -687,21 +757,59 @@
         </div>
         <em>${escapeHtml(gap["Gap Type"] || "Gap")}</em>
         <div class="gap-actions">
+          <button class="secondary mini" data-gap-action="suggestions" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Suggestions</button>
           <button class="secondary mini" data-gap-action="cover" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Assign cover</button>
           <button class="secondary mini" data-gap-action="agency" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Request agency</button>
           <button class="secondary mini" data-gap-action="resolved" data-gap-id="${escapeHtml(gap["Gap ID"] || "")}">Resolved</button>
         </div>
+        <div class="gap-suggestions hidden" id="suggestions-${escapeHtml(gap["Gap ID"] || "")}"></div>
       </article>
     `).join("");
     list.querySelectorAll("[data-gap-action]").forEach(button => {
       button.addEventListener("click", () => {
-        if (button.dataset.gapAction === "resolved") {
+        if (button.dataset.gapAction === "suggestions") {
+          loadReliefSuggestionsForGap(button.dataset.gapId);
+        } else if (button.dataset.gapAction === "resolved") {
           markGap(button.dataset.gapId, "resolved");
         } else {
           openGapModal(button.dataset.gapId, button.dataset.gapAction);
         }
       });
     });
+  }
+
+  function loadReliefSuggestionsForGap(gapId) {
+    if (!gapId) return;
+    const root = document.getElementById(`suggestions-${gapId}`);
+    if (!root) return;
+    root.classList.remove("hidden");
+    root.innerHTML = '<div class="mini-loading"><span class="loader small"></span><strong>Finding relief suggestions…</strong></div>';
+    google.script.run
+      .withSuccessHandler(result => {
+        const suggestions = (result && result.suggestions) || [];
+        if (!suggestions.length) {
+          root.innerHTML = '<div class="empty-state compact">No suggestions found for this gap yet.</div>';
+          return;
+        }
+        root.innerHTML = suggestions.map(item => `
+          <button class="suggestion-row" type="button" data-cover-name="${escapeHtml(item["Suggested Employee Name"] || "")}">
+            <strong>${escapeHtml(item["Suggested Employee Name"] || "")}</strong>
+            <span>${escapeHtml(item.Reason || "")}</span>
+            <em>Score ${escapeHtml(item.Score || "")}</em>
+          </button>
+        `).join("");
+        root.querySelectorAll("[data-cover-name]").forEach(button => {
+          button.addEventListener("click", () => {
+            openGapModal(gapId, "cover");
+            const coverSelect = document.getElementById("coverPersonSelect");
+            if (coverSelect) coverSelect.value = button.dataset.coverName || "";
+          });
+        });
+      })
+      .withFailureHandler(error => {
+        root.innerHTML = `<div class="empty-state compact">${escapeHtml(error.message || "Could not load suggestions.")}</div>`;
+      })
+      .getReliefSuggestionsForGapFromUi(gapId, 8);
   }
 
   function openGapModal(gapId, action) {
@@ -752,6 +860,7 @@
         closeGapModal();
         showToast((result && result.message) || "Gap action saved.");
         loadDashboard();
+        loadCoverageGaps();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not save gap action.");
@@ -772,6 +881,7 @@
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Gap updated.");
         loadDashboard();
+        loadCoverageGaps();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not update gap.");
@@ -814,6 +924,40 @@
     document.querySelectorAll("button").forEach(button => {
       button.disabled = isBusy;
     });
+  }
+
+  function setPanelLoading(id, message) {
+    const root = document.getElementById(id);
+    if (!root) return;
+    root.innerHTML = `
+      <div class="skeleton-card">
+        <span class="loader small"></span>
+        <div>
+          <strong>${escapeHtml(message || "Loading…")}</strong>
+          <p class="quiet">This section is loaded separately so the app opens faster.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  function setSettingsLoading(message) {
+    ["reliefDirectoryTable", "standardRotaTable", "managerDirectoryTable", "agencyDirectoryTable"].forEach(id => {
+      setPanelLoading(id, message || "Loading settings…");
+    });
+  }
+
+  function showLoading(title, detail) {
+    setBusy(true);
+    text("loadingTitle", title || "Working…");
+    text("loadingDetail", detail || "Please keep this tab open.");
+    const overlay = document.getElementById("loadingOverlay");
+    if (overlay) overlay.classList.remove("hidden");
+  }
+
+  function hideLoading() {
+    const overlay = document.getElementById("loadingOverlay");
+    if (overlay) overlay.classList.add("hidden");
+    setBusy(false);
   }
 
   function showToast(message) {

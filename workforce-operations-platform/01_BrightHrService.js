@@ -130,11 +130,9 @@ function syncBrightHrAbsences() {
   let path = properties.getProperty(keys.brightHrAbsencesPath);
   let method = properties.getProperty(keys.brightHrAbsencesMethod) || "post";
   if (!path) {
-    const discovered = discoverBrightHrAbsenceEndpoint_();
-    path = discovered.path;
-    method = discovered.method;
-    properties.setProperty(keys.brightHrAbsencesPath, path);
-    properties.setProperty(keys.brightHrAbsencesMethod, method);
+    throw new Error(
+      "BrightHR absence endpoint is not configured. Run discoverBrightHrAbsenceEndpoint() once, or set it with setBrightHrAbsencesEndpoint(\"PATH\", \"post\")."
+    );
   }
 
   const spreadsheet = getWorkforceSpreadsheet_();
@@ -174,7 +172,10 @@ function fetchBrightHrAbsences_(path, method) {
   const cleanMethod = String(method || "post").toLowerCase();
   const items = [];
   let continuationToken = "";
+  let pages = 0;
   do {
+    pages++;
+    if (pages > 20) throw new Error("BrightHR absence sync stopped after 20 pages to avoid timeout.");
     const options = { method: cleanMethod };
     if (cleanMethod === "post") {
       options.payload = { pageSize: 100 };
@@ -188,6 +189,7 @@ function fetchBrightHrAbsences_(path, method) {
 }
 
 function discoverBrightHrAbsenceEndpoint_() {
+  const startTime = Date.now();
   const candidates = [
     { path: "absences/v1/query", method: "post" },
     { path: "absence/v1/query", method: "post" },
@@ -202,6 +204,9 @@ function discoverBrightHrAbsenceEndpoint_() {
   ];
   const errors = [];
   for (let index = 0; index < candidates.length; index++) {
+    if (Date.now() - startTime > 45000) {
+      throw new Error("BrightHR absence endpoint discovery timed out. Ask BrightHR for the exact absence/holiday/sickness query path.");
+    }
     const candidate = candidates[index];
     try {
       const data = brightHrRequest_(candidate.path, {
