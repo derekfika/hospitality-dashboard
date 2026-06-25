@@ -177,6 +177,8 @@ function normaliseGapActionLabel_(action) {
   if (text === "self_cover") return "Self cover";
   if (text === "agency_requested") return "Agency requested";
   if (text === "resolved") return "Resolved";
+  if (text === "snoozed") return "Snoozed";
+  if (text === "ignored") return "Ignored";
   return "In progress";
 }
 

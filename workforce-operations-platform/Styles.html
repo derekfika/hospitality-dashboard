@@ -196,6 +196,226 @@
   .grid { display: grid; gap: 18px; }
   .metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 
+  .cockpit-hero {
+    min-height: 260px;
+    align-items: center;
+  }
+
+  .cockpit-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .cockpit-controls label {
+    min-width: 180px;
+    color: rgba(255,255,255,.86);
+    font-weight: 900;
+  }
+
+  .cockpit-controls select,
+  .cockpit-controls input {
+    width: 100%;
+    margin-top: 7px;
+    border-color: rgba(255,255,255,.55);
+    background: rgba(255,255,255,.96);
+  }
+
+  .cockpit-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .cockpit-kpis article {
+    padding: 18px;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
+  }
+
+  .cockpit-kpis span {
+    display: block;
+    color: var(--muted);
+    font-weight: 900;
+  }
+
+  .cockpit-kpis strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 34px;
+    letter-spacing: -.04em;
+  }
+
+  .cockpit-board {
+    display: grid;
+    gap: 16px;
+  }
+
+  .cockpit-week-title {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px;
+    border-radius: 24px;
+    background: rgba(255,255,255,.84);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .cockpit-week-title h3 {
+    margin: 0;
+  }
+
+  .cockpit-week-title span {
+    color: var(--muted);
+    font-weight: 900;
+  }
+
+  .cockpit-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(180px, 1fr));
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .cockpit-day {
+    min-width: 180px;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line), 0 8px 20px rgba(36,17,118,.06);
+  }
+
+  .cockpit-day.status-covered { box-shadow: inset 4px 0 0 #40b879, inset 0 0 0 1px var(--line); }
+  .cockpit-day.status-cover_suggested { box-shadow: inset 4px 0 0 #f4b942, inset 0 0 0 1px var(--line); }
+  .cockpit-day.status-uncovered { box-shadow: inset 4px 0 0 var(--coral), inset 0 0 0 1px var(--line); }
+  .cockpit-day.status-closed { opacity: .72; background: rgba(255,255,255,.58); }
+
+  .cockpit-day header,
+  .cockpit-person,
+  .cockpit-gap,
+  .best-suggestion {
+    display: grid;
+    gap: 5px;
+  }
+
+  .cockpit-day header {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .cockpit-day header strong {
+    display: block;
+    font-size: 18px;
+  }
+
+  .cockpit-day header span,
+  .cockpit-person span,
+  .cockpit-person small,
+  .cockpit-gap span,
+  .best-suggestion span {
+    color: var(--muted);
+    font-weight: 750;
+  }
+
+  .cockpit-day header em {
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(33,21,95,.07);
+    font-style: normal;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .cockpit-staff-list,
+  .cockpit-gap-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .cockpit-person {
+    padding: 9px;
+    border-radius: 14px;
+    background: rgba(33,21,95,.04);
+  }
+
+  .cockpit-person.person-absent {
+    background: rgba(255,128,102,.12);
+  }
+
+  .cockpit-person.person-covered {
+    background: rgba(117,239,184,.16);
+  }
+
+  .cockpit-absence-strip {
+    display: grid;
+    gap: 6px;
+  }
+
+  .cockpit-absence-strip span {
+    padding: 8px 9px;
+    border-radius: 12px;
+    background: rgba(255,128,102,.13);
+    color: #8b2b19;
+    font-weight: 900;
+  }
+
+  .cockpit-gap {
+    padding: 11px;
+    border-radius: 16px;
+    background: rgba(255,128,102,.1);
+    box-shadow: inset 0 0 0 1px rgba(255,128,102,.25);
+  }
+
+  .best-suggestion {
+    padding: 9px;
+    border-radius: 13px;
+    background: rgba(117,239,184,.16);
+  }
+
+  .best-suggestion.empty {
+    background: rgba(33,21,95,.05);
+    color: var(--muted);
+    font-weight: 900;
+  }
+
+  .best-suggestion em {
+    color: var(--accent);
+    font-style: normal;
+    font-weight: 900;
+  }
+
+  .cockpit-gap-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .endpoint-card {
+    margin: 14px 0;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .endpoint-card span {
+    display: block;
+    color: var(--muted);
+    font-weight: 900;
+  }
+
+  .endpoint-card strong {
+    display: block;
+    margin-top: 4px;
+  }
+
   .metric-card,
   .panel {
     border-radius: 26px;

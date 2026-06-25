@@ -16,13 +16,9 @@
           </div>
         </div>
         <nav>
-          <a class="active" href="#overview">Overview</a>
-          <a href="#brighthr">BrightHR</a>
-          <a href="#rota">Rota Builder</a>
-          <a href="#gaps">Gaps</a>
+          <a class="active" href="#overview">Rota Cockpit</a>
+          <a href="#brighthr">Admin</a>
           <a href="#settings">Settings</a>
-          <a href="#relief">Relief Planning</a>
-          <a href="#agency">Agency</a>
         </nav>
         <div class="sidebar-version">
           <span>Build</span>
@@ -31,20 +27,40 @@
       </aside>
 
       <main>
-        <section class="hero" id="overview">
+        <section class="hero cockpit-hero" id="overview">
           <div>
-            <p class="eyebrow">Operations platform</p>
-            <h2>One calm place to manage rotas, cover and staffing risk.</h2>
+            <p class="eyebrow">Rota cockpit</p>
+            <h2>Pick a site and week. Fix the gaps.</h2>
             <p class="hero-copy">
-              BrightHR sync, site rotas, gaps, relief suggestions and agency tracking —
-              built as a proper app, with the sheet quietly acting as the data store.
+              A weekly heads-up board for Gill: scheduled staff, BrightHR absences,
+              uncovered roles and the best cover suggestion in one place.
             </p>
+            <div class="cockpit-controls">
+              <label>Site <select id="cockpitSiteSelect"></select></label>
+              <label>Week <input id="cockpitWeekStartInput" type="date"></label>
+              <button class="secondary" id="prevWeekBtn" type="button">Previous week</button>
+              <button class="secondary" id="thisWeekBtn" type="button">This week</button>
+              <button class="secondary" id="nextWeekBtn" type="button">Next week</button>
+              <button class="secondary" id="weekAfterBtn" type="button">Week after</button>
+              <button id="loadCockpitBtn" type="button">Load week</button>
+            </div>
           </div>
           <div class="hero-card">
             <span class="pulse"></span>
             <p>System status</p>
             <strong id="systemStatus">Loading…</strong>
           </div>
+        </section>
+
+        <section class="cockpit-kpis" id="cockpitTotals">
+          <article><span>Scheduled</span><strong id="cockpitScheduled">—</strong></article>
+          <article><span>Absences</span><strong id="cockpitAbsences">—</strong></article>
+          <article><span>Suggested</span><strong id="cockpitSuggested">—</strong></article>
+          <article><span>Uncovered</span><strong id="cockpitUncovered">—</strong></article>
+        </section>
+
+        <section class="cockpit-board" id="cockpitBoard">
+          <div class="empty-state">Choose a site and week to load the rota cockpit.</div>
         </section>
 
         <section class="grid metrics">
@@ -86,6 +102,13 @@
 
           <div class="action-row">
             <button id="syncEverythingBtn">Sync workforce data</button>
+            <button id="testAbsenceEndpointBtn" class="secondary" type="button">Test absence endpoint</button>
+            <button id="discoverAbsenceEndpointBtn" class="secondary" type="button">Discover absence endpoint</button>
+          </div>
+
+          <div class="endpoint-card">
+            <span>Configured absence endpoint</span>
+            <strong id="absenceEndpointStatus">Not configured</strong>
           </div>
 
           <div class="checklist">
