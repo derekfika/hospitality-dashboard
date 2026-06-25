@@ -1,6 +1,6 @@
 const WORKFORCE_CONFIG = Object.freeze({
   appName: "FIKA Workforce Operations Platform",
-  appVersion: "v0.7.0",
+  appVersion: "v0.8.0",
   timeZone: "Europe/London",
   hrProvider: "brighthr",
   brightHr: {
@@ -15,8 +15,13 @@ const WORKFORCE_CONFIG = Object.freeze({
     brightHrClientSecret: "BRIGHTHR_CLIENT_SECRET",
     brightHrTokenUrl: "BRIGHTHR_TOKEN_URL",
     brightHrApiBaseUrl: "BRIGHTHR_API_BASE_URL",
+    brightHrEmployeesPath: "BRIGHTHR_EMPLOYEES_PATH",
+    brightHrEmployeesMethod: "BRIGHTHR_EMPLOYEES_METHOD",
     brightHrAbsencesPath: "BRIGHTHR_ABSENCES_PATH",
     brightHrAbsencesMethod: "BRIGHTHR_ABSENCES_METHOD",
+    brightHrTokenPropertyKey: "BRIGHTHR_TOKEN_PROPERTY_KEY",
+    brightHrAbsenceLookaheadDays: "BRIGHTHR_ABSENCE_LOOKAHEAD_DAYS",
+    brightHrAbsenceLookbackDays: "BRIGHTHR_ABSENCE_LOOKBACK_DAYS",
     brightHrAccessToken: "BRIGHTHR_ACCESS_TOKEN",
     brightHrAccessTokenExpiresAt: "BRIGHTHR_ACCESS_TOKEN_EXPIRES_AT"
   },
@@ -32,6 +37,7 @@ const WORKFORCE_CONFIG = Object.freeze({
     notificationRules: "Notification Rules",
     costRates: "Cost Rates",
     siteRoles: "Site Roles",
+    personStandardRota: "Person Standard Rota",
     rotaTemplates: "Rota Templates",
     rotaExceptions: "Rota Exceptions",
     rotaShifts: "Rota Shifts",

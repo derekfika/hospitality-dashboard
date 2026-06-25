@@ -44,9 +44,15 @@ function getBrightHrApiStatus() {
     hasClientSecret: Boolean(properties.getProperty(keys.brightHrClientSecret)),
     hasTokenUrl: Boolean(properties.getProperty(keys.brightHrTokenUrl)),
     hasApiBaseUrl: Boolean(properties.getProperty(keys.brightHrApiBaseUrl)),
+    apiBaseUrl: properties.getProperty(keys.brightHrApiBaseUrl) || "",
+    employeePath: properties.getProperty(keys.brightHrEmployeesPath) || "employees/v1/query",
+    employeeMethod: properties.getProperty(keys.brightHrEmployeesMethod) || "post",
     hasAbsencesPath: Boolean(properties.getProperty(keys.brightHrAbsencesPath)),
     absencesPath: properties.getProperty(keys.brightHrAbsencesPath) || "",
     absencesMethod: properties.getProperty(keys.brightHrAbsencesMethod) || "",
+    absenceLookaheadDays: properties.getProperty(keys.brightHrAbsenceLookaheadDays) || "",
+    absenceLookbackDays: properties.getProperty(keys.brightHrAbsenceLookbackDays) || "",
+    tokenPropertyKey: properties.getProperty(keys.brightHrTokenPropertyKey) || keys.brightHrAccessToken,
     hasCachedAccessToken: Boolean(properties.getProperty(keys.brightHrAccessToken)),
     cachedTokenExpiresAt: properties.getProperty(keys.brightHrAccessTokenExpiresAt) || ""
   };
@@ -138,7 +144,11 @@ function syncBrightHrAbsences() {
   const spreadsheet = getWorkforceSpreadsheet_();
   const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences);
   const staffIndex = buildStaffLookupForAbsences_(spreadsheet);
-  const items = fetchBrightHrAbsences_(path, method);
+  const employeeIds = getBrightHrEmployeeIdsForAbsenceSync_(spreadsheet);
+  if (!employeeIds.length) {
+    throw new Error("No BrightHR employee IDs were found in Staff Directory. Sync employees first, then sync absences.");
+  }
+  const items = fetchBrightHrAbsences_(path, method, employeeIds);
   const now = new Date();
   const rows = items.map(function(absence, index) {
     return normaliseBrightHrAbsence_(absence, now, index, staffIndex);
@@ -151,6 +161,7 @@ function syncBrightHrAbsences() {
     provider: WORKFORCE_CONFIG.hrProvider,
     endpoint: path,
     method: method,
+    employeesQueried: employeeIds.length,
     sheet: WORKFORCE_CONFIG.sheets.absences,
     synced: rows.length,
     message: rows.length + " absence row(s) synced from BrightHR."
@@ -159,33 +170,82 @@ function syncBrightHrAbsences() {
 
 function discoverBrightHrAbsenceEndpoint() {
   const result = discoverBrightHrAbsenceEndpoint_();
+  setBrightHrAbsencesEndpoint(result.path, result.method);
   return {
     ok: true,
     path: result.path,
     method: result.method,
     itemCount: result.itemCount,
-    message: "BrightHR absence endpoint found: " + result.method.toUpperCase() + " /" + result.path
+    warning: result.warning || "",
+    responsePreview: result.responsePreview || "",
+    message: result.warning
+      ? "BrightHR absence endpoint exists but needs payload settings: " + result.method.toUpperCase() + " /" + result.path
+      : "BrightHR absence endpoint found: " + result.method.toUpperCase() + " /" + result.path
   };
 }
 
-function fetchBrightHrAbsences_(path, method) {
+function fetchBrightHrAbsences_(path, method, employeeIds) {
   const cleanMethod = String(method || "post").toLowerCase();
   const items = [];
-  let continuationToken = "";
-  let pages = 0;
-  do {
-    pages++;
-    if (pages > 20) throw new Error("BrightHR absence sync stopped after 20 pages to avoid timeout.");
-    const options = { method: cleanMethod };
-    if (cleanMethod === "post") {
-      options.payload = { pageSize: 100 };
-      if (continuationToken) options.payload.continuationToken = continuationToken;
-    }
-    const data = brightHrRequest_(path, options);
-    items.push.apply(items, getBrightHrItems_(data));
-    continuationToken = cleanMethod === "post" ? String(data.continuationToken || "") : "";
-  } while (continuationToken);
+  const ids = employeeIds || [];
+  ids.forEach(function(employeeId) {
+    let continuationToken = "";
+    let pages = 0;
+    do {
+      pages++;
+      if (pages > 10) throw new Error("BrightHR absence sync stopped after 10 pages for employee " + employeeId + " to avoid timeout.");
+      const options = { method: cleanMethod };
+      if (cleanMethod === "post") {
+        options.payload = buildBrightHrAbsenceQueryPayload_(employeeId, continuationToken, true);
+      }
+      let data;
+      try {
+        data = brightHrRequest_(path, options);
+      } catch (error) {
+        if (Number(error.httpStatus || 0) === 422 && cleanMethod === "post") {
+          data = brightHrRequest_(path, {
+            method: "post",
+            payload: buildBrightHrAbsenceQueryPayload_(employeeId, continuationToken, false)
+          });
+        } else {
+          throw error;
+        }
+      }
+      items.push.apply(items, getBrightHrItems_(data));
+      continuationToken = cleanMethod === "post" ? String(data.continuationToken || "") : "";
+    } while (continuationToken);
+  });
   return items;
+}
+
+function buildBrightHrAbsenceQueryPayload_(employeeId, continuationToken, includeDateRange) {
+  const payload = {
+    filters: {
+      employeeId: String(employeeId || "")
+    },
+    pageSize: 100
+  };
+  if (includeDateRange) {
+    const range = getBrightHrAbsenceSyncRange_();
+    payload.filters.from = range.from;
+    payload.filters.to = range.to;
+  }
+  if (continuationToken) payload.continuationToken = continuationToken;
+  return payload;
+}
+
+function getBrightHrAbsenceSyncRange_() {
+  const keys = WORKFORCE_CONFIG.scriptProperties;
+  const properties = PropertiesService.getScriptProperties();
+  const lookback = Math.max(0, Number(properties.getProperty(keys.brightHrAbsenceLookbackDays) || 14));
+  const lookahead = Math.max(1, Number(properties.getProperty(keys.brightHrAbsenceLookaheadDays) || 45));
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - lookback);
+  const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + lookahead);
+  return {
+    from: Utilities.formatDate(from, WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd"),
+    to: Utilities.formatDate(to, WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd")
+  };
 }
 
 function discoverBrightHrAbsenceEndpoint_() {
@@ -222,6 +282,15 @@ function discoverBrightHrAbsenceEndpoint_() {
         };
       }
     } catch (error) {
+      if (candidate.path === "absences/v1/query" && Number(error.httpStatus || 0) === 422) {
+        return {
+          path: candidate.path,
+          method: candidate.method,
+          itemCount: 0,
+          warning: "Endpoint returned HTTP 422 validation error, so the path exists but the request body needs adjustment.",
+          responsePreview: String(error.responseText || error.message || "").slice(0, 1200)
+        };
+      }
       errors.push(candidate.path + ": " + (error.message || String(error)).slice(0, 160));
     }
   }
@@ -320,10 +389,13 @@ function parseBrightHrResponse_(response) {
     data = { raw: text };
   }
   if (status < 200 || status >= 300) {
-    throw new Error(
+    const error = new Error(
       "BrightHR API returned HTTP " + status + ": " +
       String(text || "").slice(0, 500)
     );
+    error.httpStatus = status;
+    error.responseText = text;
+    throw error;
   }
   return data;
 }
@@ -336,17 +408,21 @@ function clearBrightHrCachedToken_() {
 }
 
 function fetchBrightHrEmployees_() {
+  const keys = WORKFORCE_CONFIG.scriptProperties;
+  const properties = PropertiesService.getScriptProperties();
+  const path = properties.getProperty(keys.brightHrEmployeesPath) || "employees/v1/query";
+  const method = String(properties.getProperty(keys.brightHrEmployeesMethod) || "post").toLowerCase();
   let continuationToken = "";
   const employees = [];
   do {
     const payload = { pageSize: 100 };
     if (continuationToken) payload.continuationToken = continuationToken;
-    const data = brightHrRequest_("employees/v1/query", {
+    const data = brightHrRequest_(path, method === "post" ? {
       method: "post",
       payload: payload
-    });
+    } : { method: "get" });
     employees.push.apply(employees, getBrightHrItems_(data));
-    continuationToken = data.continuationToken || "";
+    continuationToken = method === "post" ? data.continuationToken || "" : "";
   } while (continuationToken);
   return employees;
 }
@@ -405,9 +481,11 @@ function normaliseBrightHrAbsence_(absence, syncedAt, index, staffIndex) {
     absence.employeeName ||
     getStaffNameForAbsence_(staffIndex, employeeId) ||
     "";
-  const startDate = absence.start || absence.startDate || absence.dateFrom || absence.from || absence.periodStart || (absence.period && absence.period.start) || "";
-  const endDate = absence.end || absence.endDate || absence.dateTo || absence.to || absence.periodEnd || (absence.period && absence.period.end) || startDate;
-  const absenceType = absence.type || absence.absenceType || absence.category || absence.reason || absence.leaveType || absence.name || "";
+  const startBoundary = absence.start || absence.startDate || absence.dateFrom || absence.from || absence.periodStart || (absence.period && absence.period.start) || "";
+  const endBoundary = absence.end || absence.endDate || absence.dateTo || absence.to || absence.periodEnd || (absence.period && absence.period.end) || startBoundary;
+  const startDate = getBrightHrBoundaryDate_(startBoundary);
+  const endDate = getBrightHrBoundaryDate_(endBoundary) || startDate;
+  const absenceType = absence.displayName || absence.$type || absence.type || absence.absenceType || absence.category || absence.reason || absence.leaveType || absence.name || "";
   const id = absence.id || absence.absenceId || [
     "brighthr_absence",
     employeeId || slugifyWorkforce_(fullName),
@@ -421,11 +499,23 @@ function normaliseBrightHrAbsence_(absence, syncedAt, index, staffIndex) {
     "Absence Type": absenceType,
     "Start Date": startDate,
     "End Date": endDate,
-    "Status": absence.status || absence.approvalStatus || "",
+    "Status": absence.status || absence.approvalStatus || "Approved",
     "Source": "BrightHR",
     "BrightHR Raw JSON": JSON.stringify(absence),
     "Last Synced": syncedAt
   };
+}
+
+function getBrightHrBoundaryDate_(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value.slice(0, 10);
+  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd");
+  }
+  if (typeof value === "object") {
+    return String(value.date || value.value || value.Date || "").slice(0, 10);
+  }
+  return String(value || "").slice(0, 10);
 }
 
 function buildExistingStaffIndex_(sheet) {
@@ -447,15 +537,36 @@ function findExistingBrightHrStaff_(existingStaff, employeeId, name) {
 }
 
 function buildStaffLookupForAbsences_(spreadsheet) {
-  const lookup = { byId: {}, byName: {} };
+  const lookup = { byId: {}, byName: {}, employeeIds: [] };
   readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory))
     .forEach(function(person) {
       const id = String(person["Employee ID"] || "").trim();
       const name = String(person.Name || "").trim();
-      if (id) lookup.byId[id] = name;
+      if (id) {
+        lookup.byId[id] = name;
+        lookup.employeeIds.push(id);
+      }
       if (name) lookup.byName[normaliseWorkforcePerson_(name)] = name;
     });
   return lookup;
+}
+
+function getBrightHrEmployeeIdsForAbsenceSync_(spreadsheet) {
+  const seen = {};
+  return readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory))
+    .filter(function(person) {
+      return String(person["Employee ID"] || "").trim() &&
+        String(person["Employment Status"] || "").toLowerCase() !== "terminated" &&
+        !workforceBoolean_(person.Terminated);
+    })
+    .map(function(person) {
+      return String(person["Employee ID"] || "").trim();
+    })
+    .filter(function(id) {
+      if (seen[id]) return false;
+      seen[id] = true;
+      return true;
+    });
 }
 
 function getStaffNameForAbsence_(staffIndex, employeeId) {

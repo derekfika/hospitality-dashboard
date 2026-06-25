@@ -4,7 +4,13 @@ const WORKFORCE_SETTINGS_ROWS = [
   ["DEFAULT_SHIFT_START", "07:00", "Rota", "Default shift start", "Fallback only."],
   ["DEFAULT_SHIFT_END", "15:00", "Rota", "Default shift end", "Fallback only."],
   ["AGENCY_ALERT_EMAIL", "", "Agency", "Agency alert email", "Optional escalation inbox."],
-  ["RELIEF_ASSIGNMENT_FROM_NAME", "FIKA Workforce", "Relief", "Email sender name", "Shown on relief assignment emails."]
+  ["RELIEF_ASSIGNMENT_FROM_NAME", "FIKA Workforce", "Relief", "Email sender name", "Shown on relief assignment emails."],
+  ["BRIGHTHR_API_BASE_URL", "https://api.bright.hr", "BrightHR", "API base URL", "Stored in Script Properties for live sync."],
+  ["BRIGHTHR_EMPLOYEE_ENDPOINT", "employees/v1/query", "BrightHR", "Employee endpoint", "Stored in Script Properties if changed."],
+  ["BRIGHTHR_ABSENCE_ENDPOINT", "", "BrightHR", "Absence endpoint", "Example: absences/v1/query."],
+  ["BRIGHTHR_ABSENCE_METHOD", "post", "BrightHR", "Absence method", "GET or POST."],
+  ["BRIGHTHR_ABSENCE_LOOKAHEAD_DAYS", "45", "BrightHR", "Absence lookahead", "Future days to request when supported."],
+  ["BRIGHTHR_ABSENCE_LOOKBACK_DAYS", "14", "BrightHR", "Absence lookback", "Past days to request when supported."]
 ];
 
 function setupWorkforceOperationsPlatform() {
@@ -54,6 +60,10 @@ function setupWorkforceOperationsPlatform() {
     "Site ID", "Role", "Required Monday", "Required Tuesday",
     "Required Wednesday", "Required Thursday", "Required Friday",
     "Required Saturday", "Required Sunday", "Priority"
+  ]);
+  setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.personStandardRota, [
+    "Employee ID", "Employee Name", "Day of Week", "Site", "Role",
+    "Start Time", "End Time", "Effective From", "Effective To", "Active", "Notes"
   ]);
   setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.rotaTemplates, [
     "Template ID", "Site ID", "Site Name", "Weekday", "Role",

@@ -195,6 +195,32 @@ function getRotaCockpitFromUi(siteId, weekStartDate) {
   }
 }
 
+function getPersonStandardRotaFromUi(employeeId) {
+  return toPlainJson_({
+    ok: true,
+    employeeId: String(employeeId || ""),
+    rows: getPersonStandardRota_(employeeId)
+  });
+}
+
+function savePersonStandardRotaFromUi(employeeId, rows) {
+  const result = savePersonStandardRota_(employeeId, rows || []);
+  return toPlainJson_(result);
+}
+
+function getPersonRotaProfileFromUi(employeeId) {
+  return toPlainJson_(getPersonRotaProfile_(employeeId));
+}
+
+function getPeopleStandardRotaForWeekFromUi(siteId, weekStartDate) {
+  return toPlainJson_({
+    ok: true,
+    siteId: String(siteId || ""),
+    weekStart: normaliseWeekStart_(weekStartDate),
+    rows: getPeopleStandardRotaForWeek_(siteId, weekStartDate)
+  });
+}
+
 function approveSuggestedCoverFromUi(gapId) {
   const suggestion = getBestReliefSuggestionForGap_(gapId);
   if (!suggestion || !suggestion.employeeName) {
@@ -245,20 +271,32 @@ function snoozeGapFromUi(gapId) {
 }
 
 function testBrightHrAbsenceEndpointFromUi() {
+  return toPlainJson_(testBrightHrEndpointPreview_("absence"));
+}
+
+function testBrightHrConnectionFromUi() {
   try {
-    const result = syncBrightHrAbsences();
-    return toPlainJson_({
-      ok: true,
-      message: "Absence endpoint worked. " + (result.synced || 0) + " absence row(s) updated.",
-      result: result
-    });
+    const result = testBrightHrConnection();
+    return toPlainJson_(result);
   } catch (error) {
     return toPlainJson_({
       ok: false,
       error: error.message || String(error),
-      message: "Absence endpoint test failed: " + (error.message || String(error))
+      message: "BrightHR connection failed: " + (error.message || String(error))
     });
   }
+}
+
+function testBrightHrEmployeeEndpointFromUi() {
+  return toPlainJson_(testBrightHrEndpointPreview_("employee"));
+}
+
+function getBrightHrAdminSettingsFromUi() {
+  return toPlainJson_(getBrightHrAdminSettings_());
+}
+
+function saveBrightHrAdminSettingsFromUi(settings) {
+  return toPlainJson_(saveBrightHrAdminSettings_(settings || {}));
 }
 
 function getWorkforceDashboardPing() {
@@ -653,6 +691,29 @@ function buildRotaCockpit_(siteId, weekStartDate) {
     return String(template["Site ID"] || "") === cleanSiteId &&
       workforceBoolean_(template.Active);
   }));
+  const personStandardRows = getPeopleStandardRotaForWeek_(cleanSiteId, weekStart);
+  const personTemplates = personStandardRows
+    .filter(function(row) {
+      return String(row.Site || "") === cleanSiteId;
+    })
+    .map(function(row) {
+      return {
+        "Template ID": ["person", row["Employee ID"], row["Day of Week"], cleanSiteId, row.Role].join("_"),
+        "Site ID": cleanSiteId,
+        "Site Name": site.siteName || cleanSiteId,
+        "Weekday": row["Day of Week"],
+        "Role": row.Role,
+        "Employee ID": row["Employee ID"],
+        "Employee Name": row["Employee Name"],
+        "Start Time": row["Start Time"],
+        "End Time": row["End Time"],
+        "Standard Status": "IN",
+        "Source": "Person Standard Rota",
+        "Observations": row.Notes || "",
+        "Active": true
+      };
+    });
+  const combinedTemplates = uniqueCockpitTemplates_(templates.concat(personTemplates));
   const absences = readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences)
   );
@@ -673,13 +734,14 @@ function buildRotaCockpit_(siteId, weekStartDate) {
   const generatedGaps = [];
   const suggestions = [];
   const days = weekDates.map(function(day) {
-    const dayTemplates = templates.filter(function(template) {
+    const dayTemplates = combinedTemplates.filter(function(template) {
       return String(template.Weekday || "") === day.weekday &&
         String(template["Standard Status"] || "").toUpperCase() !== "OFF";
     });
-    const scheduled = [];
+    const fullRota = [];
     const dayAbsences = [];
     const dayGaps = [];
+    const issues = [];
     dayTemplates.forEach(function(template) {
       const personName = String(template["Employee Name"] || "").trim();
       if (!personName) return;
@@ -692,9 +754,14 @@ function buildRotaCockpit_(siteId, weekStartDate) {
       const scheduleStatus = cover || (exception && isGapClearedByException_(exception))
         ? "covered"
         : isAbsent || exception ? "absent" : "scheduled";
-      scheduled.push({
+      fullRota.push({
+        employeeId: String(template["Employee ID"] || ""),
         employeeName: personName,
         role: String(template.Role || ""),
+        siteId: String(template["Site ID"] || ""),
+        siteName: String(template["Site Name"] || ""),
+        startTime: String(template["Start Time"] || ""),
+        endTime: String(template["End Time"] || ""),
         status: scheduleStatus,
         coverName: cover ? String(cover["Employee Name"] || "") : "",
         coverType: cover ? String(cover["Exception Type"] || "Cover") : "",
@@ -702,13 +769,22 @@ function buildRotaCockpit_(siteId, weekStartDate) {
         notes: exception ? String(exception.Notes || "") : ""
       });
       if (absence) {
-        dayAbsences.push({
+        const absenceIssue = {
+          issueId: ["absence", cleanSiteId, day.date, slugifyWorkforce_(personName)].join("_"),
+          type: "absence",
+          employeeId: String(template["Employee ID"] || ""),
           employeeName: personName,
           role: String(template.Role || ""),
+          reason: String(absence["Absence Type"] || "Absence"),
           absenceType: String(absence["Absence Type"] || "Absence"),
           startDate: normaliseWorkforceDate_(absence["Start Date"]),
-          endDate: normaliseWorkforceDate_(absence["End Date"]) || normaliseWorkforceDate_(absence["Start Date"])
-        });
+          endDate: normaliseWorkforceDate_(absence["End Date"]) || normaliseWorkforceDate_(absence["Start Date"]),
+          status: isCleared ? "resolved" : "open",
+          coverName: cover ? String(cover["Employee Name"] || "") : "",
+          primaryAction: isCleared ? "View cover" : "Find cover"
+        };
+        dayAbsences.push(absenceIssue);
+        issues.push(absenceIssue);
       }
       if ((absence || (exception && String(exception["Exception Type"] || ""))) && !isCleared) {
         const gap = existingGapIndex[templateKey] || buildCoverageGap_(
@@ -722,29 +798,43 @@ function buildRotaCockpit_(siteId, weekStartDate) {
         generatedGaps.push(gap);
         const gapSuggestions = getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability);
         suggestions.push.apply(suggestions, gapSuggestions.rows);
-        dayGaps.push({
+        const gapIssue = {
+          issueId: String(gap["Gap ID"] || ""),
+          type: gapSuggestions.best ? "cover_suggested" : "uncovered",
           gapId: String(gap["Gap ID"] || ""),
           role: String(gap.Role || ""),
+          employeeId: String(template["Employee ID"] || ""),
           missingEmployeeName: String(gap["Employee Name"] || ""),
+          employeeName: String(gap["Employee Name"] || ""),
           absenceType: String(gap["Gap Type"] || ""),
+          reason: String(gap["Gap Type"] || ""),
           priority: Number(gap.Priority || 3),
           status: String(gap.Status || "Open"),
-          bestSuggestion: gapSuggestions.best
-        });
+          bestSuggestion: gapSuggestions.best,
+          primaryAction: gapSuggestions.best ? "Approve cover" : "Request agency"
+        };
+        dayGaps.push(gapIssue);
+        issues.push(gapIssue);
       }
+      const conflict = getPersonStandardRotaConflict_(template, personStandardRows, cleanSiteId, day.weekday);
+      if (conflict) issues.push(conflict);
     });
     const openGaps = dayGaps.filter(function(gap) {
       return !/resolved|snoozed|ignored/i.test(String(gap.status || ""));
     });
-    const dayStatus = !scheduled.length ? "closed"
+    const dayStatus = !fullRota.length ? "closed"
       : openGaps.some(function(gap) { return !gap.bestSuggestion; }) ? "uncovered"
       : openGaps.length ? "cover_suggested"
+      : issues.some(function(issue) { return String(issue.type || "") === "conflict"; }) ? "cover_suggested"
       : "covered";
     return {
       date: day.date,
       weekday: day.weekday,
       status: dayStatus,
-      scheduled: scheduled,
+      summary: buildCockpitDaySummary_(dayStatus, issues, fullRota),
+      issues: issues,
+      fullRota: fullRota,
+      scheduled: fullRota,
       absences: dayAbsences,
       gaps: dayGaps
     };
@@ -810,6 +900,148 @@ function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailabili
   return { best: best, rows: rows };
 }
 
+function uniqueCockpitTemplates_(rows) {
+  const seen = {};
+  const output = [];
+  (rows || []).forEach(function(row) {
+    const key = [
+      String(row["Site ID"] || ""),
+      String(row.Weekday || ""),
+      normaliseWorkforcePerson_(row["Employee Name"]),
+      String(row.Role || "").toLowerCase()
+    ].join("|");
+    if (seen[key]) return;
+    seen[key] = true;
+    output.push(row);
+  });
+  return output;
+}
+
+function getPersonStandardRotaConflict_(template, personRows, selectedSiteId, weekday) {
+  const employeeId = String(template["Employee ID"] || "").trim();
+  const personName = normaliseWorkforcePerson_(template["Employee Name"]);
+  const conflict = (personRows || []).filter(function(row) {
+    const rowEmployeeId = String(row["Employee ID"] || "").trim();
+    const samePerson = employeeId
+      ? rowEmployeeId && rowEmployeeId === employeeId
+      : normaliseWorkforcePerson_(row["Employee Name"]) === personName;
+    return samePerson &&
+      String(row["Day of Week"] || "") === String(weekday || "") &&
+      String(row.Site || "") &&
+      String(row.Site || "") !== String(selectedSiteId || "");
+  })[0];
+  if (!conflict) return null;
+  return {
+    issueId: ["conflict", selectedSiteId, weekday, slugifyWorkforce_(template["Employee Name"])].join("_"),
+    type: "conflict",
+    employeeId: employeeId || String(conflict["Employee ID"] || ""),
+    employeeName: String(template["Employee Name"] || conflict["Employee Name"] || ""),
+    role: String(template.Role || conflict.Role || ""),
+    reason: "Person standard rota says " + String(conflict.Site || "") + " on " + String(weekday || ""),
+    status: "open",
+    primaryAction: "Edit person standard rota"
+  };
+}
+
+function buildCockpitDaySummary_(status, issues, fullRota) {
+  const count = (issues || []).length;
+  if (!fullRota || !fullRota.length) return "No rota for this day.";
+  if (!count) return "No issues.";
+  if (status === "uncovered") return count + " issue(s), with at least one uncovered gap.";
+  if (status === "cover_suggested") return count + " issue(s), cover suggested.";
+  return count + " issue(s).";
+}
+
+function getPersonStandardRota_(employeeId) {
+  const cleanId = String(employeeId || "").trim();
+  const spreadsheet = getWorkforceSpreadsheet_();
+  return readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.personStandardRota))
+    .filter(function(row) {
+      return String(row["Employee ID"] || "").trim() === cleanId;
+    });
+}
+
+function savePersonStandardRota_(employeeId, rows) {
+  const cleanId = String(employeeId || "").trim();
+  if (!cleanId) throw new Error("Employee ID is required.");
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.personStandardRota);
+  const existing = readWorkforceObjects_(sheet).filter(function(row) {
+    return String(row["Employee ID"] || "").trim() !== cleanId;
+  });
+  const nextRows = (rows || []).map(function(row) {
+    return {
+      "Employee ID": cleanId,
+      "Employee Name": String(row["Employee Name"] || row.employeeName || "").trim(),
+      "Day of Week": String(row["Day of Week"] || row.dayOfWeek || "").trim(),
+      "Site": String(row.Site || row.site || "").trim(),
+      "Role": String(row.Role || row.role || "").trim(),
+      "Start Time": String(row["Start Time"] || row.startTime || "").trim(),
+      "End Time": String(row["End Time"] || row.endTime || "").trim(),
+      "Effective From": String(row["Effective From"] || row.effectiveFrom || "").trim(),
+      "Effective To": String(row["Effective To"] || row.effectiveTo || "").trim(),
+      "Active": row.Active === false ? false : String(row.Active || row.active || "TRUE").toUpperCase() !== "FALSE",
+      "Notes": String(row.Notes || row.notes || "").trim()
+    };
+  }).filter(function(row) {
+    return row["Employee Name"] && row["Day of Week"] && row.Site;
+  });
+  clearWorkforceSheetData_(sheet);
+  appendWorkforceRows_(sheet, existing.concat(nextRows));
+  return {
+    ok: true,
+    employeeId: cleanId,
+    saved: nextRows.length,
+    message: "Person standard rota saved."
+  };
+}
+
+function appendWorkforceRows_(sheet, rows) {
+  if (!sheet || !rows || !rows.length) return;
+  const map = workforceHeaderMap_(sheet);
+  const headers = Object.keys(map);
+  const values = rows.map(function(row) {
+    return headers.map(function(header) {
+      return Object.prototype.hasOwnProperty.call(row, header) ? row[header] : "";
+    });
+  });
+  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+}
+
+function getPersonRotaProfile_(employeeId) {
+  const cleanId = String(employeeId || "").trim();
+  const person = getStaffLiteByEmployeeId_(cleanId) || {};
+  return {
+    ok: true,
+    employeeId: cleanId,
+    person: person,
+    standardRota: getPersonStandardRota_(cleanId)
+  };
+}
+
+function getPeopleStandardRotaForWeek_(siteId, weekStartDate) {
+  const cleanSiteId = String(siteId || "").trim();
+  const weekStart = normaliseWeekStart_(weekStartDate);
+  const weekDates = getWeekDates_(weekStart);
+  const dateByWeekday = {};
+  weekDates.forEach(function(day) {
+    dateByWeekday[day.weekday] = day.date;
+  });
+  const spreadsheet = getWorkforceSpreadsheet_();
+  return readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.personStandardRota))
+    .filter(function(row) {
+      if (!workforceBoolean_(row.Active)) return false;
+      const weekday = String(row["Day of Week"] || "");
+      const date = dateByWeekday[weekday];
+      if (!date) return false;
+      const from = normaliseWorkforceDate_(row["Effective From"]);
+      const to = normaliseWorkforceDate_(row["Effective To"]);
+      if (from && date < from) return false;
+      if (to && date > to) return false;
+      return !cleanSiteId || String(row.Site || "") === cleanSiteId || String(row.Site || "");
+    });
+}
+
 function getCockpitStaffCandidates_(spreadsheet, reliefAvailability) {
   const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory);
   if (!sheet || sheet.getLastRow() < 2) return [];
@@ -855,15 +1087,20 @@ function getSuggestionConfidence_(score) {
 function getRotaCockpitTotals_(days) {
   const totals = getEmptyRotaCockpitTotals_();
   (days || []).forEach(function(day) {
-    totals.scheduled += (day.scheduled || []).length;
+    totals.scheduled += (day.fullRota || day.scheduled || []).length;
     totals.absences += (day.absences || []).length;
-    (day.gaps || []).forEach(function(gap) {
-      if (/resolved|snoozed|ignored/i.test(String(gap.status || ""))) {
+    (day.issues || []).forEach(function(issue) {
+      if (String(issue.type || "") === "conflict") totals.conflicts += 1;
+      if (/resolved|snoozed|ignored/i.test(String(issue.status || ""))) {
         totals.resolved += 1;
-      } else if (gap.bestSuggestion) {
+      } else if (issue.bestSuggestion) {
         totals.coverSuggested += 1;
-      } else {
+        totals.suggestions += 1;
+      } else if (String(issue.type || "") === "uncovered") {
         totals.uncoveredGaps += 1;
+        totals.uncovered += 1;
+      } else {
+        totals.unresolvedActions += 1;
       }
     });
   });
@@ -874,8 +1111,12 @@ function getEmptyRotaCockpitTotals_() {
   return {
     scheduled: 0,
     absences: 0,
+    uncovered: 0,
     uncoveredGaps: 0,
+    suggestions: 0,
     coverSuggested: 0,
+    conflicts: 0,
+    unresolvedActions: 0,
     resolved: 0
   };
 }
@@ -940,4 +1181,116 @@ function getDefaultAgencyContact_() {
     .filter(function(agency) {
       return agency["Agency ID"] && String(agency.Active || "").toUpperCase() !== "FALSE";
     })[0] || null;
+}
+
+function getBrightHrAdminSettings_() {
+  const keys = WORKFORCE_CONFIG.scriptProperties;
+  const properties = PropertiesService.getScriptProperties();
+  return {
+    ok: true,
+    apiBaseUrl: properties.getProperty(keys.brightHrApiBaseUrl) || WORKFORCE_CONFIG.brightHr.apiBaseUrl,
+    employeeEndpoint: properties.getProperty(keys.brightHrEmployeesPath) || "employees/v1/query",
+    employeeMethod: properties.getProperty(keys.brightHrEmployeesMethod) || "post",
+    absenceEndpoint: properties.getProperty(keys.brightHrAbsencesPath) || "",
+    absenceMethod: properties.getProperty(keys.brightHrAbsencesMethod) || "post",
+    tokenPropertyKey: properties.getProperty(keys.brightHrTokenPropertyKey) || keys.brightHrAccessToken,
+    absenceLookaheadDays: properties.getProperty(keys.brightHrAbsenceLookaheadDays) || "45",
+    absenceLookbackDays: properties.getProperty(keys.brightHrAbsenceLookbackDays) || "14"
+  };
+}
+
+function saveBrightHrAdminSettings_(settings) {
+  const keys = WORKFORCE_CONFIG.scriptProperties;
+  const properties = PropertiesService.getScriptProperties();
+  const apiBaseUrl = String(settings.apiBaseUrl || "").trim().replace(/\/+$/, "");
+  const employeeEndpoint = String(settings.employeeEndpoint || "employees/v1/query").trim().replace(/^\/+/, "");
+  const employeeMethod = String(settings.employeeMethod || "post").trim().toLowerCase();
+  const absenceEndpoint = String(settings.absenceEndpoint || "").trim().replace(/^\/+/, "");
+  const absenceMethod = String(settings.absenceMethod || "post").trim().toLowerCase();
+  if (apiBaseUrl) properties.setProperty(keys.brightHrApiBaseUrl, apiBaseUrl);
+  if (employeeEndpoint) properties.setProperty(keys.brightHrEmployeesPath, employeeEndpoint);
+  if (["get", "post"].indexOf(employeeMethod) !== -1) properties.setProperty(keys.brightHrEmployeesMethod, employeeMethod);
+  if (absenceEndpoint) properties.setProperty(keys.brightHrAbsencesPath, absenceEndpoint);
+  if (["get", "post"].indexOf(absenceMethod) !== -1) properties.setProperty(keys.brightHrAbsencesMethod, absenceMethod);
+  properties.setProperty(keys.brightHrTokenPropertyKey, String(settings.tokenPropertyKey || keys.brightHrAccessToken).trim());
+  properties.setProperty(keys.brightHrAbsenceLookaheadDays, String(settings.absenceLookaheadDays || "45").trim());
+  properties.setProperty(keys.brightHrAbsenceLookbackDays, String(settings.absenceLookbackDays || "14").trim());
+  return {
+    ok: true,
+    message: "BrightHR admin settings saved."
+  };
+}
+
+function testBrightHrEndpointPreview_(type) {
+  const settings = getBrightHrAdminSettings_();
+  const isEmployee = type === "employee";
+  const endpoint = isEmployee ? settings.employeeEndpoint : settings.absenceEndpoint;
+  const method = isEmployee ? settings.employeeMethod : settings.absenceMethod;
+  if (!endpoint) {
+    return {
+      ok: false,
+      endpoint: "",
+      method: method,
+      message: "No " + (isEmployee ? "employee" : "absence") + " endpoint is configured."
+    };
+  }
+  try {
+    const data = brightHrRequest_(endpoint, method === "post" ? {
+      method: "post",
+      payload: buildBrightHrPreviewPayload_(isEmployee)
+    } : { method: "get" });
+    return {
+      ok: true,
+      endpoint: endpoint,
+      method: method,
+      itemCount: getBrightHrItems_(data).length,
+      rawPreview: JSON.stringify(data).slice(0, 1800),
+      message: "BrightHR " + (isEmployee ? "employee" : "absence") + " endpoint test worked."
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      endpoint: endpoint,
+      method: method,
+      httpStatus: error.httpStatus || "",
+      rawPreview: String(error.responseText || "").slice(0, 1800),
+      error: error.message || String(error),
+      message: "BrightHR " + (isEmployee ? "employee" : "absence") + " endpoint test failed: " + (error.message || String(error))
+    };
+  }
+}
+
+function buildBrightHrPreviewPayload_(isEmployee) {
+  const settings = getBrightHrAdminSettings_();
+  if (isEmployee) return { pageSize: 5 };
+  const employeeId = getFirstActiveEmployeeIdForBrightHrTest_();
+  if (!employeeId) {
+    throw new Error("No employee ID found in Staff Directory. Sync employees before testing the absence endpoint.");
+  }
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - Number(settings.absenceLookbackDays || 14));
+  const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + Number(settings.absenceLookaheadDays || 45));
+  return {
+    filters: {
+      employeeId: employeeId,
+      from: formatDateInputForBrightHr_(from),
+      to: formatDateInputForBrightHr_(to)
+    },
+    pageSize: 5
+  };
+}
+
+function formatDateInputForBrightHr_(date) {
+  return Utilities.formatDate(date, WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd");
+}
+
+function getFirstActiveEmployeeIdForBrightHrTest_() {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const person = readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory))
+    .filter(function(row) {
+      return String(row["Employee ID"] || "").trim() &&
+        String(row["Employment Status"] || "").toLowerCase() !== "terminated" &&
+        !workforceBoolean_(row.Terminated);
+    })[0];
+  return person ? String(person["Employee ID"] || "").trim() : "";
 }

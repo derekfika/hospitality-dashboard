@@ -43,6 +43,7 @@
               <button class="secondary" id="nextWeekBtn" type="button">Next week</button>
               <button class="secondary" id="weekAfterBtn" type="button">Week after</button>
               <button id="loadCockpitBtn" type="button">Load week</button>
+              <button class="secondary" id="toggleFullRotaBtn" type="button">Show full rota</button>
             </div>
           </div>
           <div class="hero-card">
@@ -102,6 +103,8 @@
 
           <div class="action-row">
             <button id="syncEverythingBtn">Sync workforce data</button>
+            <button id="testBrightHrConnectionBtn" class="secondary" type="button">Test BrightHR connection</button>
+            <button id="testEmployeeEndpointBtn" class="secondary" type="button">Test employee endpoint</button>
             <button id="testAbsenceEndpointBtn" class="secondary" type="button">Test absence endpoint</button>
             <button id="discoverAbsenceEndpointBtn" class="secondary" type="button">Discover absence endpoint</button>
           </div>
@@ -109,6 +112,7 @@
           <div class="endpoint-card">
             <span>Configured absence endpoint</span>
             <strong id="absenceEndpointStatus">Not configured</strong>
+            <pre id="brightHrDebugPreview"></pre>
           </div>
 
           <div class="checklist">
