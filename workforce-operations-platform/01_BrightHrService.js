@@ -283,11 +283,60 @@ function discoverBrightHrAbsenceEndpoint_() {
       }
     } catch (error) {
       if (candidate.path === "absences/v1/query" && Number(error.httpStatus || 0) === 422) {
+        const employeeId = getFirstBrightHrEmployeeIdForAbsenceDiscovery_();
+        if (employeeId) {
+          try {
+            const data = brightHrRequest_(candidate.path, {
+              method: candidate.method,
+              payload: buildBrightHrAbsenceQueryPayload_(employeeId, "", true)
+            });
+            const items = getBrightHrItems_(data);
+            if (isBrightHrCollectionResponse_(data)) {
+              return {
+                path: candidate.path,
+                method: candidate.method,
+                itemCount: items.length
+              };
+            }
+          } catch (retryError) {
+            if (Number(retryError.httpStatus || 0) === 422) {
+              try {
+                const data = brightHrRequest_(candidate.path, {
+                  method: candidate.method,
+                  payload: buildBrightHrAbsenceQueryPayload_(employeeId, "", false)
+                });
+                const items = getBrightHrItems_(data);
+                if (isBrightHrCollectionResponse_(data)) {
+                  return {
+                    path: candidate.path,
+                    method: candidate.method,
+                    itemCount: items.length
+                  };
+                }
+              } catch (secondRetryError) {
+                return {
+                  path: candidate.path,
+                  method: candidate.method,
+                  itemCount: 0,
+                  warning: "Endpoint exists, but BrightHR still rejected the employee-specific payload.",
+                  responsePreview: String(secondRetryError.responseText || secondRetryError.message || "").slice(0, 1200)
+                };
+              }
+            }
+            return {
+              path: candidate.path,
+              method: candidate.method,
+              itemCount: 0,
+              warning: "Endpoint exists, but BrightHR rejected the employee-specific payload.",
+              responsePreview: String(retryError.responseText || retryError.message || "").slice(0, 1200)
+            };
+          }
+        }
         return {
           path: candidate.path,
           method: candidate.method,
           itemCount: 0,
-          warning: "Endpoint returned HTTP 422 validation error, so the path exists but the request body needs adjustment.",
+          warning: "Endpoint exists, but no employee ID was available for the validation retry. Sync employees first, then retry discovery or absence sync.",
           responsePreview: String(error.responseText || error.message || "").slice(0, 1200)
         };
       }
@@ -567,6 +616,15 @@ function getBrightHrEmployeeIdsForAbsenceSync_(spreadsheet) {
       seen[id] = true;
       return true;
     });
+}
+
+function getFirstBrightHrEmployeeIdForAbsenceDiscovery_() {
+  try {
+    const spreadsheet = getWorkforceSpreadsheet_();
+    return getBrightHrEmployeeIdsForAbsenceSync_(spreadsheet)[0] || "";
+  } catch (error) {
+    return "";
+  }
 }
 
 function getStaffNameForAbsence_(staffIndex, employeeId) {
