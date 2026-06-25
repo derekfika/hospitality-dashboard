@@ -22,6 +22,8 @@ const WORKFORCE_CONFIG = Object.freeze({
     brightHrTokenPropertyKey: "BRIGHTHR_TOKEN_PROPERTY_KEY",
     brightHrAbsenceLookaheadDays: "BRIGHTHR_ABSENCE_LOOKAHEAD_DAYS",
     brightHrAbsenceLookbackDays: "BRIGHTHR_ABSENCE_LOOKBACK_DAYS",
+    brightHrAbsenceBatchSize: "BRIGHTHR_ABSENCE_BATCH_SIZE",
+    brightHrAbsenceSyncCursor: "BRIGHTHR_ABSENCE_SYNC_CURSOR",
     brightHrAccessToken: "BRIGHTHR_ACCESS_TOKEN",
     brightHrAccessTokenExpiresAt: "BRIGHTHR_ACCESS_TOKEN_EXPIRES_AT"
   },

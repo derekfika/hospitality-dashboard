@@ -130,6 +130,17 @@ function setBrightHrAbsencesEndpoint(path, method) {
 }
 
 function syncBrightHrAbsences() {
+  const result = syncBrightHrAbsencesBatch();
+  result.message = [
+    result.synced + " absence row(s) synced from BrightHR.",
+    result.employeesQueried + " of " + result.totalEmployees + " employee(s) checked in this batch.",
+    result.hasMore ? "More employees remain; run absence sync again to continue." : "Absence sync is complete.",
+    result.rateLimited ? "BrightHR rate limit was reached; wait a moment before continuing." : ""
+  ].filter(Boolean).join(" ");
+  return result;
+}
+
+function syncBrightHrAbsencesBatch(batchSizeOverride) {
   setupWorkforceOperationsPlatform();
   const keys = WORKFORCE_CONFIG.scriptProperties;
   const properties = PropertiesService.getScriptProperties();
@@ -148,20 +159,38 @@ function syncBrightHrAbsences() {
   if (!employeeIds.length) {
     throw new Error("No BrightHR employee IDs were found in Staff Directory. Sync employees first, then sync absences.");
   }
-  const items = fetchBrightHrAbsences_(path, method, employeeIds);
+  const batchSize = Math.max(1, Math.min(Number(batchSizeOverride || properties.getProperty(keys.brightHrAbsenceBatchSize) || 25), 50));
+  const startCursor = Math.max(0, Math.min(Number(properties.getProperty(keys.brightHrAbsenceSyncCursor) || 0), employeeIds.length - 1));
+  const batchEmployeeIds = employeeIds.slice(startCursor, startCursor + batchSize);
+  const fetchResult = fetchBrightHrAbsences_(path, method, batchEmployeeIds);
   const now = new Date();
-  const rows = items.map(function(absence, index) {
+  const rows = fetchResult.items.map(function(absence, index) {
     return normaliseBrightHrAbsence_(absence, now, index, staffIndex);
   }).filter(function(row) {
     return row["Employee Name"] && row["Start Date"];
   });
   upsertWorkforceRows_(sheet, "Absence ID", rows);
+  const nextCursor = fetchResult.rateLimited
+    ? startCursor + fetchResult.employeesQueried
+    : startCursor + batchEmployeeIds.length;
+  const hasMore = nextCursor < employeeIds.length;
+  if (hasMore) {
+    properties.setProperty(keys.brightHrAbsenceSyncCursor, String(Math.max(0, nextCursor)));
+  } else {
+    properties.deleteProperty(keys.brightHrAbsenceSyncCursor);
+  }
   return {
     ok: true,
     provider: WORKFORCE_CONFIG.hrProvider,
     endpoint: path,
     method: method,
-    employeesQueried: employeeIds.length,
+    employeesQueried: fetchResult.employeesQueried,
+    totalEmployees: employeeIds.length,
+    cursor: startCursor,
+    nextCursor: hasMore ? nextCursor : 0,
+    hasMore: hasMore,
+    rateLimited: fetchResult.rateLimited,
+    warning: fetchResult.warning || "",
     sheet: WORKFORCE_CONFIG.sheets.absences,
     synced: rows.length,
     message: rows.length + " absence row(s) synced from BrightHR."
@@ -188,7 +217,11 @@ function fetchBrightHrAbsences_(path, method, employeeIds) {
   const cleanMethod = String(method || "post").toLowerCase();
   const items = [];
   const ids = employeeIds || [];
-  ids.forEach(function(employeeId) {
+  let employeesQueried = 0;
+  let rateLimited = false;
+  let warning = "";
+  for (let idIndex = 0; idIndex < ids.length; idIndex += 1) {
+    const employeeId = ids[idIndex];
     let continuationToken = "";
     let pages = 0;
     do {
@@ -202,6 +235,16 @@ function fetchBrightHrAbsences_(path, method, employeeIds) {
       try {
         data = brightHrRequest_(path, options);
       } catch (error) {
+        if (Number(error.httpStatus || 0) === 429) {
+          rateLimited = true;
+          warning = "BrightHR rate limit hit after " + employeesQueried + " employee(s): " + (error.message || String(error));
+          return {
+            items: items,
+            employeesQueried: employeesQueried,
+            rateLimited: rateLimited,
+            warning: warning
+          };
+        }
         if (Number(error.httpStatus || 0) === 422 && cleanMethod === "post") {
           data = brightHrRequest_(path, {
             method: "post",
@@ -214,8 +257,15 @@ function fetchBrightHrAbsences_(path, method, employeeIds) {
       items.push.apply(items, getBrightHrItems_(data));
       continuationToken = cleanMethod === "post" ? String(data.continuationToken || "") : "";
     } while (continuationToken);
-  });
-  return items;
+    employeesQueried += 1;
+    if (ids.length > 1) Utilities.sleep(180);
+  }
+  return {
+    items: items,
+    employeesQueried: employeesQueried,
+    rateLimited: rateLimited,
+    warning: warning
+  };
 }
 
 function buildBrightHrAbsenceQueryPayload_(employeeId, continuationToken, includeDateRange) {

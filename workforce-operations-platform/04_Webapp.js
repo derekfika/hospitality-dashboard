@@ -321,6 +321,10 @@ function syncBrightHrAbsencesFromUi() {
   return syncBrightHrAbsences();
 }
 
+function syncBrightHrAbsencesBatchFromUi(batchSize) {
+  return toPlainJson_(syncBrightHrAbsencesBatch(batchSize));
+}
+
 function discoverBrightHrAbsenceEndpointFromUi() {
   return discoverBrightHrAbsenceEndpoint();
 }

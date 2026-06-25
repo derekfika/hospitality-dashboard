@@ -382,6 +382,19 @@
       </div>
     </div>
 
+    <div class="modal-backdrop hidden" id="syncProgressModal">
+      <div class="modal-card sync-progress-card">
+        <p class="eyebrow">Live sync</p>
+        <h3>Syncing workforce data</h3>
+        <p class="muted-text" id="syncProgressSummary">Preparing sync…</p>
+        <div class="sync-progress-bar"><span id="syncProgressBar"></span></div>
+        <div class="sync-step-list" id="syncStepList"></div>
+        <div class="action-row compact-actions">
+          <button class="secondary" id="closeSyncProgressBtn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div class="toast" id="toast"></div>
     <?!= include("Script"); ?>
   </body>

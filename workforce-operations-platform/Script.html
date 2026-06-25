@@ -34,7 +34,7 @@
 
   function bindActions() {
     onClick("syncEverythingBtn", () => {
-      runAction("Syncing workforce data…", "syncWorkforceFromUi");
+      runLiveWorkforceSync();
     });
     onClick("testAbsenceEndpointBtn", () => {
       runAction("Testing BrightHR absence endpoint…", "testBrightHrAbsenceEndpointFromUi");
@@ -109,6 +109,7 @@
       submitGapActionForm();
     });
     onClick("closeGapModal", closeGapModal);
+    onClick("closeSyncProgressBtn", closeSyncProgressModal);
   }
 
   function onClick(id, handler) {
@@ -184,6 +185,109 @@
     if (functionName === "generateReliefSuggestionsFromUi") runner.generateReliefSuggestionsFromUi();
     if (functionName === "generateReliefRotaAssignmentsFromUi") runner.generateReliefRotaAssignmentsFromUi();
     if (functionName === "dedupeRotaTemplatesFromUi") runner.dedupeRotaTemplatesFromUi();
+  }
+
+  function runLiveWorkforceSync() {
+    const progress = {
+      employeeSynced: 0,
+      absenceSynced: 0,
+      employeesQueried: 0,
+      totalEmployees: 0,
+      batches: 0,
+      warnings: []
+    };
+    openSyncProgressModal();
+    updateSyncProgress(progress, "Syncing employees…", 8);
+    google.script.run
+      .withSuccessHandler(result => {
+        result = result || {};
+        progress.employeeSynced = Number(result.synced || 0);
+        addSyncStep("Employees", `${progress.employeeSynced} employee(s) updated.`, "done");
+        runAbsenceSyncBatch(progress);
+      })
+      .withFailureHandler(error => {
+        progress.warnings.push(error.message || "Employee sync failed.");
+        addSyncStep("Employees", error.message || "Employee sync failed.", "warn");
+        updateSyncProgress(progress, "Employee sync failed.", 100);
+      })
+      .syncBrightHrEmployeesFromUi();
+  }
+
+  function runAbsenceSyncBatch(progress) {
+    progress.batches += 1;
+    updateSyncProgress(progress, `Syncing absence batch ${progress.batches}…`, getSyncPercent(progress));
+    google.script.run
+      .withSuccessHandler(result => {
+        result = result || {};
+        progress.absenceSynced += Number(result.synced || 0);
+        progress.employeesQueried += Number(result.employeesQueried || 0);
+        progress.totalEmployees = Number(result.totalEmployees || progress.totalEmployees || 0);
+        if (result.warning) progress.warnings.push(result.warning);
+        addSyncStep(
+          `Absence batch ${progress.batches}`,
+          `${result.employeesQueried || 0} employee(s) checked, ${result.synced || 0} absence row(s) updated.`,
+          result.rateLimited ? "warn" : "done"
+        );
+        if (result.rateLimited) {
+          updateSyncProgress(progress, "BrightHR rate limit reached. Wait a minute, then sync again to continue.", getSyncPercent(progress));
+          showToast("BrightHR rate limit reached. Sync can continue from this point later.");
+          loadDashboard();
+          if (state.cockpitLoaded) loadRotaCockpit();
+          return;
+        }
+        if (result.hasMore) {
+          window.setTimeout(() => runAbsenceSyncBatch(progress), 700);
+          return;
+        }
+        updateSyncProgress(progress, "Workforce sync complete.", 100);
+        addSyncStep("Complete", `${progress.absenceSynced} absence row(s) updated in total.`, "done");
+        showToast("Workforce sync complete.");
+        loadDashboard();
+        if (state.cockpitLoaded) loadRotaCockpit();
+      })
+      .withFailureHandler(error => {
+        progress.warnings.push(error.message || "Absence sync failed.");
+        addSyncStep(`Absence batch ${progress.batches}`, error.message || "Absence sync failed.", "warn");
+        updateSyncProgress(progress, "Absence sync stopped. See warning below.", getSyncPercent(progress));
+        loadDashboard();
+      })
+      .syncBrightHrAbsencesBatchFromUi(25);
+  }
+
+  function openSyncProgressModal() {
+    const modal = document.getElementById("syncProgressModal");
+    const list = document.getElementById("syncStepList");
+    if (list) list.innerHTML = "";
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  function closeSyncProgressModal() {
+    const modal = document.getElementById("syncProgressModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function updateSyncProgress(progress, message, percent) {
+    text("syncProgressSummary", [
+      message,
+      progress.totalEmployees ? `${progress.employeesQueried}/${progress.totalEmployees} employees checked for absences.` : "",
+      progress.warnings.length ? progress.warnings[progress.warnings.length - 1] : ""
+    ].filter(Boolean).join(" "));
+    const bar = document.getElementById("syncProgressBar");
+    if (bar) bar.style.width = `${Math.max(4, Math.min(Number(percent || 0), 100))}%`;
+  }
+
+  function addSyncStep(title, body, status) {
+    const list = document.getElementById("syncStepList");
+    if (!list) return;
+    const item = document.createElement("div");
+    item.className = `sync-step ${status || "pending"}`;
+    item.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span>`;
+    list.appendChild(item);
+  }
+
+  function getSyncPercent(progress) {
+    if (!progress.totalEmployees) return 20;
+    return 20 + Math.min(75, Math.round((progress.employeesQueried / progress.totalEmployees) * 75));
   }
 
   function refreshAfterAction(functionName) {
