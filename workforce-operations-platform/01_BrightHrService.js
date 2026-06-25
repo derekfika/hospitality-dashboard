@@ -237,8 +237,10 @@ function buildBrightHrAbsenceQueryPayload_(employeeId, continuationToken, includ
 function getBrightHrAbsenceSyncRange_() {
   const keys = WORKFORCE_CONFIG.scriptProperties;
   const properties = PropertiesService.getScriptProperties();
-  const lookback = Math.max(0, Number(properties.getProperty(keys.brightHrAbsenceLookbackDays) || 14));
-  const lookahead = Math.max(1, Number(properties.getProperty(keys.brightHrAbsenceLookaheadDays) || 45));
+  const requestedLookback = Math.max(0, Number(properties.getProperty(keys.brightHrAbsenceLookbackDays) || 3));
+  const requestedLookahead = Math.max(1, Number(properties.getProperty(keys.brightHrAbsenceLookaheadDays) || 28));
+  const lookback = Math.min(requestedLookback, 30);
+  const lookahead = Math.min(requestedLookahead, Math.max(1, 31 - lookback));
   const today = new Date();
   const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - lookback);
   const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + lookahead);

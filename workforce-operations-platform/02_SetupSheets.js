@@ -9,8 +9,8 @@ const WORKFORCE_SETTINGS_ROWS = [
   ["BRIGHTHR_EMPLOYEE_ENDPOINT", "employees/v1/query", "BrightHR", "Employee endpoint", "Stored in Script Properties if changed."],
   ["BRIGHTHR_ABSENCE_ENDPOINT", "", "BrightHR", "Absence endpoint", "Example: absences/v1/query."],
   ["BRIGHTHR_ABSENCE_METHOD", "post", "BrightHR", "Absence method", "GET or POST."],
-  ["BRIGHTHR_ABSENCE_LOOKAHEAD_DAYS", "45", "BrightHR", "Absence lookahead", "Future days to request when supported."],
-  ["BRIGHTHR_ABSENCE_LOOKBACK_DAYS", "14", "BrightHR", "Absence lookback", "Past days to request when supported."]
+  ["BRIGHTHR_ABSENCE_LOOKAHEAD_DAYS", "28", "BrightHR", "Absence lookahead", "Future days to request. BrightHR allows a maximum 31 day From/To range."],
+  ["BRIGHTHR_ABSENCE_LOOKBACK_DAYS", "3", "BrightHR", "Absence lookback", "Past days to request. Keep lookback + lookahead at 31 days or less."]
 ];
 
 function setupWorkforceOperationsPlatform() {

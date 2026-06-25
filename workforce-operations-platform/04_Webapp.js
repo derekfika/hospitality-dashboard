@@ -1194,8 +1194,8 @@ function getBrightHrAdminSettings_() {
     absenceEndpoint: properties.getProperty(keys.brightHrAbsencesPath) || "",
     absenceMethod: properties.getProperty(keys.brightHrAbsencesMethod) || "post",
     tokenPropertyKey: properties.getProperty(keys.brightHrTokenPropertyKey) || keys.brightHrAccessToken,
-    absenceLookaheadDays: properties.getProperty(keys.brightHrAbsenceLookaheadDays) || "45",
-    absenceLookbackDays: properties.getProperty(keys.brightHrAbsenceLookbackDays) || "14"
+    absenceLookaheadDays: properties.getProperty(keys.brightHrAbsenceLookaheadDays) || "28",
+    absenceLookbackDays: properties.getProperty(keys.brightHrAbsenceLookbackDays) || "3"
   };
 }
 
@@ -1213,8 +1213,9 @@ function saveBrightHrAdminSettings_(settings) {
   if (absenceEndpoint) properties.setProperty(keys.brightHrAbsencesPath, absenceEndpoint);
   if (["get", "post"].indexOf(absenceMethod) !== -1) properties.setProperty(keys.brightHrAbsencesMethod, absenceMethod);
   properties.setProperty(keys.brightHrTokenPropertyKey, String(settings.tokenPropertyKey || keys.brightHrAccessToken).trim());
-  properties.setProperty(keys.brightHrAbsenceLookaheadDays, String(settings.absenceLookaheadDays || "45").trim());
-  properties.setProperty(keys.brightHrAbsenceLookbackDays, String(settings.absenceLookbackDays || "14").trim());
+  const cappedRange = capBrightHrAbsenceRange_(settings.absenceLookbackDays, settings.absenceLookaheadDays);
+  properties.setProperty(keys.brightHrAbsenceLookaheadDays, String(cappedRange.lookahead));
+  properties.setProperty(keys.brightHrAbsenceLookbackDays, String(cappedRange.lookback));
   return {
     ok: true,
     message: "BrightHR admin settings saved."
@@ -1267,9 +1268,10 @@ function buildBrightHrPreviewPayload_(isEmployee) {
   if (!employeeId) {
     throw new Error("No employee ID found in Staff Directory. Sync employees before testing the absence endpoint.");
   }
+  const range = capBrightHrAbsenceRange_(settings.absenceLookbackDays, settings.absenceLookaheadDays);
   const today = new Date();
-  const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - Number(settings.absenceLookbackDays || 14));
-  const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + Number(settings.absenceLookaheadDays || 45));
+  const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - range.lookback);
+  const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + range.lookahead);
   return {
     filters: {
       employeeId: employeeId,
@@ -1282,6 +1284,17 @@ function buildBrightHrPreviewPayload_(isEmployee) {
 
 function formatDateInputForBrightHr_(date) {
   return Utilities.formatDate(date, WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd");
+}
+
+function capBrightHrAbsenceRange_(lookbackValue, lookaheadValue) {
+  const requestedLookback = Math.max(0, Number(lookbackValue || 3));
+  const requestedLookahead = Math.max(1, Number(lookaheadValue || 28));
+  const lookback = Math.min(requestedLookback, 30);
+  const lookahead = Math.min(requestedLookahead, Math.max(1, 31 - lookback));
+  return {
+    lookback: lookback,
+    lookahead: lookahead
+  };
 }
 
 function getFirstActiveEmployeeIdForBrightHrTest_() {
