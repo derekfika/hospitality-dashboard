@@ -231,6 +231,7 @@ function approveSuggestedCoverFromUi(gapId) {
     throw new Error("No suggested cover was found for this gap.");
   }
   return assignCoverForGap_(gapId, {
+    coverEmployeeId: suggestion.employeeId,
     coverName: suggestion.employeeName,
     coverType: "Relief",
     notes: [
@@ -245,6 +246,7 @@ function chooseCoverForGapFromUi(gapId, employeeId) {
   const person = getStaffLiteByEmployeeId_(employeeId);
   if (!person || !person.name) throw new Error("Could not find that employee.");
   return assignCoverForGap_(gapId, {
+    coverEmployeeId: person.employeeId,
     coverName: person.name,
     coverType: "Relief",
     notes: "Chosen manually from rota cockpit"
@@ -587,8 +589,8 @@ function getWorkforceSummary_(spreadsheet) {
     rotaShiftCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.rotaShifts),
     reliefSuggestionCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefSuggestions),
     reliefAssignmentCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefAssignments),
-    agencyRequestCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.agencyRequests)
-    ,
+    coverHistoryCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.coverHistory),
+    agencyRequestCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.agencyRequests),
     managerCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.managers),
     agencyContactCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.agencyContacts),
     coverageGapCount: getWorkforceSheetRecordCount_(spreadsheet, WORKFORCE_CONFIG.sheets.coverageGaps),
@@ -605,8 +607,8 @@ function getEmptyWorkforceSummary_() {
     rotaShiftCount: 0,
     reliefSuggestionCount: 0,
     reliefAssignmentCount: 0,
-    agencyRequestCount: 0
-    ,
+    coverHistoryCount: 0,
+    agencyRequestCount: 0,
     managerCount: 0,
     agencyContactCount: 0,
     coverageGapCount: 0,
@@ -737,6 +739,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
   const reliefAvailability = buildReliefAvailabilityIndex_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefAvailability)
   ));
+  const coverHistory = buildCoverHistoryIndex_(readCoverHistoryRows_(spreadsheet));
   const staff = getCockpitStaffCandidates_(spreadsheet, reliefAvailability);
   const staffLookup = buildCockpitStaffLiteLookup_(spreadsheet);
   const absenceIndex = buildAbsenceIndex_(absences);
@@ -810,7 +813,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
           exception ? exception.Notes || "" : ""
         );
         generatedGaps.push(gap);
-        const gapSuggestions = getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability);
+        const gapSuggestions = getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability, coverHistory);
         suggestions.push.apply(suggestions, gapSuggestions.rows);
         const gapIssue = {
           issueId: String(gap["Gap ID"] || ""),
@@ -870,7 +873,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
   };
 }
 
-function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability) {
+function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability, coverHistory) {
   const date = normaliseWorkforceDate_(gap.Date);
   const availableRelief = reliefAvailability[date] || [];
   const candidates = staff.filter(function(person) {
@@ -879,12 +882,14 @@ function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailabili
       !absenceIndex[getGapPersonDateKey_(person.Name, date)];
   }).map(function(person) {
     const reliefMatch = findReliefAvailabilityForPerson_(availableRelief, person.Name);
-    const score = scoreReliefCandidate_(person, gap) + (reliefMatch ? 60 : 0);
+    const historySignal = getCoverHistorySignal_(coverHistory, gap, person);
+    const score = scoreReliefCandidate_(person, gap, historySignal) + (reliefMatch ? 60 : 0);
     return {
       person: person,
       reliefMatch: reliefMatch,
+      historySignal: historySignal,
       score: score,
-      reason: buildReliefReason_(person, gap, reliefMatch)
+      reason: buildReliefReason_(person, gap, reliefMatch, historySignal)
     };
   }).sort(function(a, b) {
     return b.score - a.score;

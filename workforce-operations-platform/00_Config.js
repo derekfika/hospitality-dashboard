@@ -45,6 +45,7 @@ const WORKFORCE_CONFIG = Object.freeze({
     rotaShifts: "Rota Shifts",
     reliefSuggestions: "Relief Suggestions",
     reliefAssignments: "Relief Assignments",
+    coverHistory: "Cover History",
     agencyRequests: "Agency Requests",
     coverageGaps: "Coverage Gaps",
     reliefAvailability: "Relief Availability",

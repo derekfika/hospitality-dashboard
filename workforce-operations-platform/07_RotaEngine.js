@@ -125,6 +125,7 @@ function generateReliefSuggestions(daysAhead) {
   const reliefAvailability = buildReliefAvailabilityIndex_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefAvailability)
   ));
+  const coverHistory = buildCoverHistoryIndex_(readCoverHistoryRows_(spreadsheet));
   const staff = readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory)
   ).filter(function(person) {
@@ -141,11 +142,14 @@ function generateReliefSuggestions(daysAhead) {
           !absences[getGapPersonDateKey_(person.Name, normaliseWorkforceDate_(gap.Date))];
       })
       .map(function(person) {
+        const reliefMatch = findReliefAvailabilityForPerson_(availableRelief, person.Name);
+        const historySignal = getCoverHistorySignal_(coverHistory, gap, person);
         return {
           person: person,
-          reliefMatch: findReliefAvailabilityForPerson_(availableRelief, person.Name),
-          score: scoreReliefCandidate_(person, gap) +
-            (findReliefAvailabilityForPerson_(availableRelief, person.Name) ? 60 : 0)
+          reliefMatch: reliefMatch,
+          historySignal: historySignal,
+          score: scoreReliefCandidate_(person, gap, historySignal) +
+            (reliefMatch ? 60 : 0)
         };
       })
       .sort(function(a, b) { return b.score - a.score; })
@@ -165,7 +169,7 @@ function generateReliefSuggestions(daysAhead) {
         "Role": gap.Role,
           "Suggested Employee ID": candidate.person["Employee ID"],
           "Suggested Employee Name": candidate.person.Name,
-          "Reason": buildReliefReason_(candidate.person, gap, candidate.reliefMatch),
+          "Reason": buildReliefReason_(candidate.person, gap, candidate.reliefMatch, candidate.historySignal),
         "Score": candidate.score,
         "Reviewed": false,
         "Approved": false
@@ -326,8 +330,9 @@ function buildCoverageGapIndex_(gaps) {
   return index;
 }
 
-function scoreReliefCandidate_(person, gap) {
+function scoreReliefCandidate_(person, gap, historySignal) {
   let score = 10;
+  historySignal = historySignal || {};
   const role = String(gap.Role || "").toLowerCase();
   const personRole = String(person.Role || "").toLowerCase();
   if (personRole && role && (personRole.indexOf(role) !== -1 || role.indexOf(personRole) !== -1)) score += 50;
@@ -337,16 +342,85 @@ function scoreReliefCandidate_(person, gap) {
   if (/chef/.test(role) && /chef/.test(personRole)) score += 25;
   if (/barista/.test(role) && /barista/.test(personRole)) score += 25;
   if (/hospitality/.test(role) && /hospitality/.test(personRole)) score += 20;
+  score += Math.min(140, Number(historySignal.score || 0));
   return score;
 }
 
-function buildReliefReason_(person, gap, reliefMatch) {
+function buildReliefReason_(person, gap, reliefMatch, historySignal) {
   const reasons = [];
+  historySignal = historySignal || {};
+  if (historySignal.exactCoverCount) {
+    reasons.push("History: covered " + gap["Employee Name"] + " " + historySignal.exactCoverCount + " time(s)");
+  } else if (historySignal.siteRoleCoverCount) {
+    reasons.push("History: covered this site/role " + historySignal.siteRoleCoverCount + " time(s)");
+  } else if (historySignal.roleCoverCount) {
+    reasons.push("History: covered this role " + historySignal.roleCoverCount + " time(s)");
+  }
   if (reliefMatch) reasons.push("Relief rota: " + reliefMatch["Site Name"] + " " + reliefMatch.Shift);
   if (person.Role) reasons.push("Role: " + person.Role);
   if (workforceBoolean_(person["Relief Team"])) reasons.push("Relief team");
   if (person["Primary Site"]) reasons.push("Primary site: " + person["Primary Site"]);
   return reasons.join(" | ") || "Available staff member";
+}
+
+function readCoverHistoryRows_(spreadsheet) {
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.coverHistory);
+  return sheet ? readWorkforceObjects_(sheet) : [];
+}
+
+function buildCoverHistoryIndex_(rows) {
+  const index = {};
+  (rows || []).forEach(function(row) {
+    if (String(row.Outcome || "").toLowerCase() === "cancelled") return;
+    const covering = normaliseWorkforcePerson_(row["Covering Employee Name"]);
+    const covered = normaliseWorkforcePerson_(row["Covered Employee Name"]);
+    const siteId = String(row["Site ID"] || "");
+    const role = String(row.Role || "").toLowerCase();
+    if (!covering) return;
+    incrementCoverHistoryIndex_(index, ["covering", covering].join("|"), row);
+    if (covered) incrementCoverHistoryIndex_(index, ["covered", covered, "covering", covering].join("|"), row);
+    if (covered && siteId) incrementCoverHistoryIndex_(index, ["covered", covered, "site", siteId, "covering", covering].join("|"), row);
+    if (covered && role) incrementCoverHistoryIndex_(index, ["covered", covered, "role", role, "covering", covering].join("|"), row);
+    if (siteId && role) incrementCoverHistoryIndex_(index, ["site", siteId, "role", role, "covering", covering].join("|"), row);
+    if (role) incrementCoverHistoryIndex_(index, ["role", role, "covering", covering].join("|"), row);
+  });
+  return index;
+}
+
+function incrementCoverHistoryIndex_(index, key, row) {
+  if (!index[key]) index[key] = { count: 0, lastDate: "" };
+  index[key].count += 1;
+  const date = normaliseWorkforceDate_(row.Date);
+  if (date && (!index[key].lastDate || date > index[key].lastDate)) index[key].lastDate = date;
+}
+
+function getCoverHistorySignal_(index, gap, person) {
+  index = index || {};
+  const covering = normaliseWorkforcePerson_(person.Name || person["Employee Name"]);
+  const covered = normaliseWorkforcePerson_(gap["Employee Name"]);
+  const siteId = String(gap["Site ID"] || "");
+  const role = String(gap.Role || "").toLowerCase();
+  const exact = index[["covered", covered, "covering", covering].join("|")] || {};
+  const exactSite = index[["covered", covered, "site", siteId, "covering", covering].join("|")] || {};
+  const exactRole = index[["covered", covered, "role", role, "covering", covering].join("|")] || {};
+  const siteRole = index[["site", siteId, "role", role, "covering", covering].join("|")] || {};
+  const roleOnly = index[["role", role, "covering", covering].join("|")] || {};
+  const exactCoverCount = Number(exact.count || 0);
+  const siteRoleCoverCount = Number(siteRole.count || 0);
+  const roleCoverCount = Number(roleOnly.count || 0);
+  const score =
+    Math.min(110, exactCoverCount * 45) +
+    Math.min(35, Number(exactSite.count || 0) * 12) +
+    Math.min(25, Number(exactRole.count || 0) * 8) +
+    Math.min(30, siteRoleCoverCount * 10) +
+    Math.min(15, roleCoverCount * 4);
+  return {
+    exactCoverCount: exactCoverCount,
+    siteRoleCoverCount: siteRoleCoverCount,
+    roleCoverCount: roleCoverCount,
+    score: score,
+    lastCoveredDate: exact.lastDate || exactSite.lastDate || exactRole.lastDate || siteRole.lastDate || roleOnly.lastDate || ""
+  };
 }
 
 function buildReliefAvailabilityIndex_(rows) {

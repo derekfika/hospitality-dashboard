@@ -143,11 +143,58 @@ function assignCoverForGap_(gapId, details) {
   markCoverageGap_(gapId, "resolved", {
     notes: coverType + " cover assigned: " + coverName + (notes ? " | " + notes : "")
   });
+  recordCoverHistory_(spreadsheet, gap, {
+    coverName: coverName,
+    coverType: coverType,
+    notes: notes,
+    source: "Web App",
+    outcome: "Assigned"
+  });
   return {
     ok: true,
     exceptionId: exceptionId,
     message: "Cover assigned to " + coverName + "."
   };
+}
+
+function recordCoverHistory_(spreadsheet, gap, details) {
+  details = details || {};
+  const coverName = String(details.coverName || "").trim();
+  if (!coverName || !gap) return null;
+  const date = normaliseWorkforceDate_(gap.Date);
+  const sheet = ensureCoverHistorySheet_(spreadsheet);
+  const row = {
+    "Cover History ID": [
+      "cover_history",
+      gap["Gap ID"] || slugifyWorkforce_(gap["Employee Name"]),
+      slugifyWorkforce_(coverName)
+    ].join("_"),
+    "Gap ID": gap["Gap ID"],
+    "Site ID": gap["Site ID"],
+    "Site Name": gap["Site Name"],
+    "Date": date,
+    "Weekday": gap.Weekday,
+    "Role": gap.Role,
+    "Covered Employee Name": gap["Employee Name"],
+    "Covering Employee ID": String(details.coverEmployeeId || ""),
+    "Covering Employee Name": coverName,
+    "Cover Type": String(details.coverType || "Relief"),
+    "Source": String(details.source || "Web App"),
+    "Outcome": String(details.outcome || "Assigned"),
+    "Notes": String(details.notes || ""),
+    "Recorded At": new Date(),
+    "Recorded By": Session.getActiveUser().getEmail()
+  };
+  upsertWorkforceRows_(sheet, "Cover History ID", [row]);
+  return row;
+}
+
+function ensureCoverHistorySheet_(spreadsheet) {
+  return setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.coverHistory, [
+    "Cover History ID", "Gap ID", "Site ID", "Site Name", "Date", "Weekday",
+    "Role", "Covered Employee Name", "Covering Employee ID", "Covering Employee Name",
+    "Cover Type", "Source", "Outcome", "Notes", "Recorded At", "Recorded By"
+  ]);
 }
 
 function requestAgencyForGap_(gapId, agencyId, details) {

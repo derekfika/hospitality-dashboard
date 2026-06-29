@@ -88,6 +88,11 @@ function setupWorkforceOperationsPlatform() {
     "Role", "Covering Employee ID", "Covering Employee Name", "Covering Email",
     "Covered Employee Name", "Status", "Score", "Reason", "Generated At", "Notes"
   ]);
+  setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.coverHistory, [
+    "Cover History ID", "Gap ID", "Site ID", "Site Name", "Date", "Weekday",
+    "Role", "Covered Employee Name", "Covering Employee ID", "Covering Employee Name",
+    "Cover Type", "Source", "Outcome", "Notes", "Recorded At", "Recorded By"
+  ]);
   setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.agencyRequests, [
     "Agency Request ID", "Site ID", "Date", "Role", "Agency", "Rate",
     "Hours", "Status", "Requested By", "Notes"
