@@ -85,7 +85,7 @@
       runAction("Generating relief suggestions…", "generateReliefSuggestionsFromUi");
     });
     onClick("generateReliefRotaBtn", () => {
-      runAction("Generating relief rota…", "generateReliefRotaAssignmentsFromUi");
+      generateSelectedWeekReliefRotaPdf();
     });
     onClick("openSettingsBtn", openSettingsModal);
     onClick("closeSettingsModal", closeSettingsModal);
@@ -419,6 +419,67 @@
         setCockpitLoading("Could not load this rota week.");
       })
       .getRotaCockpitFromUi(siteId, weekStart);
+  }
+
+  function generateSelectedWeekReliefRotaPdf() {
+    const siteSelect = document.getElementById("cockpitSiteSelect");
+    const weekInput = document.getElementById("cockpitWeekStartInput");
+    const siteId = siteSelect ? siteSelect.value : "";
+    const weekStart = weekInput ? weekInput.value : "";
+    if (!siteId) {
+      showToast("Choose a site in the rota cockpit first.");
+      return;
+    }
+    const button = document.getElementById("generateReliefRotaBtn");
+    if (button) {
+      button.disabled = true;
+      button.dataset.defaultText = button.dataset.defaultText || button.textContent;
+      button.textContent = "Building PDF...";
+    }
+    showToast("Generating relief rota PDF for the selected week...");
+    google.script.run
+      .withSuccessHandler(result => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Download week PDF";
+        }
+        if (!result || result.ok === false) {
+          showToast((result && result.error) || "Could not generate relief rota PDF.");
+          return;
+        }
+        downloadBase64File_(result.base64, result.mimeType || "application/pdf", result.filename || "relief-rota.pdf");
+        showToast(result.message || "Relief rota PDF downloaded.");
+        queueQuietCockpitRefresh();
+      })
+      .withFailureHandler(error => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Download week PDF";
+        }
+        showToast(error.message || "Could not generate relief rota PDF.");
+      })
+      .generateReliefRotaPdfForSelectedWeekFromUi(siteId, weekStart);
+  }
+
+  function downloadBase64File_(base64, mimeType, filename) {
+    if (!base64) {
+      showToast("The PDF was empty.");
+      return;
+    }
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    const blob = new Blob([bytes], { type: mimeType || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || "download.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function shiftCockpitWeek(days) {

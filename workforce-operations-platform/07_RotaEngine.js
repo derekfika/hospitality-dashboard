@@ -280,6 +280,156 @@ function generateReliefRotaAssignments(daysAhead) {
   };
 }
 
+function generateReliefRotaPdfForWeek_(siteId, weekStartDate) {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const cleanSiteId = String(siteId || "").trim();
+  if (!cleanSiteId) throw new Error("Choose a site first.");
+  const weekStart = normaliseWeekStart_(weekStartDate);
+  const weekDates = getWeekDates_(weekStart).filter(function(day) {
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].indexOf(day.weekday) !== -1;
+  });
+  const dateSet = {};
+  weekDates.forEach(function(day) { dateSet[day.date] = true; });
+
+  const cockpit = buildRotaCockpit_(cleanSiteId, weekStart);
+  const gapsById = {};
+  (cockpit.days || []).forEach(function(day) {
+    (day.gaps || []).forEach(function(gap) {
+      if (gap.gapId || gap["Gap ID"]) gapsById[String(gap.gapId || gap["Gap ID"])] = gap;
+    });
+  });
+
+  const suggestions = readWorkforceObjects_(
+    spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefSuggestions)
+  ).filter(function(suggestion) {
+    return String(suggestion["Site ID"] || "") === cleanSiteId &&
+      dateSet[normaliseWorkforceDate_(suggestion.Date)] &&
+      String(suggestion.Approved || "").toUpperCase() !== "TRUE";
+  }).sort(function(a, b) {
+    return String(a.Date || "").localeCompare(String(b.Date || "")) ||
+      Number(b.Score || 0) - Number(a.Score || 0);
+  });
+
+  const staffByName = {};
+  readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory))
+    .forEach(function(person) {
+      staffByName[normaliseWorkforcePerson_(person.Name)] = person;
+    });
+
+  const usedByDate = {};
+  const assignedGaps = {};
+  const now = new Date();
+  const assignments = [];
+  suggestions.forEach(function(suggestion) {
+    const gapId = String(suggestion["Gap ID"] || "");
+    const gap = gapsById[gapId] || {};
+    if (!gapId || assignedGaps[gapId]) return;
+    const date = normaliseWorkforceDate_(suggestion.Date);
+    const personName = String(suggestion["Suggested Employee Name"] || "");
+    const personKey = normaliseWorkforcePerson_(personName);
+    const datePersonKey = date + "|" + personKey;
+    if (usedByDate[datePersonKey]) return;
+    const person = staffByName[personKey] || {};
+    usedByDate[datePersonKey] = true;
+    assignedGaps[gapId] = true;
+    assignments.push({
+      "Assignment ID": "relief_assignment_" + gapId + "_" + slugifyWorkforce_(personName),
+      "Gap ID": gapId,
+      "Site ID": cleanSiteId,
+      "Site Name": cockpit.siteName || cleanSiteId,
+      "Date": date,
+      "Weekday": gap.weekday || gap.Weekday || getWorkforceWeekday_(new Date(date + "T00:00:00")),
+      "Role": gap.role || gap.Role || suggestion.Role,
+      "Covering Employee ID": person["Employee ID"] || suggestion["Suggested Employee ID"],
+      "Covering Employee Name": personName,
+      "Covering Email": person.Email || "",
+      "Covered Employee Name": gap.missingEmployeeName || gap.employeeName || gap["Employee Name"] || "",
+      "Status": "Draft",
+      "Score": suggestion.Score,
+      "Reason": suggestion.Reason,
+      "Generated At": now,
+      "Notes": "Generated from selected week rota cockpit"
+    });
+  });
+
+  if (assignments.length) {
+    upsertWorkforceRows_(ensureReliefAssignmentsSheet_(spreadsheet), "Assignment ID", assignments);
+  }
+
+  const filename = [
+    "FIKA relief rota",
+    cockpit.siteName || cleanSiteId,
+    "WC " + weekStart
+  ].join(" - ") + ".pdf";
+  const pdf = buildReliefRotaPdfBlob_(cockpit, assignments, weekDates, filename);
+  return {
+    ok: true,
+    siteId: cleanSiteId,
+    siteName: cockpit.siteName || cleanSiteId,
+    weekStart: weekStart,
+    weekEnd: weekDates.length ? weekDates[weekDates.length - 1].date : weekStart,
+    assignmentsCreated: assignments.length,
+    filename: filename,
+    mimeType: "application/pdf",
+    base64: Utilities.base64Encode(pdf.getBytes()),
+    message: assignments.length
+      ? assignments.length + " relief assignment(s) generated for the selected week."
+      : "No relief assignments were needed for the selected week."
+  };
+}
+
+function buildReliefRotaPdfBlob_(cockpit, assignments, weekDates, filename) {
+  const assignmentsByDate = {};
+  (assignments || []).forEach(function(row) {
+    const date = normaliseWorkforceDate_(row.Date);
+    if (!assignmentsByDate[date]) assignmentsByDate[date] = [];
+    assignmentsByDate[date].push(row);
+  });
+  const html = [
+    "<html><head><style>",
+    "body{font-family:Arial,sans-serif;color:#17113f;margin:28px}",
+    "h1{font-size:24px;margin:0 0 4px} h2{font-size:15px;margin:0 0 18px;color:#746f91}",
+    "table{width:100%;border-collapse:collapse;margin:12px 0 22px}",
+    "th,td{border:1px solid #ddd8ef;padding:8px;text-align:left;font-size:11px;vertical-align:top}",
+    "th{background:#241170;color:#fff} .empty{color:#746f91;font-style:italic}",
+    ".day{margin-top:18px} .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e9fff3;color:#277a55;font-size:11px;font-weight:bold}",
+    "</style></head><body>",
+    "<h1>FIKA Relief Rota</h1>",
+    "<h2>" + escapeHtmlForPdf_(cockpit.siteName || cockpit.siteId || "Site") + " · Week commencing " + escapeHtmlForPdf_(cockpit.weekStart || "") + "</h2>",
+    "<p class='pill'>" + String((assignments || []).length) + " draft assignment(s)</p>"
+  ];
+  (weekDates || []).forEach(function(day) {
+    const rows = assignmentsByDate[day.date] || [];
+    html.push("<div class='day'><h3>" + escapeHtmlForPdf_(day.weekday) + " " + escapeHtmlForPdf_(day.date) + "</h3>");
+    if (!rows.length) {
+      html.push("<p class='empty'>No relief cover generated for this day.</p></div>");
+      return;
+    }
+    html.push("<table><thead><tr><th>Role</th><th>Covering</th><th>Covering email</th><th>Covering for</th><th>Reason</th></tr></thead><tbody>");
+    rows.forEach(function(row) {
+      html.push("<tr><td>" + escapeHtmlForPdf_(row.Role) + "</td><td>" +
+        escapeHtmlForPdf_(row["Covering Employee Name"]) + "</td><td>" +
+        escapeHtmlForPdf_(row["Covering Email"]) + "</td><td>" +
+        escapeHtmlForPdf_(row["Covered Employee Name"]) + "</td><td>" +
+        escapeHtmlForPdf_(row.Reason) + "</td></tr>");
+    });
+    html.push("</tbody></table></div>");
+  });
+  html.push("</body></html>");
+  return Utilities.newBlob(html.join(""), "text/html", filename.replace(/\.pdf$/i, ".html"))
+    .getAs("application/pdf")
+    .setName(filename);
+}
+
+function escapeHtmlForPdf_(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function createAgencyRequestForGap(gapId, agencyId) {
   const spreadsheet = getWorkforceSpreadsheet_();
   const gaps = readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.coverageGaps));

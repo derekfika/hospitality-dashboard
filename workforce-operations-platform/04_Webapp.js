@@ -404,6 +404,10 @@ function generateReliefRotaAssignmentsFromUi() {
   return generateReliefRotaAssignments(28);
 }
 
+function generateReliefRotaPdfForSelectedWeekFromUi(siteId, weekStartDate) {
+  return toPlainJson_(generateReliefRotaPdfForWeek_(siteId, weekStartDate));
+}
+
 function createAgencyRequestForGapFromUi(gapId, agencyId) {
   return createAgencyRequestForGap(gapId, agencyId);
 }
