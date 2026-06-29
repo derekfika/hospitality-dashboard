@@ -224,6 +224,7 @@
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 22px;
+    align-items: end;
   }
 
   .cockpit-controls label {
@@ -238,6 +239,42 @@
     margin-top: 7px;
     border-color: rgba(255,255,255,.55);
     background: rgba(255,255,255,.96);
+  }
+
+  .week-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.16);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.24);
+  }
+
+  .week-nav button {
+    min-height: 34px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color: var(--ink);
+    box-shadow: none;
+  }
+
+  .week-nav-btn {
+    width: 34px;
+    padding: 0 !important;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .week-nav-btn.wide {
+    width: 38px;
+    font-size: 12px;
+  }
+
+  .week-nav-today {
+    font-size: 12px;
   }
 
   .cockpit-kpis {
@@ -308,7 +345,7 @@
 
   .cockpit-days {
     display: grid;
-    grid-template-columns: repeat(7, minmax(210px, 1fr));
+    grid-template-columns: repeat(5, minmax(220px, 1fr));
     gap: 14px;
     overflow-x: auto;
     padding-bottom: 4px;
@@ -385,10 +422,23 @@
   }
 
   .cockpit-person {
+    width: 100%;
     padding: 9px 10px;
     border-radius: 15px;
+    color: var(--ink);
+    text-align: left;
     background: rgba(33,21,95,.04);
     box-shadow: inset 0 0 0 1px rgba(33,21,95,.045);
+  }
+
+  button.cockpit-person {
+    min-height: auto;
+    cursor: pointer;
+  }
+
+  button.cockpit-person:hover {
+    background: rgba(117,239,184,.14);
+    transform: translateY(-1px);
   }
 
   .cockpit-person.person-absent {
@@ -420,6 +470,25 @@
     box-shadow: inset 3px 0 0 var(--coral), inset 0 0 0 1px rgba(255,128,102,.22);
   }
 
+  .issue-person-link {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    min-height: auto;
+    padding: 0;
+    border-radius: 0;
+    color: var(--ink);
+    background: transparent;
+    box-shadow: none;
+    text-align: left;
+  }
+
+  .issue-person-link:hover {
+    transform: none;
+    box-shadow: none;
+    color: var(--accent);
+  }
+
   .best-suggestion {
     padding: 10px;
     border-radius: 15px;
@@ -445,6 +514,71 @@
     flex-wrap: wrap;
     gap: 7px;
     margin-top: 2px;
+  }
+
+  .no-issues-pill {
+    display: inline-flex;
+    justify-content: center;
+    padding: 9px 10px;
+    border-radius: 999px;
+    color: #277a55;
+    background: rgba(117,239,184,.18);
+    font-weight: 900;
+  }
+
+  .cockpit-day-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: -4px 0 0;
+  }
+
+  .summary-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: var(--ink);
+    background: rgba(33,21,95,.06);
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .summary-chip.good {
+    color: #277a55;
+    background: rgba(117,239,184,.18);
+  }
+
+  .summary-chip.amber {
+    color: #8a6200;
+    background: rgba(255,194,87,.22);
+  }
+
+  .summary-chip.red {
+    color: #9a331f;
+    background: rgba(255,128,102,.16);
+  }
+
+  .summary-chip.muted {
+    color: var(--muted);
+    background: rgba(33,21,95,.045);
+  }
+
+  .cockpit-full-rota {
+    display: grid;
+    gap: 8px;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(33,21,95,.08);
+  }
+
+  .cockpit-full-rota h5 {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
   }
 
   .endpoint-card {
@@ -581,6 +715,12 @@
     border-radius: 999px;
     font-size: 11px;
     box-shadow: inset 0 0 0 1px rgba(33,21,95,.12), 0 4px 10px rgba(36,17,118,.04);
+  }
+
+  button.primary-mini {
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    box-shadow: 0 8px 18px rgba(61,33,191,.18);
   }
 
   .soft-pill {
@@ -1193,6 +1333,57 @@
     overflow: auto;
   }
 
+  .person-rota-card {
+    width: min(720px, 100%);
+  }
+
+  .person-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 18px 0;
+  }
+
+  .person-profile-grid div {
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.76);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .person-profile-grid span {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .person-profile-grid strong {
+    display: block;
+    margin-top: 5px;
+  }
+
+  .person-rota-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .person-standard-form {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 20px;
+    background: rgba(33,21,95,.035);
+    box-shadow: inset 0 0 0 1px rgba(33,21,95,.08);
+  }
+
+  .person-standard-form .toggle-row {
+    justify-content: flex-start;
+  }
+
   .settings-modal-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -1345,7 +1536,7 @@
     .hero { grid-template-columns: 1fr; padding: 26px; border-radius: 26px; }
     h2 { font-size: clamp(32px, 10vw, 54px); }
     .cockpit-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .metrics, .checklist, .two-col, .timeline, .settings-grid, .settings-forms, .gap-card, .control-row, .wide-form { grid-template-columns: 1fr; }
+    .metrics, .checklist, .two-col, .timeline, .settings-grid, .settings-forms, .gap-card, .control-row, .wide-form, .person-profile-grid { grid-template-columns: 1fr; }
     .cockpit-controls label { min-width: min(100%, 220px); }
     .form-title-row,
     .wide-form button { grid-column: auto; }

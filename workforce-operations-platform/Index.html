@@ -40,10 +40,12 @@
             <div class="cockpit-controls">
               <label>Site <select id="cockpitSiteSelect"></select></label>
               <label>Week <input id="cockpitWeekStartInput" type="date"></label>
-              <button class="secondary" id="prevWeekBtn" type="button">Previous week</button>
-              <button class="secondary" id="thisWeekBtn" type="button">This week</button>
-              <button class="secondary" id="nextWeekBtn" type="button">Next week</button>
-              <button class="secondary" id="weekAfterBtn" type="button">Week after</button>
+              <div class="week-nav" aria-label="Week navigation">
+                <button class="week-nav-btn" id="prevWeekBtn" type="button" title="Previous week">←</button>
+                <button class="week-nav-today" id="thisWeekBtn" type="button">This week</button>
+                <button class="week-nav-btn" id="nextWeekBtn" type="button" title="Next week">→</button>
+                <button class="week-nav-btn wide" id="weekAfterBtn" type="button" title="Week after next">+2</button>
+              </div>
               <button id="loadCockpitBtn" type="button">Load week</button>
               <button class="secondary" id="toggleFullRotaBtn" type="button">Show full rota</button>
             </div>
@@ -321,6 +323,16 @@
               <button type="submit">Save agency</button>
               <div class="settings-table-wrap" id="agencyDirectoryTable"></div>
             </form>
+            <div class="mini-form wide-form settings-tab-panel hidden" id="personRotaSettings" data-panel-id="personRotaSettings">
+              <div class="form-title-row">
+                <h4>Person standard rota</h4>
+                <span class="soft-pill">Per-person weekly pattern</span>
+              </div>
+              <p class="muted-text form-copy">
+                Use this for people whose normal week moves between sites. Site rota says what the site needs; person rota says where that person normally belongs.
+              </p>
+              <div class="settings-table-wrap" id="personStandardRotaSettingsTable"></div>
+            </div>
           </div>
         </section>
       </main>
@@ -335,6 +347,7 @@
         <div class="settings-modal-tabs">
           <button class="settings-tab active" type="button" data-settings-tab="reliefSettings">Relief team</button>
           <button class="settings-tab" type="button" data-settings-tab="rotaSettings">Standard rota</button>
+          <button class="settings-tab" type="button" data-settings-tab="personRotaSettings">Person rota</button>
           <button class="settings-tab" type="button" data-settings-tab="managerSettings">Managers</button>
           <button class="settings-tab" type="button" data-settings-tab="agencySettings">Agency</button>
         </div>
@@ -373,6 +386,47 @@
           </label>
           <button type="submit" id="gapActionSubmit">Save action</button>
         </form>
+      </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="personRotaModal">
+      <div class="modal-card person-rota-card">
+        <button class="modal-close secondary mini" id="closePersonRotaModal" type="button">Close</button>
+        <p class="eyebrow">Employee rota profile</p>
+        <h3 id="personRotaTitle">Employee</h3>
+        <p class="muted-text" id="personRotaSummary"></p>
+        <div class="person-profile-grid" id="personRotaProfile"></div>
+        <div class="person-rota-actions">
+          <button id="markPersonSickBtn" type="button">Mark sick for selected day</button>
+          <button class="secondary" id="editPersonStandardRotaBtn" type="button">Edit standard rota</button>
+        </div>
+        <form id="personStandardRotaForm" class="mini-form wide-form person-standard-form">
+          <div class="form-title-row">
+            <h4>Edit this person's normal rota</h4>
+            <span class="soft-pill">Replaces the selected weekday</span>
+          </div>
+          <select name="dayOfWeek" required>
+            <option value="">Weekday</option>
+            <option>Monday</option>
+            <option>Tuesday</option>
+            <option>Wednesday</option>
+            <option>Thursday</option>
+            <option>Friday</option>
+            <option>Saturday</option>
+            <option>Sunday</option>
+          </select>
+          <input name="site" placeholder="Site ID or site name" required>
+          <input name="role" placeholder="Role" required>
+          <input name="startTime" placeholder="Start e.g. 07:30">
+          <input name="endTime" placeholder="End e.g. 15:30">
+          <input name="notes" placeholder="Notes">
+          <label class="toggle-row">
+            <input type="checkbox" name="active" checked>
+            <span>Active row</span>
+          </label>
+          <button type="submit">Save weekday pattern</button>
+        </form>
+        <div class="settings-table-wrap" id="personStandardRotaTable"></div>
       </div>
     </div>
 

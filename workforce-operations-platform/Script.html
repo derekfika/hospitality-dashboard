@@ -5,6 +5,9 @@
     settingsLoaded: false,
     gapsLoaded: false,
     cockpitLoaded: false,
+    showFullRota: false,
+    currentCockpit: null,
+    selectedPerson: null,
     gapsById: {}
   };
 
@@ -49,6 +52,7 @@
     onClick("thisWeekBtn", () => setCockpitWeek(getMondayForDate(new Date())));
     onClick("nextWeekBtn", () => shiftCockpitWeek(7));
     onClick("weekAfterBtn", () => shiftCockpitWeek(14));
+    onClick("toggleFullRotaBtn", toggleFullRota);
     onClick("previewLegacyBtn", () => {
       runLegacyPreview();
     });
@@ -109,6 +113,13 @@
       submitGapActionForm();
     });
     onClick("closeGapModal", closeGapModal);
+    onClick("closePersonRotaModal", closePersonRotaModal);
+    onClick("markPersonSickBtn", markSelectedPersonSick);
+    onClick("editPersonStandardRotaBtn", showSelectedPersonStandardRotaEditor);
+    onSubmit("personStandardRotaForm", event => {
+      event.preventDefault();
+      savePersonStandardRotaFromModal();
+    });
     onClick("closeSyncProgressBtn", closeSyncProgressModal);
   }
 
@@ -383,6 +394,7 @@
         board = board || { ok: false, days: [], totals: {} };
         if (board.ok === false && board.error) showToast(board.error);
         state.cockpitLoaded = true;
+        state.currentCockpit = board;
         renderRotaCockpit(board);
       })
       .withFailureHandler(error => {
@@ -421,6 +433,17 @@
       String(date.getMonth() + 1).padStart(2, "0"),
       String(date.getDate()).padStart(2, "0")
     ].join("-");
+  }
+
+  function formatDisplayDate(value) {
+    if (!value) return "";
+    const date = new Date(String(value) + "T00:00:00");
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
   }
 
   function loadCoverageGaps() {
@@ -695,6 +718,7 @@
   function renderSettingsTables() {
     renderReliefDirectoryTable();
     renderStandardRotaTable();
+    renderPersonStandardRotaSettingsTable();
     renderManagerDirectoryTable();
     renderAgencyDirectoryTable();
   }
@@ -763,6 +787,22 @@
       "Primary Site": row["Primary Site ID"] || "",
       Alerts: truthyLabel_(row["Receives Gap Alerts"])
     })), "No managers saved yet.");
+  }
+
+  function renderPersonStandardRotaSettingsTable() {
+    const rows = ((state.settings && state.settings.personStandardRota) || [])
+      .filter(row => String(row.Active).toUpperCase() !== "FALSE")
+      .sort((a, b) => String(a["Employee Name"] || "").localeCompare(String(b["Employee Name"] || "")) ||
+        weekdayOrder_(a["Day of Week"]) - weekdayOrder_(b["Day of Week"]));
+    renderTable("personStandardRotaSettingsTable", ["Employee", "Day", "Site", "Role", "Start", "End", "Active"], rows.map(row => ({
+      Employee: row["Employee Name"] || "",
+      Day: row["Day of Week"] || "",
+      Site: row.Site || "",
+      Role: row.Role || "",
+      Start: row["Start Time"] || "",
+      End: row["End Time"] || "",
+      Active: truthyLabel_(row.Active)
+    })), "No person-specific rota rows yet.");
   }
 
   function renderAgencyDirectoryTable() {
@@ -922,7 +962,7 @@
       <div class="cockpit-week-title">
         <div>
           <p class="eyebrow">${escapeHtml(board.siteName || board.siteId || "Site")}</p>
-          <h3>${escapeHtml(board.weekStart || "")} to ${escapeHtml(board.weekEnd || "")}</h3>
+          <h3>Week commencing ${escapeHtml(formatDisplayDate(board.weekStart || ""))}</h3>
         </div>
         <span>${Number(totals.uncoveredGaps || 0)} uncovered · ${Number(totals.coverSuggested || 0)} suggested</span>
       </div>
@@ -933,53 +973,112 @@
     root.querySelectorAll("[data-cockpit-action]").forEach(button => {
       button.addEventListener("click", () => handleCockpitGapAction(button));
     });
+    root.querySelectorAll("[data-person-profile]").forEach(button => {
+      button.addEventListener("click", () => openPersonRotaProfile(button.dataset.personProfile, button.dataset.personDate || ""));
+    });
   }
 
   function renderCockpitDay(day) {
-    const gaps = day.gaps || [];
-    const scheduled = day.scheduled || [];
-    const absences = day.absences || [];
+    const scheduled = day.fullRota || day.scheduled || [];
+    const issues = day.issues || [];
+    const openIssues = issues.filter(issue => !/resolved|snoozed|ignored/i.test(String(issue.status || "")));
     return `
       <article class="cockpit-day status-${escapeHtml(day.status || "closed")}">
         <header>
           <div>
             <strong>${escapeHtml(day.weekday || "")}</strong>
-            <span>${escapeHtml(day.date || "")}</span>
+            <span>${escapeHtml(formatDisplayDate(day.date || ""))}</span>
           </div>
           <em>${formatCockpitStatus(day.status)}</em>
         </header>
-        <div class="cockpit-staff-list">
-          ${scheduled.length ? scheduled.map(person => `
-            <div class="cockpit-person person-${escapeHtml(person.status || "scheduled")}">
-              <b>${escapeHtml(person.role || "Role")}</b>
-              <span>${escapeHtml(person.employeeName || "Unassigned")}</span>
-              ${person.absenceType ? `<small>${escapeHtml(person.absenceType)}</small>` : ""}
-              ${person.coverName ? `<small>Covered by ${escapeHtml(person.coverName)}</small>` : ""}
-            </div>
-          `).join("") : '<p class="quiet">No rota</p>'}
-        </div>
-        ${absences.length ? `
-          <div class="cockpit-absence-strip">
-            ${absences.map(absence => `<span>${escapeHtml(absence.employeeName)} · ${escapeHtml(absence.absenceType)}</span>`).join("")}
-          </div>
-        ` : ""}
-        ${gaps.length ? `
+        ${renderCockpitDaySummary(day.summary || {}, scheduled.length)}
+        ${openIssues.length ? `
           <div class="cockpit-gap-list">
-            ${gaps.map(gap => renderCockpitGap(gap)).join("")}
+            ${openIssues.map(issue => renderCockpitIssue(issue, day.date)).join("")}
+          </div>
+        ` : '<div class="no-issues-pill">No issues</div>'}
+        ${state.showFullRota ? `
+          <div class="cockpit-full-rota">
+            <h5>Full rota</h5>
+            <div class="cockpit-staff-list">
+              ${scheduled.length ? scheduled.map(person => renderCockpitPerson(person, day.date)).join("") : '<p class="quiet">No rota</p>'}
+            </div>
           </div>
         ` : ""}
       </article>
     `;
   }
 
-  function renderCockpitGap(gap) {
+  function renderCockpitDaySummary(summary, fallbackScheduledCount) {
+    const safe = summary && typeof summary === "object" ? summary : {};
+    const scheduledCount = Number(safe.scheduledCount || fallbackScheduledCount || 0);
+    const absenceCount = Number(safe.absenceCount || 0);
+    const uncoveredCount = Number(safe.uncoveredCount || 0);
+    const suggestionCount = Number(safe.suggestionCount || 0);
+    const conflictCount = Number(safe.conflictCount || 0);
+    const issueCount = Number(safe.issueCount || 0);
+    if (!scheduledCount) {
+      return '<div class="cockpit-day-summary"><span class="summary-chip muted">No rota</span></div>';
+    }
+    if (!issueCount) {
+      return `
+        <div class="cockpit-day-summary">
+          <span class="summary-chip good">${scheduledCount} scheduled</span>
+          <span class="summary-chip good">Fully covered</span>
+        </div>
+      `;
+    }
+    return `
+      <div class="cockpit-day-summary">
+        <span class="summary-chip">${scheduledCount} scheduled</span>
+        ${absenceCount ? `<span class="summary-chip amber">${absenceCount} absence${absenceCount === 1 ? "" : "s"}</span>` : ""}
+        ${uncoveredCount ? `<span class="summary-chip red">${uncoveredCount} gap${uncoveredCount === 1 ? "" : "s"}</span>` : ""}
+        ${suggestionCount ? `<span class="summary-chip amber">${suggestionCount} suggestion${suggestionCount === 1 ? "" : "s"}</span>` : ""}
+        ${conflictCount ? `<span class="summary-chip muted">${conflictCount} conflict${conflictCount === 1 ? "" : "s"}</span>` : ""}
+      </div>
+    `;
+  }
+
+  function renderCockpitIssue(issue, date) {
+    if (issue.gapId || issue.type === "cover_suggested" || issue.type === "uncovered") return renderCockpitGap(issue, date);
+    const employeeId = issue.employeeId || "";
+    return `
+      <div class="cockpit-gap issue-${escapeHtml(issue.type || "issue")}">
+        <button class="issue-person-link" type="button" data-person-profile="${escapeHtml(employeeId)}" data-person-date="${escapeHtml(date || "")}">
+          <strong>${escapeHtml(issue.employeeName || issue.missingEmployeeName || "Person")}</strong>
+          <span>${escapeHtml(issue.role || "Role")} · ${escapeHtml(issue.type || "Issue")}</span>
+        </button>
+        <div class="best-suggestion ${issue.status === "resolved" ? "" : "empty"}">
+          <b>${escapeHtml(issue.reason || issue.absenceType || "Needs attention")}</b>
+          ${issue.coverName ? `<span>Covered by ${escapeHtml(issue.coverName)}</span>` : ""}
+        </div>
+        <div class="cockpit-gap-actions">
+          <button class="mini primary-mini" data-person-profile="${escapeHtml(employeeId)}" data-person-date="${escapeHtml(date || "")}">Edit rota</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderCockpitPerson(person, date) {
+    return `
+      <button class="cockpit-person person-${escapeHtml(person.status || "scheduled")}" type="button" data-person-profile="${escapeHtml(person.employeeId || "")}" data-person-date="${escapeHtml(date || "")}">
+        <b>${escapeHtml(person.role || "Role")}</b>
+        <span>${escapeHtml(person.employeeName || "Unassigned")}</span>
+        ${person.startTime || person.endTime ? `<small>${escapeHtml([person.startTime, person.endTime].filter(Boolean).join("–"))}</small>` : ""}
+        ${person.absenceType ? `<small>${escapeHtml(person.absenceType)}</small>` : ""}
+        ${person.coverName ? `<small>Covered by ${escapeHtml(person.coverName)}</small>` : ""}
+      </button>
+    `;
+  }
+
+  function renderCockpitGap(gap, date) {
     const suggestion = gap.bestSuggestion || null;
     return `
       <div class="cockpit-gap" data-gap-id="${escapeHtml(gap.gapId || "")}">
-        <div>
+        <button class="issue-person-link" type="button" data-person-profile="${escapeHtml(gap.employeeId || "")}" data-person-date="${escapeHtml(date || "")}">
           <strong>${escapeHtml(gap.role || "Role gap")}</strong>
           <span>${escapeHtml(gap.missingEmployeeName || "Missing person")} · ${escapeHtml(gap.absenceType || "Gap")}</span>
-        </div>
+        </button>
         ${suggestion ? `
           <div class="best-suggestion">
             <b>${escapeHtml(suggestion.employeeName || "")}</b>
@@ -988,11 +1087,11 @@
           </div>
         ` : '<div class="best-suggestion empty">No cover suggestion yet</div>'}
         <div class="cockpit-gap-actions">
-          ${suggestion ? `<button class="mini" data-cockpit-action="approve" data-gap-id="${escapeHtml(gap.gapId || "")}">Approve cover</button>` : ""}
-          <button class="secondary mini" data-cockpit-action="choose" data-gap-id="${escapeHtml(gap.gapId || "")}">Choose someone else</button>
-          <button class="secondary mini" data-cockpit-action="agency" data-gap-id="${escapeHtml(gap.gapId || "")}">Request agency</button>
-          <button class="secondary mini" data-cockpit-action="resolved" data-gap-id="${escapeHtml(gap.gapId || "")}">Mark resolved</button>
-          <button class="secondary mini" data-cockpit-action="snooze" data-gap-id="${escapeHtml(gap.gapId || "")}">Ignore / snooze</button>
+          ${suggestion ? `<button class="mini primary-mini" data-cockpit-action="approve" data-gap-id="${escapeHtml(gap.gapId || "")}">Approve</button>` : `<button class="mini primary-mini" data-cockpit-action="agency" data-gap-id="${escapeHtml(gap.gapId || "")}">Agency</button>`}
+          <button class="secondary mini" data-cockpit-action="choose" data-gap-id="${escapeHtml(gap.gapId || "")}">Change</button>
+          ${suggestion ? `<button class="secondary mini" data-cockpit-action="agency" data-gap-id="${escapeHtml(gap.gapId || "")}">Agency</button>` : ""}
+          <button class="secondary mini" data-cockpit-action="resolved" data-gap-id="${escapeHtml(gap.gapId || "")}">Resolve</button>
+          <button class="secondary mini" data-person-profile="${escapeHtml(gap.employeeId || "")}" data-person-date="${escapeHtml(date || "")}">Edit rota</button>
         </div>
       </div>
     `;
@@ -1008,6 +1107,168 @@
     return map[status] || "Open";
   }
 
+  function toggleFullRota() {
+    state.showFullRota = !state.showFullRota;
+    text("toggleFullRotaBtn", state.showFullRota ? "Hide full rota" : "Show full rota");
+    if (state.currentCockpit) renderRotaCockpit(state.currentCockpit);
+  }
+
+  function openPersonRotaProfile(employeeId, dateText) {
+    if (!employeeId) {
+      showToast("This rota row does not have an employee ID yet.");
+      return;
+    }
+    const modal = document.getElementById("personRotaModal");
+    if (modal) modal.classList.remove("hidden");
+    state.selectedPerson = { employeeId: employeeId, date: dateText || getCockpitSelectedDate_() };
+    text("personRotaTitle", "Loading employee…");
+    text("personRotaSummary", "Pulling their standard rota and profile.");
+    const profileRoot = document.getElementById("personRotaProfile");
+    const rotaRoot = document.getElementById("personStandardRotaTable");
+    if (profileRoot) profileRoot.innerHTML = '<div class="skeleton-card"><span class="loader small"></span><strong>Loading profile…</strong></div>';
+    if (rotaRoot) rotaRoot.innerHTML = "";
+    google.script.run
+      .withSuccessHandler(result => {
+        renderPersonRotaProfile(result || {});
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not load employee profile.");
+        text("personRotaTitle", "Could not load employee");
+      })
+      .getPersonRotaProfileFromUi(employeeId);
+  }
+
+  function renderPersonRotaProfile(profile) {
+    const person = profile.person || {};
+    const rows = profile.standardRota || [];
+    state.selectedPerson = Object.assign({}, state.selectedPerson || {}, {
+      employeeId: profile.employeeId || person.employeeId || "",
+      employeeName: person.name || "",
+      standardRota: rows
+    });
+    text("personRotaTitle", person.name || "Employee");
+    text("personRotaSummary", [person.role, person.primarySite, person.email].filter(Boolean).join(" · "));
+    const profileRoot = document.getElementById("personRotaProfile");
+    if (profileRoot) {
+      profileRoot.innerHTML = `
+        <div><span>Role</span><strong>${escapeHtml(person.role || "—")}</strong></div>
+        <div><span>Primary site</span><strong>${escapeHtml(person.primarySite || "—")}</strong></div>
+        <div><span>Email</span><strong>${escapeHtml(person.email || "—")}</strong></div>
+      `;
+    }
+    renderTable("personStandardRotaTable", ["Day", "Site", "Role", "Start", "End", "Active"], rows.map(row => ({
+      Day: row["Day of Week"] || "",
+      Site: row.Site || "",
+      Role: row.Role || "",
+      Start: row["Start Time"] || "",
+      End: row["End Time"] || "",
+      Active: truthyLabel_(row.Active)
+    })), "No person-specific standard rota rows yet.");
+    prefillPersonStandardRotaForm(rows);
+  }
+
+  function prefillPersonStandardRotaForm(rows) {
+    const form = document.getElementById("personStandardRotaForm");
+    if (!form) return;
+    const date = (state.selectedPerson && state.selectedPerson.date) || "";
+    const weekday = date ? new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long" }) : "";
+    const row = (rows || []).find(item => String(item["Day of Week"] || "") === weekday) || (rows || [])[0] || {};
+    form.elements.dayOfWeek.value = row["Day of Week"] || weekday || "";
+    form.elements.site.value = row.Site || "";
+    form.elements.role.value = row.Role || "";
+    form.elements.startTime.value = row["Start Time"] || "";
+    form.elements.endTime.value = row["End Time"] || "";
+    form.elements.notes.value = row.Notes || "";
+    form.elements.active.checked = row.Active === true || String(row.Active || "TRUE").toUpperCase() !== "FALSE";
+  }
+
+  function closePersonRotaModal() {
+    const modal = document.getElementById("personRotaModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function markSelectedPersonSick() {
+    const selected = state.selectedPerson || {};
+    if (!selected.employeeId) {
+      showToast("Choose an employee first.");
+      return;
+    }
+    const date = selected.date || getCockpitSelectedDate_();
+    text("personRotaSummary", "Marking sick and rebuilding suggestions…");
+    google.script.run
+      .withSuccessHandler(result => {
+        showToast((result && result.message) || "Employee marked sick.");
+        closePersonRotaModal();
+        loadRotaCockpit();
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Could not mark employee sick.");
+      })
+      .markEmployeeSickFromUi(selected.employeeId, date, "Marked sick from rota cockpit");
+  }
+
+  function showSelectedPersonStandardRotaEditor() {
+    const form = document.getElementById("personStandardRotaForm");
+    if (form) {
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+      const first = form.querySelector("select, input");
+      if (first) first.focus();
+    }
+  }
+
+  function savePersonStandardRotaFromModal() {
+    const selected = state.selectedPerson || {};
+    const form = document.getElementById("personStandardRotaForm");
+    if (!selected.employeeId || !form) {
+      showToast("Choose an employee first.");
+      return;
+    }
+    const dayOfWeek = form.elements.dayOfWeek.value;
+    const rows = (selected.standardRota || []).filter(row => String(row["Day of Week"] || "") !== String(dayOfWeek || ""));
+    rows.push({
+      "Employee ID": selected.employeeId,
+      "Employee Name": selected.employeeName || "",
+      "Day of Week": dayOfWeek,
+      "Site": form.elements.site.value,
+      "Role": form.elements.role.value,
+      "Start Time": form.elements.startTime.value,
+      "End Time": form.elements.endTime.value,
+      "Effective From": "",
+      "Effective To": "",
+      "Active": form.elements.active.checked,
+      "Notes": form.elements.notes.value
+    });
+    const submit = form.querySelector("button[type='submit']");
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = "Saving...";
+    }
+    google.script.run
+      .withSuccessHandler(result => {
+        if (submit) {
+          submit.disabled = false;
+          submit.textContent = "Save weekday pattern";
+        }
+        showToast((result && result.message) || "Person standard rota saved.");
+        state.settingsLoaded = false;
+        openPersonRotaProfile(selected.employeeId, selected.date || "");
+        if (state.cockpitLoaded) loadRotaCockpit();
+      })
+      .withFailureHandler(error => {
+        if (submit) {
+          submit.disabled = false;
+          submit.textContent = "Save weekday pattern";
+        }
+        showToast(error.message || "Could not save person standard rota.");
+      })
+      .savePersonStandardRotaFromUi(selected.employeeId, rows);
+  }
+
+  function getCockpitSelectedDate_() {
+    const input = document.getElementById("cockpitWeekStartInput");
+    return input ? input.value : "";
+  }
+
   function handleCockpitGapAction(button) {
     const action = button.dataset.cockpitAction;
     const gapId = button.dataset.gapId;
@@ -1017,14 +1278,16 @@
       return;
     }
     button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = "Saving...";
     const runner = google.script.run
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Gap updated.");
         loadRotaCockpit();
-        loadDashboard();
       })
       .withFailureHandler(error => {
         button.disabled = false;
+        button.textContent = originalText;
         showToast(error.message || "Could not update gap.");
       });
     if (action === "approve") runner.approveSuggestedCoverFromUi(gapId);
@@ -1294,7 +1557,7 @@
   }
 
   function setSettingsLoading(message) {
-    ["reliefDirectoryTable", "standardRotaTable", "managerDirectoryTable", "agencyDirectoryTable"].forEach(id => {
+    ["reliefDirectoryTable", "standardRotaTable", "personStandardRotaSettingsTable", "managerDirectoryTable", "agencyDirectoryTable"].forEach(id => {
       setPanelLoading(id, message || "Loading settings…");
     });
   }

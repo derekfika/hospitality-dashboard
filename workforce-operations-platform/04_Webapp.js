@@ -212,6 +212,10 @@ function getPersonRotaProfileFromUi(employeeId) {
   return toPlainJson_(getPersonRotaProfile_(employeeId));
 }
 
+function markEmployeeSickFromUi(employeeId, dateText, notes) {
+  return toPlainJson_(markEmployeeSick_(employeeId, dateText, notes || ""));
+}
+
 function getPeopleStandardRotaForWeekFromUi(siteId, weekStartDate) {
   return toPlainJson_({
     ok: true,
@@ -501,7 +505,8 @@ function getEmptyWorkforceSettingsData_() {
     shiftPatterns: [],
     sites: [],
     staff: [],
-    rotaTemplates: []
+    rotaTemplates: [],
+    personStandardRota: []
   };
 }
 
@@ -686,7 +691,9 @@ function buildRotaCockpit_(siteId, weekStartDate) {
   const cleanSiteId = String(siteId || "").trim();
   if (!cleanSiteId) throw new Error("Choose a site first.");
   const weekStart = normaliseWeekStart_(weekStartDate);
-  const weekDates = getWeekDates_(weekStart);
+  const weekDates = getWeekDates_(weekStart).filter(function(day) {
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].indexOf(day.weekday) !== -1;
+  });
   const weekEnd = weekDates[weekDates.length - 1].date;
   const site = getCockpitSite_(spreadsheet, cleanSiteId);
   const templates = uniqueWorkforceRotaTemplates_(readWorkforceObjects_(
@@ -731,6 +738,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefAvailability)
   ));
   const staff = getCockpitStaffCandidates_(spreadsheet, reliefAvailability);
+  const staffLookup = buildCockpitStaffLiteLookup_(spreadsheet);
   const absenceIndex = buildAbsenceIndex_(absences);
   const exceptionIndex = buildRotaExceptionIndex_(exceptions);
   const coverIndex = buildRotaCoverIndex_(exceptions);
@@ -749,6 +757,8 @@ function buildRotaCockpit_(siteId, weekStartDate) {
     dayTemplates.forEach(function(template) {
       const personName = String(template["Employee Name"] || "").trim();
       if (!personName) return;
+      const employeeId = String(template["Employee ID"] || "") ||
+        ((staffLookup.byName[normaliseWorkforcePerson_(personName)] || {}).employeeId || "");
       const templateKey = getGapTemplateDateKey_(template, day.date);
       const absence = absenceIndex[getGapPersonDateKey_(personName, day.date)];
       const exception = exceptionIndex[templateKey];
@@ -759,7 +769,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
         ? "covered"
         : isAbsent || exception ? "absent" : "scheduled";
       fullRota.push({
-        employeeId: String(template["Employee ID"] || ""),
+        employeeId: employeeId,
         employeeName: personName,
         role: String(template.Role || ""),
         siteId: String(template["Site ID"] || ""),
@@ -776,7 +786,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
         const absenceIssue = {
           issueId: ["absence", cleanSiteId, day.date, slugifyWorkforce_(personName)].join("_"),
           type: "absence",
-          employeeId: String(template["Employee ID"] || ""),
+          employeeId: employeeId,
           employeeName: personName,
           role: String(template.Role || ""),
           reason: String(absence["Absence Type"] || "Absence"),
@@ -807,7 +817,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
           type: gapSuggestions.best ? "cover_suggested" : "uncovered",
           gapId: String(gap["Gap ID"] || ""),
           role: String(gap.Role || ""),
-          employeeId: String(template["Employee ID"] || ""),
+          employeeId: employeeId,
           missingEmployeeName: String(gap["Employee Name"] || ""),
           employeeName: String(gap["Employee Name"] || ""),
           absenceType: String(gap["Gap Type"] || ""),
@@ -948,12 +958,24 @@ function getPersonStandardRotaConflict_(template, personRows, selectedSiteId, we
 }
 
 function buildCockpitDaySummary_(status, issues, fullRota) {
-  const count = (issues || []).length;
-  if (!fullRota || !fullRota.length) return "No rota for this day.";
-  if (!count) return "No issues.";
-  if (status === "uncovered") return count + " issue(s), with at least one uncovered gap.";
-  if (status === "cover_suggested") return count + " issue(s), cover suggested.";
-  return count + " issue(s).";
+  const issueRows = issues || [];
+  const openIssues = issueRows.filter(function(issue) {
+    return !/resolved|snoozed|ignored/i.test(String(issue.status || ""));
+  });
+  return {
+    scheduledCount: (fullRota || []).length,
+    absenceCount: issueRows.filter(function(issue) { return String(issue.type || "") === "absence"; }).length,
+    issueCount: openIssues.length,
+    uncoveredCount: openIssues.filter(function(issue) {
+      return String(issue.type || "") === "uncovered";
+    }).length,
+    suggestionCount: openIssues.filter(function(issue) {
+      return Boolean(issue.bestSuggestion);
+    }).length,
+    conflictCount: openIssues.filter(function(issue) { return String(issue.type || "") === "conflict"; }).length,
+    resolvedCount: issueRows.length - openIssues.length,
+    status: status || ""
+  };
 }
 
 function getPersonStandardRota_(employeeId) {
@@ -1023,6 +1045,34 @@ function getPersonRotaProfile_(employeeId) {
   };
 }
 
+function markEmployeeSick_(employeeId, dateText, notes) {
+  const cleanId = String(employeeId || "").trim();
+  const date = normaliseWorkforceDate_(dateText) || Utilities.formatDate(new Date(), WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd");
+  const person = getStaffLiteByEmployeeId_(cleanId);
+  if (!person || !person.name) throw new Error("Could not find that employee.");
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const absenceId = ["manual_sick", cleanId || slugifyWorkforce_(person.name), date.replace(/-/g, "")].join("_");
+  upsertWorkforceRows_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences), "Absence ID", [{
+    "Absence ID": absenceId,
+    "Employee ID": cleanId,
+    "Employee Name": person.name,
+    "Absence Type": "Sickness",
+    "Start Date": date,
+    "End Date": date,
+    "Status": "Manual",
+    "Source": "Rota Cockpit",
+    "BrightHR Raw JSON": "",
+    "Last Synced": new Date()
+  }]);
+  return {
+    ok: true,
+    employeeId: cleanId,
+    employeeName: person.name,
+    date: date,
+    message: person.name + " marked as sick for " + date + ". Reloading suggestions."
+  };
+}
+
 function getPeopleStandardRotaForWeek_(siteId, weekStartDate) {
   const cleanSiteId = String(siteId || "").trim();
   const weekStart = normaliseWeekStart_(weekStartDate);
@@ -1080,6 +1130,29 @@ function getCockpitStaffCandidates_(spreadsheet, reliefAvailability) {
     }
   }
   return staff;
+}
+
+function buildCockpitStaffLiteLookup_(spreadsheet) {
+  const lookup = { byId: {}, byName: {} };
+  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory);
+  if (!sheet || sheet.getLastRow() < 2) return lookup;
+  const map = workforceHeaderMap_(sheet);
+  const rowCount = sheet.getLastRow() - 1;
+  const idValues = map["Employee ID"] ? sheet.getRange(2, map["Employee ID"], rowCount, 1).getDisplayValues() : [];
+  const nameValues = map.Name ? sheet.getRange(2, map.Name, rowCount, 1).getDisplayValues() : [];
+  const emailValues = map.Email ? sheet.getRange(2, map.Email, rowCount, 1).getDisplayValues() : [];
+  const roleValues = map.Role ? sheet.getRange(2, map.Role, rowCount, 1).getDisplayValues() : [];
+  for (let index = 0; index < rowCount; index += 1) {
+    const person = {
+      employeeId: (idValues[index] && idValues[index][0]) || "",
+      name: (nameValues[index] && nameValues[index][0]) || "",
+      email: (emailValues[index] && emailValues[index][0]) || "",
+      role: (roleValues[index] && roleValues[index][0]) || ""
+    };
+    if (person.employeeId) lookup.byId[person.employeeId] = person;
+    if (person.name) lookup.byName[normaliseWorkforcePerson_(person.name)] = person;
+  }
+  return lookup;
 }
 
 function getSuggestionConfidence_(score) {

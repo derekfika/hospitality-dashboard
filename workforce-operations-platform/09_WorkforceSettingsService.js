@@ -22,7 +22,8 @@ function getWorkforceSettingsData() {
           reliefTeam: workforceBoolean_(person["Relief Team"])
         };
       }),
-    rotaTemplates: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates))
+    rotaTemplates: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates)),
+    personStandardRota: readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.personStandardRota))
   };
 }
 
