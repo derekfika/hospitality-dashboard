@@ -1,5 +1,4 @@
 function detectCoverageGaps(daysAhead) {
-  setupWorkforceOperationsPlatform();
   const spreadsheet = getWorkforceSpreadsheet_();
   const templates = uniqueWorkforceRotaTemplates_(readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.rotaTemplates)
@@ -46,7 +45,7 @@ function detectCoverageGaps(daysAhead) {
     });
   }
 
-  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.coverageGaps);
+  const sheet = ensureCoverageGapsSheet_(spreadsheet);
   replaceWorkforceRowsBySource_(sheet, "Gap Detection", gaps);
   return {
     ok: true,
@@ -54,6 +53,13 @@ function detectCoverageGaps(daysAhead) {
     gapsFound: gaps.length,
     sheet: WORKFORCE_CONFIG.sheets.coverageGaps
   };
+}
+
+function ensureCoverageGapsSheet_(spreadsheet) {
+  return setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.coverageGaps, [
+    "Gap ID", "Site ID", "Site Name", "Date", "Weekday", "Role",
+    "Employee Name", "Gap Type", "Priority", "Status", "Source", "Notes"
+  ]);
 }
 
 function getCoverageGapSummary(limit) {
@@ -350,7 +356,21 @@ function readWorkforceObjects_(sheet) {
 function replaceWorkforceRowsBySource_(sheet, source, rowObjects) {
   rebuildSheetWithoutMatchingRows_(sheet, "Source", source);
   if (!rowObjects.length) return;
-  upsertWorkforceRows_(sheet, "Gap ID", rowObjects);
+  appendWorkforceRowsFast_(sheet, rowObjects);
+}
+
+function appendWorkforceRowsFast_(sheet, rowObjects) {
+  if (!sheet || !rowObjects || !rowObjects.length) return;
+  const map = workforceHeaderMap_(sheet);
+  const headers = Object.keys(map);
+  const values = rowObjects.map(function(rowObject) {
+    return headers.map(function(header) {
+      return Object.prototype.hasOwnProperty.call(rowObject, header)
+        ? rowObject[header]
+        : "";
+    });
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
 }
 
 function normaliseWorkforceDate_(value) {

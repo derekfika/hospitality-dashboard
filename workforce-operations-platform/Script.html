@@ -39,6 +39,12 @@
     onClick("syncEverythingBtn", () => {
       runLiveWorkforceSync();
     });
+    onClick("testBrightHrConnectionBtn", () => {
+      runAction("Testing BrightHR connection...", "testBrightHrConnectionFromUi");
+    });
+    onClick("testEmployeeEndpointBtn", () => {
+      runAction("Testing BrightHR employee endpoint...", "testBrightHrEmployeeEndpointFromUi");
+    });
     onClick("testAbsenceEndpointBtn", () => {
       runAction("Testing BrightHR absence endpoint…", "testBrightHrAbsenceEndpointFromUi");
     });
@@ -183,19 +189,29 @@
         showToast(error.message || "Action failed.");
       });
 
-    if (functionName === "setupWorkforceFromUi") runner.setupWorkforceFromUi();
-    if (functionName === "syncBrightHrEmployeesFromUi") runner.syncBrightHrEmployeesFromUi();
-    if (functionName === "syncBrightHrAbsencesFromUi") runner.syncBrightHrAbsencesFromUi();
-    if (functionName === "syncWorkforceFromUi") runner.syncWorkforceFromUi();
-    if (functionName === "testBrightHrAbsenceEndpointFromUi") runner.testBrightHrAbsenceEndpointFromUi();
-    if (functionName === "discoverBrightHrAbsenceEndpointFromUi") runner.discoverBrightHrAbsenceEndpointFromUi();
-    if (functionName === "importLegacyRotaFromUi") runner.importLegacyRotaFromUi();
-    if (functionName === "importReliefRotaFromUi") runner.importReliefRotaFromUi();
-    if (functionName === "clearLegacyRotaShiftNoiseFromUi") runner.clearLegacyRotaShiftNoiseFromUi();
-    if (functionName === "detectCoverageGapsFromUi") runner.detectCoverageGapsFromUi();
-    if (functionName === "generateReliefSuggestionsFromUi") runner.generateReliefSuggestionsFromUi();
-    if (functionName === "generateReliefRotaAssignmentsFromUi") runner.generateReliefRotaAssignmentsFromUi();
-    if (functionName === "dedupeRotaTemplatesFromUi") runner.dedupeRotaTemplatesFromUi();
+    const actions = {
+      setupWorkforceFromUi: () => runner.setupWorkforceFromUi(),
+      syncBrightHrEmployeesFromUi: () => runner.syncBrightHrEmployeesFromUi(),
+      syncBrightHrAbsencesFromUi: () => runner.syncBrightHrAbsencesFromUi(),
+      syncWorkforceFromUi: () => runner.syncWorkforceFromUi(),
+      testBrightHrConnectionFromUi: () => runner.testBrightHrConnectionFromUi(),
+      testBrightHrEmployeeEndpointFromUi: () => runner.testBrightHrEmployeeEndpointFromUi(),
+      testBrightHrAbsenceEndpointFromUi: () => runner.testBrightHrAbsenceEndpointFromUi(),
+      discoverBrightHrAbsenceEndpointFromUi: () => runner.discoverBrightHrAbsenceEndpointFromUi(),
+      importLegacyRotaFromUi: () => runner.importLegacyRotaFromUi(),
+      importReliefRotaFromUi: () => runner.importReliefRotaFromUi(),
+      clearLegacyRotaShiftNoiseFromUi: () => runner.clearLegacyRotaShiftNoiseFromUi(),
+      detectCoverageGapsFromUi: () => runner.detectCoverageGapsFromUi(),
+      generateReliefSuggestionsFromUi: () => runner.generateReliefSuggestionsFromUi(),
+      generateReliefRotaAssignmentsFromUi: () => runner.generateReliefRotaAssignmentsFromUi(),
+      dedupeRotaTemplatesFromUi: () => runner.dedupeRotaTemplatesFromUi()
+    };
+    if (!actions[functionName]) {
+      hideLoading();
+      showToast("That action is not wired yet: " + functionName);
+      return;
+    }
+    actions[functionName]();
   }
 
   function runLiveWorkforceSync() {

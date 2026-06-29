@@ -547,11 +547,7 @@ function rebuildSheetWithoutMatchingRows_(sheet, header, matcher) {
   }
   if (!kept.length) {
     sheet.getRange(2, 1, 1, lastColumn).clearContent();
-    if (lastRow > 2) sheet.deleteRows(3, lastRow - 2);
     return deleted;
-  }
-  if (kept.length + 1 < lastRow) {
-    sheet.deleteRows(kept.length + 2, lastRow - kept.length - 1);
   }
   return deleted;
 }

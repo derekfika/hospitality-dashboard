@@ -94,9 +94,8 @@ function testBrightHrEmployeesQuery(limit) {
 }
 
 function syncBrightHrEmployees() {
-  setupWorkforceOperationsPlatform();
   const spreadsheet = getWorkforceSpreadsheet_();
-  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.staffDirectory);
+  const sheet = ensureStaffDirectorySheet_(spreadsheet);
   const existingStaff = buildExistingStaffIndex_(sheet);
   const employees = fetchBrightHrEmployees_();
   const now = new Date();
@@ -141,7 +140,6 @@ function syncBrightHrAbsences() {
 }
 
 function syncBrightHrAbsencesBatch(batchSizeOverride) {
-  setupWorkforceOperationsPlatform();
   const keys = WORKFORCE_CONFIG.scriptProperties;
   const properties = PropertiesService.getScriptProperties();
   let path = properties.getProperty(keys.brightHrAbsencesPath);
@@ -153,7 +151,7 @@ function syncBrightHrAbsencesBatch(batchSizeOverride) {
   }
 
   const spreadsheet = getWorkforceSpreadsheet_();
-  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.absences);
+  const sheet = ensureAbsencesSheet_(spreadsheet);
   const staffIndex = buildStaffLookupForAbsences_(spreadsheet);
   const employeeIds = getBrightHrEmployeeIdsForAbsenceSync_(spreadsheet);
   if (!employeeIds.length) {
@@ -690,6 +688,22 @@ function normaliseBrightHrDateForId_(value) {
   return text ? text.replace(/[^0-9]/g, "") : "unknown_date";
 }
 
+function ensureStaffDirectorySheet_(spreadsheet) {
+  return setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.staffDirectory, [
+    "Employee ID", "Name", "Email", "Role", "Primary Site", "Secondary Sites",
+    "Contract Hours", "Employment Status", "Relief Team", "Event Team",
+    "Coffee Trainer", "Manager", "Terminated", "BrightHR Raw JSON",
+    "Last Synced", "Notes", "Source"
+  ]);
+}
+
+function ensureAbsencesSheet_(spreadsheet) {
+  return setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.absences, [
+    "Absence ID", "Employee ID", "Employee Name", "Absence Type", "Start Date",
+    "End Date", "Status", "Source", "BrightHR Raw JSON", "Last Synced"
+  ]);
+}
+
 function upsertWorkforceRows_(sheet, keyHeader, rowObjects) {
   if (!sheet) throw new Error("Target workforce sheet was not found.");
   if (!rowObjects.length) return;
@@ -705,6 +719,7 @@ function upsertWorkforceRows_(sheet, keyHeader, rowObjects) {
         if (key) existing[key] = index + 2;
       });
   }
+  const appendValues = [];
   rowObjects.forEach(function(rowObject) {
     const key = String(rowObject[keyHeader] || "").trim();
     if (!key) return;
@@ -716,9 +731,13 @@ function upsertWorkforceRows_(sheet, keyHeader, rowObjects) {
     if (existing[key]) {
       sheet.getRange(existing[key], 1, 1, values.length).setValues([values]);
     } else {
-      sheet.appendRow(values);
+      appendValues.push(values);
     }
   });
+  if (appendValues.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, appendValues.length, Object.keys(map).length)
+      .setValues(appendValues);
+  }
 }
 
 function workforceHeaderMap_(sheet) {

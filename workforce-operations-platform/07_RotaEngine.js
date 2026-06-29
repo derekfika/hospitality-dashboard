@@ -177,9 +177,8 @@ function generateReliefSuggestions(daysAhead) {
     });
   });
 
-  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefSuggestions);
-  clearWorkforceSheetData_(sheet);
-  upsertWorkforceRows_(sheet, "Suggestion ID", suggestions);
+  const sheet = ensureReliefSuggestionsSheet_(spreadsheet);
+  replaceWorkforceSheetRowsFast_(sheet, suggestions);
   return {
     ok: true,
     gapsReviewed: gaps.length,
@@ -215,7 +214,6 @@ function getReliefSuggestionSummary(limit) {
 }
 
 function generateReliefRotaAssignments(daysAhead) {
-  setupWorkforceOperationsPlatform();
   const suggestionResult = generateReliefSuggestions(daysAhead || 28);
   const spreadsheet = getWorkforceSpreadsheet_();
   const gapsById = {};
@@ -272,9 +270,8 @@ function generateReliefRotaAssignments(daysAhead) {
       "Notes": "Generated from relief rota engine"
     });
   });
-  const sheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefAssignments);
-  clearWorkforceSheetData_(sheet);
-  upsertWorkforceRows_(sheet, "Assignment ID", assignments);
+  const sheet = ensureReliefAssignmentsSheet_(spreadsheet);
+  replaceWorkforceSheetRowsFast_(sheet, assignments);
   return {
     ok: true,
     suggestionsCreated: suggestionResult.suggestionsCreated,
@@ -312,6 +309,37 @@ function createAgencyRequestForGap(gapId, agencyId) {
     agencyRequestId: requestId,
     message: "Draft agency request created."
   };
+}
+
+function ensureReliefSuggestionsSheet_(spreadsheet) {
+  return setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefSuggestions, [
+    "Suggestion ID", "Gap ID", "Site ID", "Date", "Role", "Suggested Employee ID",
+    "Suggested Employee Name", "Reason", "Score", "Reviewed", "Approved"
+  ]);
+}
+
+function ensureReliefAssignmentsSheet_(spreadsheet) {
+  return setupWorkforceSheet_(spreadsheet, WORKFORCE_CONFIG.sheets.reliefAssignments, [
+    "Assignment ID", "Gap ID", "Site ID", "Site Name", "Date", "Weekday",
+    "Role", "Covering Employee ID", "Covering Employee Name", "Covering Email",
+    "Covered Employee Name", "Status", "Score", "Reason", "Generated At", "Notes"
+  ]);
+}
+
+function replaceWorkforceSheetRowsFast_(sheet, rowObjects) {
+  if (!sheet) throw new Error("Target workforce sheet was not found.");
+  clearWorkforceSheetData_(sheet);
+  if (!rowObjects || !rowObjects.length) return;
+  const map = workforceHeaderMap_(sheet);
+  const headers = Object.keys(map);
+  const values = rowObjects.map(function(rowObject) {
+    return headers.map(function(header) {
+      return Object.prototype.hasOwnProperty.call(rowObject, header)
+        ? rowObject[header]
+        : "";
+    });
+  });
+  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
 }
 
 function buildCoverageGapIndex_(gaps) {
@@ -526,5 +554,4 @@ function getNextMonday_() {
 function clearWorkforceSheetData_(sheet) {
   if (!sheet || sheet.getLastRow() < 2) return;
   sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
-  if (sheet.getLastRow() > 2) sheet.deleteRows(3, sheet.getLastRow() - 2);
 }
