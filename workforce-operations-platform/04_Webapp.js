@@ -197,7 +197,33 @@ function getRotaCockpitFromUi(siteId, weekStartDate) {
 
 function getRotaAssistantWeekFromUi(siteId, weekStartDate) {
   try {
-    return toPlainJson_(buildRotaAssistantWeek_(siteId, weekStartDate));
+    const startedAt = new Date().getTime();
+    const weekStart = normaliseWeekStart_(weekStartDate);
+    const snapshotResult = loadRotaWeekSnapshotFromDrive_(siteId, weekStart);
+    if (snapshotResult.snapshot && !isRotaSnapshotStale_(snapshotResult.snapshot)) {
+      snapshotResult.snapshot.diagnostics = buildSnapshotDiagnostics_(
+        snapshotResult.snapshot,
+        "drive_snapshot",
+        startedAt,
+        snapshotResult.loadMs,
+        0,
+        false
+      );
+      return toPlainJson_(snapshotResult.snapshot);
+    }
+    const buildStartedAt = new Date().getTime();
+    const snapshot = buildAndSaveRotaWeekSnapshot_(siteId, weekStart, {
+      staleReason: snapshotResult.snapshot ? "Snapshot older than freshness threshold." : "No snapshot existed."
+    });
+    snapshot.diagnostics = buildSnapshotDiagnostics_(
+      snapshot,
+      snapshotResult.snapshot ? "rebuilt_stale" : "rebuilt_missing",
+      startedAt,
+      snapshotResult.loadMs,
+      new Date().getTime() - buildStartedAt,
+      Boolean(snapshotResult.snapshot)
+    );
+    return toPlainJson_(snapshot);
   } catch (error) {
     return toPlainJson_({
       ok: false,
@@ -209,6 +235,47 @@ function getRotaAssistantWeekFromUi(siteId, weekStartDate) {
       totals: getEmptyRotaAssistantTotals_()
     });
   }
+}
+
+function buildAndSaveRotaWeekSnapshotFromUi(siteId, weekStartDate) {
+  return toPlainJson_(buildAndSaveRotaWeekSnapshot_(siteId, normaliseWeekStart_(weekStartDate), {
+    forced: true
+  }));
+}
+
+function rebuildAllRotaSnapshotsFromUi() {
+  return toPlainJson_(rebuildAllRotaSnapshots_());
+}
+
+function nightlyWorkforceSnapshotSync() {
+  const result = {
+    ok: true,
+    employees: null,
+    absences: null,
+    snapshots: null,
+    warnings: [],
+    startedAt: new Date()
+  };
+  try {
+    result.employees = syncBrightHrEmployees();
+  } catch (error) {
+    result.warnings.push("Employee sync failed: " + (error.message || String(error)));
+  }
+  try {
+    result.absences = syncBrightHrAbsences();
+  } catch (error) {
+    result.warnings.push("Absence sync failed: " + (error.message || String(error)));
+  }
+  result.snapshots = rebuildAllRotaSnapshots_();
+  result.finishedAt = new Date();
+  result.message = [
+    "Nightly workforce snapshot sync complete.",
+    result.employees ? (result.employees.synced || 0) + " employee(s) updated." : "",
+    result.absences ? (result.absences.synced || 0) + " absence row(s) updated." : "",
+    result.snapshots ? (result.snapshots.saved || 0) + " snapshot(s) saved." : "",
+    result.warnings.length ? result.warnings.join(" ") : ""
+  ].filter(Boolean).join(" ");
+  return result;
 }
 
 function getPersonStandardRotaFromUi(employeeId) {
@@ -259,7 +326,9 @@ function approveSuggestedCoverFromUi(gapId) {
 }
 
 function approveBestCoverFromUi(issueId) {
-  return approveSuggestedCoverFromUi(issueId);
+  const result = approveSuggestedCoverFromUi(issueId);
+  markRotaSnapshotStaleForIssue_(issueId);
+  return toPlainJson_(result);
 }
 
 function chooseCoverForGapFromUi(gapId, employeeId) {
@@ -274,7 +343,9 @@ function chooseCoverForGapFromUi(gapId, employeeId) {
 }
 
 function chooseCoverForIssueFromUi(issueId, employeeId) {
-  return chooseCoverForGapFromUi(issueId, employeeId);
+  const result = chooseCoverForGapFromUi(issueId, employeeId);
+  markRotaSnapshotStaleForIssue_(issueId);
+  return toPlainJson_(result);
 }
 
 function requestAgencyForGapFromUi(gapId, agencyId, details) {
@@ -289,7 +360,9 @@ function requestAgencyForGapFromUi(gapId, agencyId, details) {
 }
 
 function requestAgencyForIssueFromUi(issueId) {
-  return requestAgencyForGapFromUi(issueId);
+  const result = requestAgencyForGapFromUi(issueId);
+  markRotaSnapshotStaleForIssue_(issueId);
+  return toPlainJson_(result);
 }
 
 function markGapResolvedFromUi(gapId) {
@@ -299,13 +372,17 @@ function markGapResolvedFromUi(gapId) {
 }
 
 function markIssueResolvedFromUi(issueId) {
-  return markGapResolvedFromUi(issueId);
+  const result = markGapResolvedFromUi(issueId);
+  markRotaSnapshotStaleForIssue_(issueId);
+  return toPlainJson_(result);
 }
 
 function ignoreIssueFromUi(issueId) {
-  return markCoverageGap_(issueId, "ignored", {
+  const result = markCoverageGap_(issueId, "ignored", {
     notes: "Ignored from Rota Assistant"
   });
+  markRotaSnapshotStaleForIssue_(issueId);
+  return toPlainJson_(result);
 }
 
 function snoozeGapFromUi(gapId) {
@@ -315,9 +392,11 @@ function snoozeGapFromUi(gapId) {
 }
 
 function snoozeIssueFromUi(issueId, untilDate) {
-  return markCoverageGap_(issueId, "snoozed", {
+  const result = markCoverageGap_(issueId, "snoozed", {
     notes: "Snoozed from Rota Assistant" + (untilDate ? " until " + untilDate : "")
   });
+  markRotaSnapshotStaleForIssue_(issueId);
+  return toPlainJson_(result);
 }
 
 function testBrightHrAbsenceEndpointFromUi() {
@@ -454,6 +533,92 @@ function generateReliefRotaPdfForSelectedWeekFromUi(siteId, weekStartDate) {
 
 function createAgencyRequestForGapFromUi(gapId, agencyId) {
   return createAgencyRequestForGap(gapId, agencyId);
+}
+
+function prepareAgencyRequestForIssueFromUi(issueId) {
+  try {
+    const spreadsheet = getWorkforceSpreadsheet_();
+    const gap = getCoverageGapById_(spreadsheet, issueId);
+    const agency = getDefaultAgencyContact_() || {};
+    return toPlainJson_({
+      ok: true,
+      issueId: String(issueId || ""),
+      agencyId: agency["Agency ID"] || "",
+      agencyName: agency["Agency Name"] || "",
+      contactName: agency["Contact Name"] || "",
+      email: agency.Email || "",
+      siteId: gap["Site ID"] || "",
+      siteName: gap["Site Name"] || "",
+      date: normaliseWorkforceDate_(gap.Date),
+      weekday: gap.Weekday || "",
+      role: gap.Role || "",
+      missingEmployeeName: gap["Employee Name"] || "",
+      reason: gap["Gap Type"] || "Cover needed",
+      notes: "Please can you confirm agency cover for " +
+        [gap.Role, gap["Site Name"], normaliseWorkforceDate_(gap.Date)].filter(Boolean).join(" at ")
+    });
+  } catch (error) {
+    return toPlainJson_({
+      ok: false,
+      error: error.message || String(error)
+    });
+  }
+}
+
+function approveHighConfidenceSuggestionsForWeekFromUi(siteId, weekStartDate, previewOnly) {
+  const snapshot = getRotaAssistantWeekFromUi(siteId, weekStartDate);
+  const candidates = [];
+  (snapshot.days || []).forEach(function(day) {
+    (day.issues || []).forEach(function(issue) {
+      const suggestion = issue.bestSuggestion || null;
+      const confidence = String((suggestion && suggestion.confidence) || "").toLowerCase();
+      if (!issue.gapId || !suggestion || !suggestion.employeeName) return;
+      if (issue.issueType === "conflict") return;
+      if (confidence && confidence !== "high" && confidence !== "strong") return;
+      candidates.push({
+        issueId: issue.issueId || issue.gapId,
+        date: day.date,
+        weekday: day.weekday,
+        role: issue.role,
+        missingEmployeeName: issue.personName || issue.missingEmployeeName,
+        coverEmployeeName: suggestion.employeeName,
+        confidence: suggestion.confidence || "High",
+        reason: suggestion.reason || ""
+      });
+    });
+  });
+  if (previewOnly !== false) {
+    return toPlainJson_({
+      ok: true,
+      preview: true,
+      count: candidates.length,
+      candidates: candidates,
+      message: candidates.length
+        ? "Approve " + candidates.length + " safe suggestion(s)?"
+        : "No high-confidence suggestions found for this week."
+    });
+  }
+  const applied = [];
+  const failed = [];
+  candidates.forEach(function(candidate) {
+    try {
+      approveSuggestedCoverFromUi(candidate.issueId);
+      applied.push(candidate);
+      markRotaSnapshotStaleForIssue_(candidate.issueId);
+    } catch (error) {
+      failed.push({
+        issueId: candidate.issueId,
+        error: error.message || String(error)
+      });
+    }
+  });
+  return toPlainJson_({
+    ok: failed.length === 0,
+    applied: applied,
+    failed: failed,
+    message: "Approved " + applied.length + " high-confidence cover suggestion(s)." +
+      (failed.length ? " " + failed.length + " failed." : "")
+  });
 }
 
 function markCoverageGapFromUi(gapId, action, details) {
@@ -827,6 +992,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
         siteName: String(template["Site Name"] || ""),
         startTime: String(template["Start Time"] || ""),
         endTime: String(template["End Time"] || ""),
+        source: String(template.Source || template["Source"] || "Site Standard Rota"),
         status: scheduleStatus,
         coverName: cover ? String(cover["Employee Name"] || "") : "",
         coverType: cover ? String(cover["Exception Type"] || "Cover") : "",
@@ -956,8 +1122,12 @@ function buildRotaAssistantWeek_(siteId, weekStartDate) {
       scheduledCount: fullRota.length,
       absenceCount: issues.filter(function(issue) { return issue.issueType === "absence"; }).length,
       issueCount: issues.length,
-      uncoveredCount: issues.filter(function(issue) { return issue.status === "needs_action"; }).length,
-      suggestionCount: issues.filter(function(issue) { return issue.status === "suggested"; }).length
+      uncoveredCount: issues.filter(function(issue) {
+        return issue.issueType === "gap" && issue.status === "needs_action";
+      }).length,
+      suggestionCount: issues.filter(function(issue) {
+        return issue.bestSuggestion;
+      }).length
     };
     const status = !fullRota.length ? "closed"
       : summary.uncoveredCount ? "uncovered"
@@ -1003,7 +1173,7 @@ function formatAssistantIssue_(issue, day, cockpit) {
     : "gap";
   return {
     issueId: String(issue.gapId || issue.issueId || ""),
-    gapId: String(issue.gapId || issue.issueId || ""),
+    gapId: String(issue.gapId || ""),
     issueType: issueType,
     type: hasSuggestion ? "cover_suggested" : rawType || "uncovered",
     status: hasSuggestion ? "suggested" : "needs_action",
@@ -1054,6 +1224,206 @@ function getEmptyRotaAssistantTotals_() {
     suggestionCount: 0,
     resolvedCount: 0
   };
+}
+
+function getOrCreateRotaSnapshotFolder_() {
+  const properties = PropertiesService.getScriptProperties();
+  const key = WORKFORCE_CONFIG.scriptProperties.rotaSnapshotFolderId || "ROTA_SNAPSHOT_FOLDER_ID";
+  const existingId = properties.getProperty(key);
+  if (existingId) {
+    try {
+      return DriveApp.getFolderById(existingId);
+    } catch (error) {
+      properties.deleteProperty(key);
+    }
+  }
+  const folders = DriveApp.getFoldersByName("Workforce Rota Snapshots");
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder("Workforce Rota Snapshots");
+  properties.setProperty(key, folder.getId());
+  return folder;
+}
+
+function getRotaSnapshotFileName_(siteId, weekStart) {
+  return [
+    "rota-snapshot",
+    slugifyWorkforce_(siteId || "site"),
+    normaliseWeekStart_(weekStart)
+  ].join("__") + ".json";
+}
+
+function saveRotaWeekSnapshotToDrive_(siteId, weekStart, snapshot) {
+  const folder = getOrCreateRotaSnapshotFolder_();
+  const fileName = getRotaSnapshotFileName_(siteId, weekStart);
+  const body = JSON.stringify(snapshot || {}, null, 2);
+  const files = folder.getFilesByName(fileName);
+  let file = null;
+  while (files.hasNext()) {
+    const candidate = files.next();
+    if (!file) {
+      file = candidate;
+    } else {
+      candidate.setTrashed(true);
+    }
+  }
+  if (file) {
+    file.setContent(body);
+  } else {
+    file = folder.createFile(fileName, body, MimeType.PLAIN_TEXT);
+  }
+  return {
+    ok: true,
+    fileId: file.getId(),
+    fileName: fileName,
+    url: file.getUrl(),
+    sizeBytes: body.length
+  };
+}
+
+function loadRotaWeekSnapshotFromDrive_(siteId, weekStart) {
+  const startedAt = new Date().getTime();
+  try {
+    const folder = getOrCreateRotaSnapshotFolder_();
+    const files = folder.getFilesByName(getRotaSnapshotFileName_(siteId, weekStart));
+    if (!files.hasNext()) {
+      return { ok: true, snapshot: null, loadMs: new Date().getTime() - startedAt };
+    }
+    const file = files.next();
+    const text = file.getBlob().getDataAsString();
+    const snapshot = text ? JSON.parse(text) : null;
+    if (snapshot) {
+      snapshot.snapshotFileId = file.getId();
+      snapshot.snapshotFileName = file.getName();
+      snapshot.snapshotUrl = file.getUrl();
+    }
+    return {
+      ok: true,
+      snapshot: snapshot,
+      fileId: file.getId(),
+      loadMs: new Date().getTime() - startedAt,
+      sizeBytes: text.length
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      snapshot: null,
+      loadMs: new Date().getTime() - startedAt,
+      error: error.message || String(error)
+    };
+  }
+}
+
+function buildAndSaveRotaWeekSnapshot_(siteId, weekStart, options) {
+  options = options || {};
+  const snapshot = buildRotaAssistantWeek_(siteId, weekStart);
+  snapshot.generatedAt = new Date().toISOString();
+  snapshot.snapshotFreshHours = 12;
+  snapshot.snapshotStale = false;
+  snapshot.snapshotStaleReason = "";
+  snapshot.snapshotForced = Boolean(options.forced);
+  if (options.staleReason) snapshot.previousSnapshotState = options.staleReason;
+  const saved = saveRotaWeekSnapshotToDrive_(siteId, weekStart, snapshot);
+  snapshot.snapshotFileId = saved.fileId;
+  snapshot.snapshotFileName = saved.fileName;
+  snapshot.snapshotUrl = saved.url;
+  snapshot.snapshotSizeBytes = saved.sizeBytes;
+  snapshot.diagnostics = buildSnapshotDiagnostics_(snapshot, "rebuilt", new Date().getTime(), 0, 0, false);
+  return snapshot;
+}
+
+function isRotaSnapshotStale_(snapshot) {
+  if (!snapshot || snapshot.snapshotStale) return true;
+  const generatedAt = new Date(snapshot.generatedAt || 0).getTime();
+  if (!generatedAt) return true;
+  const thresholdMs = 12 * 60 * 60 * 1000;
+  return new Date().getTime() - generatedAt > thresholdMs;
+}
+
+function markRotaSnapshotStale_(siteId, weekStart) {
+  const loaded = loadRotaWeekSnapshotFromDrive_(siteId, weekStart);
+  if (!loaded.snapshot) return { ok: true, marked: false, message: "No snapshot exists yet." };
+  loaded.snapshot.snapshotStale = true;
+  loaded.snapshot.snapshotStaleReason = "Changed by rota action at " + new Date().toISOString();
+  saveRotaWeekSnapshotToDrive_(siteId, weekStart, loaded.snapshot);
+  return { ok: true, marked: true };
+}
+
+function markRotaSnapshotStaleForIssue_(issueId) {
+  try {
+    const spreadsheet = getWorkforceSpreadsheet_();
+    const gap = getCoverageGapById_(spreadsheet, issueId);
+    const siteId = gap["Site ID"] || "";
+    const weekStart = normaliseWeekStart_(normaliseWorkforceDate_(gap.Date));
+    return markRotaSnapshotStale_(siteId, weekStart);
+  } catch (error) {
+    return { ok: false, marked: false, error: error.message || String(error) };
+  }
+}
+
+function rebuildAllRotaSnapshots_() {
+  const options = safeGetRotaAppOptions_();
+  const sites = (options.sites || []).filter(function(site) {
+    return site && site.siteId;
+  });
+  const baseWeek = normaliseWeekStart_(new Date());
+  const weeks = [0, 7, 14, 21].map(function(offset) {
+    return addDays_(baseWeek, offset);
+  });
+  const results = [];
+  sites.forEach(function(site) {
+    weeks.forEach(function(weekStart) {
+      try {
+        const snapshot = buildAndSaveRotaWeekSnapshot_(site.siteId, weekStart, { forced: true });
+        results.push({
+          ok: true,
+          siteId: site.siteId,
+          siteName: site.siteName,
+          weekStart: weekStart,
+          issueCount: (snapshot.totals || {}).issueCount || 0
+        });
+      } catch (error) {
+        results.push({
+          ok: false,
+          siteId: site.siteId,
+          siteName: site.siteName,
+          weekStart: weekStart,
+          error: error.message || String(error)
+        });
+      }
+    });
+  });
+  return {
+    ok: true,
+    saved: results.filter(function(row) { return row.ok; }).length,
+    failed: results.filter(function(row) { return !row.ok; }).length,
+    results: results,
+    message: "Rebuilt " + results.filter(function(row) { return row.ok; }).length + " rota snapshot(s)."
+  };
+}
+
+function buildSnapshotDiagnostics_(snapshot, source, startedAt, loadMs, buildMs, wasStale) {
+  const payload = JSON.stringify(snapshot || {});
+  const days = (snapshot && snapshot.days) || [];
+  const totals = (snapshot && snapshot.totals) || {};
+  return {
+    source: source || "unknown",
+    totalBackendMs: Math.max(0, new Date().getTime() - Number(startedAt || new Date().getTime())),
+    snapshotLoadMs: Number(loadMs || 0),
+    snapshotBuildMs: Number(buildMs || 0),
+    payloadKb: Math.round((payload.length / 1024) * 10) / 10,
+    generatedAt: snapshot ? String(snapshot.generatedAt || "") : "",
+    stale: Boolean(wasStale || (snapshot && snapshot.snapshotStale)),
+    fresh: Boolean(snapshot && !isRotaSnapshotStale_(snapshot)),
+    dayCount: days.length,
+    issueCount: Number(totals.issueCount || 0),
+    scheduledCount: days.reduce(function(sum, day) {
+      return sum + Number((day.summary && day.summary.scheduledCount) || 0);
+    }, 0)
+  };
+}
+
+function addDays_(dateText, days) {
+  const base = new Date(normaliseWorkforceDate_(dateText) + "T00:00:00");
+  return Utilities.formatDate(new Date(base.getTime() + Number(days || 0) * 86400000), WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd");
 }
 
 function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability, coverHistory) {

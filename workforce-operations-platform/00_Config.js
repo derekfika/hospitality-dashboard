@@ -9,6 +9,7 @@ const WORKFORCE_CONFIG = Object.freeze({
   },
   scriptProperties: {
     workforceSpreadsheetId: "WORKFORCE_SPREADSHEET_ID",
+    rotaSnapshotFolderId: "ROTA_SNAPSHOT_FOLDER_ID",
     legacyRotaSpreadsheetId: "LEGACY_ROTA_SPREADSHEET_ID",
     reliefRotaSpreadsheetId: "RELIEF_ROTA_SPREADSHEET_ID",
     brightHrClientId: "BRIGHTHR_CLIENT_ID",

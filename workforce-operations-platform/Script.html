@@ -11,6 +11,8 @@
     selectedDay: "",
     selectedIssueId: "",
     loadedWeeksBySite: {},
+    snapshotsByKey: {},
+    detailFilter: "all",
     openDrawer: null,
     showFullRota: false,
     currentCockpit: null,
@@ -73,6 +75,10 @@
     onClick("discoverAbsenceEndpointBtn", () => {
       runAction("Discovering BrightHR absence endpoint…", "discoverBrightHrAbsenceEndpointFromUi");
     });
+    onClick("rebuildAllSnapshotsBtn", () => {
+      runAction("Rebuilding rota snapshots…", "rebuildAllRotaSnapshotsFromUi");
+    });
+    onClick("showDiagnosticsBtn", showPerformanceDiagnostics);
     onClick("loadCockpitBtn", () => {
       loadRotaCockpit();
     });
@@ -83,6 +89,7 @@
     onClick("toggleFullRotaBtn", toggleFullRota);
     onClick("toggleAdminBtn", toggleAdmin);
     onClick("downloadAssistantPdfBtn", generateSelectedWeekReliefRotaPdf);
+    onClick("rebuildCurrentSnapshotBtn", rebuildCurrentSnapshot);
     onClick("previewLegacyBtn", () => {
       runLegacyPreview();
     });
@@ -222,6 +229,7 @@
       testBrightHrEmployeeEndpointFromUi: () => runner.testBrightHrEmployeeEndpointFromUi(),
       testBrightHrAbsenceEndpointFromUi: () => runner.testBrightHrAbsenceEndpointFromUi(),
       discoverBrightHrAbsenceEndpointFromUi: () => runner.discoverBrightHrAbsenceEndpointFromUi(),
+      rebuildAllRotaSnapshotsFromUi: () => runner.rebuildAllRotaSnapshotsFromUi(),
       importLegacyRotaFromUi: () => runner.importLegacyRotaFromUi(),
       importReliefRotaFromUi: () => runner.importReliefRotaFromUi(),
       clearLegacyRotaShiftNoiseFromUi: () => runner.clearLegacyRotaShiftNoiseFromUi(),
@@ -430,7 +438,13 @@
     }
     state.currentSiteId = siteId;
     state.currentWeekStart = weekStart;
-    setCockpitLoading("Loading selected site/week…");
+    const cacheKey = getSnapshotCacheKey_(siteId, weekStart);
+    const cachedBoard = state.snapshotsByKey[cacheKey];
+    if (cachedBoard) {
+      state.currentCockpit = state.snapshotsByKey[cacheKey];
+      renderRotaCockpit(cachedBoard);
+    }
+    if (!cachedBoard) setCockpitLoading("Loading selected site/week…");
     google.script.run
       .withSuccessHandler(board => {
         board = board || { ok: false, days: [], totals: {} };
@@ -438,6 +452,7 @@
         state.cockpitLoaded = true;
         state.currentCockpit = board;
         state.loadedWeeksBySite[siteId + "|" + weekStart] = board;
+        state.snapshotsByKey[cacheKey] = board;
         renderRotaCockpit(board);
       })
       .withFailureHandler(error => {
@@ -548,6 +563,153 @@
       month: "short",
       year: "numeric"
     });
+  }
+
+  function formatDisplayDateTime_(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString("en-GB", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function getSnapshotCacheKey_(siteId, weekStart) {
+    return [siteId || "", weekStart || ""].join("|");
+  }
+
+  function rebuildCurrentSnapshot() {
+    const siteSelect = document.getElementById("cockpitSiteSelect");
+    const weekInput = document.getElementById("cockpitWeekStartInput");
+    const siteId = siteSelect ? siteSelect.value : "";
+    const weekStart = weekInput ? weekInput.value : "";
+    if (!siteId) {
+      showToast("Choose a site first.");
+      return;
+    }
+    const button = document.getElementById("rebuildCurrentSnapshotBtn");
+    if (button) {
+      button.disabled = true;
+      button.dataset.defaultText = button.dataset.defaultText || button.textContent;
+      button.textContent = "Rebuilding...";
+    }
+    setCockpitLoading("Rebuilding this week's snapshot…");
+    google.script.run
+      .withSuccessHandler(board => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Rebuild snapshot";
+        }
+        if (!board || board.ok === false) {
+          showToast((board && board.error) || "Could not rebuild this snapshot.");
+          return;
+        }
+        const key = getSnapshotCacheKey_(siteId, weekStart);
+        state.snapshotsByKey[key] = board;
+        state.currentCockpit = board;
+        renderRotaCockpit(board);
+        showToast("Snapshot rebuilt for this week.");
+      })
+      .withFailureHandler(error => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Rebuild snapshot";
+        }
+        showToast(error.message || "Could not rebuild this snapshot.");
+      })
+      .buildAndSaveRotaWeekSnapshotFromUi(siteId, weekStart);
+  }
+
+  function showPerformanceDiagnostics() {
+    const diagnostics = (state.currentCockpit && state.currentCockpit.diagnostics) || null;
+    if (!diagnostics) {
+      showToast("Load a week first, then diagnostics will appear.");
+      return;
+    }
+    const preview = [
+      `Source: ${diagnostics.source || "unknown"}`,
+      `Backend: ${diagnostics.totalBackendMs || 0}ms`,
+      `Load: ${diagnostics.snapshotLoadMs || 0}ms`,
+      `Build: ${diagnostics.snapshotBuildMs || 0}ms`,
+      `Payload: ${diagnostics.payloadKb || 0}KB`,
+      `Days: ${diagnostics.dayCount || 0}`,
+      `Issues: ${diagnostics.issueCount || 0}`,
+      `Scheduled: ${diagnostics.scheduledCount || 0}`,
+      `Generated: ${diagnostics.generatedAt || "unknown"}`
+    ].join("\n");
+    const output = document.getElementById("brightHrDebugPreview");
+    if (output) output.textContent = preview;
+    showToast("Performance diagnostics shown in Admin.");
+  }
+
+  function previewBulkApproveSafeSuggestions(button) {
+    const siteId = state.currentSiteId || (document.getElementById("cockpitSiteSelect") || {}).value || "";
+    const weekStart = state.currentWeekStart || (document.getElementById("cockpitWeekStartInput") || {}).value || "";
+    if (!siteId) {
+      showToast("Choose a site first.");
+      return;
+    }
+    if (button) {
+      button.disabled = true;
+      button.dataset.defaultText = button.dataset.defaultText || button.textContent;
+      button.textContent = "Checking...";
+    }
+    google.script.run
+      .withSuccessHandler(result => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Approve safe suggestions";
+        }
+        result = result || {};
+        if (!result.count) {
+          showToast(result.message || "No safe suggestions to approve.");
+          return;
+        }
+        const names = (result.candidates || [])
+          .slice(0, 6)
+          .map(item => `${item.weekday}: ${item.coverEmployeeName} for ${item.missingEmployeeName || item.role}`)
+          .join("\n");
+        const ok = window.confirm(`${result.message}\n\n${names}${result.count > 6 ? "\n…" : ""}`);
+        if (!ok) return;
+        applyBulkApproveSafeSuggestions(button);
+      })
+      .withFailureHandler(error => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Approve safe suggestions";
+        }
+        showToast(error.message || "Could not preview safe suggestions.");
+      })
+      .approveHighConfidenceSuggestionsForWeekFromUi(siteId, weekStart, true);
+  }
+
+  function applyBulkApproveSafeSuggestions(button) {
+    const siteId = state.currentSiteId || (document.getElementById("cockpitSiteSelect") || {}).value || "";
+    const weekStart = state.currentWeekStart || (document.getElementById("cockpitWeekStartInput") || {}).value || "";
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Approving...";
+    }
+    google.script.run
+      .withSuccessHandler(result => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Approve safe suggestions";
+        }
+        showToast((result && result.message) || "Safe suggestions approved.");
+        queueQuietCockpitRefresh();
+      })
+      .withFailureHandler(error => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Approve safe suggestions";
+        }
+        showToast(error.message || "Could not approve safe suggestions.");
+      })
+      .approveHighConfidenceSuggestionsForWeekFromUi(siteId, weekStart, false);
   }
 
   function loadCoverageGaps() {
@@ -1052,6 +1214,7 @@
   function renderRotaCockpit(board) {
     const root = document.getElementById("cockpitBoard");
     if (!root) return;
+    board = board || { days: [], totals: {} };
     const totals = board.totals || {};
     const scheduledTotal = totals.scheduled != null
       ? Number(totals.scheduled || 0)
@@ -1064,21 +1227,54 @@
     text("cockpitSuggested", suggestedTotal);
     text("cockpitUncovered", uncoveredTotal);
     if (!board.days || !board.days.length) {
-      root.innerHTML = '<div class="empty-state">No standard rota found for this site/week.</div>';
+      root.innerHTML = `
+        <div class="empty-state">
+          <div>
+            <strong>No snapshot exists yet.</strong>
+            <p class="quiet">Build this week now to create the first rota snapshot.</p>
+            <button class="secondary mini" type="button" data-rebuild-current="true">Build this week now</button>
+          </div>
+        </div>
+      `;
+      const rebuild = root.querySelector("[data-rebuild-current]");
+      if (rebuild) rebuild.addEventListener("click", rebuildCurrentSnapshot);
       return;
     }
+    const selectedDate = getSelectedDayForBoard_(board);
+    state.selectedDay = selectedDate;
+    const selectedDay = (board.days || []).find(day => String(day.date || "") === String(selectedDate)) || board.days[0];
+    const diagnostics = board.diagnostics || {};
     root.innerHTML = `
       <div class="cockpit-week-title">
         <div>
           <p class="eyebrow">${escapeHtml(board.siteName || board.siteId || "Site")}</p>
           <h3>Week commencing ${escapeHtml(formatDisplayDate(board.weekStart || ""))}</h3>
         </div>
-        <span>${uncoveredTotal} uncovered · ${suggestedTotal} suggested</span>
+        <span>${uncoveredTotal} uncovered · ${suggestedTotal} suggested · ${escapeHtml(diagnostics.source || "snapshot")}</span>
       </div>
       <div class="cockpit-days">
-        ${board.days.map(day => renderCockpitDay(day)).join("")}
+        ${board.days.map(day => renderCockpitDayCard(day, selectedDate)).join("")}
       </div>
+      ${renderSelectedDayDetail(selectedDay, board)}
     `;
+    root.querySelectorAll("[data-select-day]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.selectedDay = button.dataset.selectDay || "";
+        renderRotaCockpit(board);
+      });
+    });
+    root.querySelectorAll("[data-detail-filter]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.detailFilter = button.dataset.detailFilter || "all";
+        renderRotaCockpit(board);
+      });
+    });
+    root.querySelectorAll("[data-rebuild-current]").forEach(button => {
+      button.addEventListener("click", rebuildCurrentSnapshot);
+    });
+    root.querySelectorAll("[data-bulk-approve]").forEach(button => {
+      button.addEventListener("click", () => previewBulkApproveSafeSuggestions(button));
+    });
     root.querySelectorAll("[data-cockpit-action]").forEach(button => {
       button.addEventListener("click", () => handleCockpitGapAction(button));
     });
@@ -1087,12 +1283,14 @@
     });
   }
 
-  function renderCockpitDay(day) {
+  function renderCockpitDayCard(day, selectedDate) {
     const scheduled = day.fullRota || day.scheduled || [];
     const issues = day.issues || [];
     const openIssues = issues.filter(issue => !/resolved|snoozed|ignored|agency_requested/i.test(String(issue.status || "")));
+    const summary = day.summary || {};
+    const selected = String(day.date || "") === String(selectedDate || "");
     return `
-      <article class="cockpit-day status-${escapeHtml(day.status || "closed")}">
+      <button class="cockpit-day day-card status-${escapeHtml(day.status || "closed")} ${selected ? "selected" : ""}" type="button" data-select-day="${escapeHtml(day.date || "")}">
         <header>
           <div>
             <strong>${escapeHtml(day.weekday || "")}</strong>
@@ -1100,21 +1298,144 @@
           </div>
           <em>${formatCockpitStatus(day.status)}</em>
         </header>
-        ${renderCockpitDaySummary(day.summary || {}, scheduled.length)}
-        ${openIssues.length ? `
-          <div class="cockpit-gap-list">
-            ${openIssues.map(issue => renderCockpitIssue(issue, day.date)).join("")}
+        <div class="day-card-counts">
+          <span>${Number(summary.scheduledCount || scheduled.length || 0)} scheduled</span>
+          <span>${Number(summary.absenceCount || 0)} absent</span>
+          <span>${Number(summary.uncoveredCount || 0)} gaps</span>
+          <span>${Number(summary.suggestionCount || 0)} suggested</span>
+        </div>
+        ${openIssues.length ? `<strong class="day-action-count">${openIssues.length} to check</strong>` : '<strong class="day-action-count good">No issues</strong>'}
+      </button>
+    `;
+  }
+
+  function renderSelectedDayDetail(day, board) {
+    if (!day) return "";
+    const scheduled = day.fullRota || day.scheduled || [];
+    const absences = getDayAbsenceIssues_(day);
+    const issues = getFilteredDayIssues_(day);
+    const fullRotaOpen = state.showFullRota;
+    return `
+      <section class="selected-day-panel status-${escapeHtml(day.status || "closed")}">
+        <div class="selected-day-header">
+          <div>
+            <p class="eyebrow">Selected day</p>
+            <h3>${escapeHtml(day.weekday || "")} · ${escapeHtml(formatDisplayDate(day.date || ""))}</h3>
           </div>
-        ` : '<div class="no-issues-pill">No issues</div>'}
-        ${state.showFullRota ? `
-          <div class="cockpit-full-rota">
-            <h5>Full rota</h5>
-            <div class="cockpit-staff-list">
-              ${scheduled.length ? scheduled.map(person => renderCockpitPerson(person, day.date)).join("") : '<p class="quiet">No rota</p>'}
+          <div class="quick-filter-row">
+            <button class="secondary mini" type="button" data-bulk-approve="true">Approve safe suggestions</button>
+            ${renderDetailFilterButton_("all", "All")}
+            ${renderDetailFilterButton_("needs_action", "Needs action")}
+            ${renderDetailFilterButton_("gaps", "Gaps only")}
+            ${renderDetailFilterButton_("absences", "Absences")}
+            ${renderDetailFilterButton_("agency", "Agency needed")}
+            ${renderDetailFilterButton_("resolved", "Resolved")}
+          </div>
+        </div>
+        ${renderSnapshotHealth_(board)}
+        ${!issues.length && !absences.length ? renderFullyCoveredState_(day, board) : ""}
+        <div class="selected-day-grid">
+          <article class="day-detail-card">
+            <div class="detail-card-heading">
+              <h4>Scheduled</h4>
+              <span>${scheduled.length}</span>
             </div>
-          </div>
-        ` : ""}
-      </article>
+            <div class="cockpit-staff-list">
+              ${scheduled.length ? scheduled.map(person => renderCockpitPerson(person, day.date)).join("") : '<p class="quiet">No rota for this day.</p>'}
+            </div>
+          </article>
+          <article class="day-detail-card">
+            <div class="detail-card-heading">
+              <h4>Absences</h4>
+              <span>${absences.length}</span>
+            </div>
+            <div class="cockpit-gap-list">
+              ${absences.length ? absences.map(issue => renderCockpitIssue(issue, day.date)).join("") : '<p class="quiet">No absences affecting this rota.</p>'}
+            </div>
+          </article>
+          <article class="day-detail-card issues-card">
+            <div class="detail-card-heading">
+              <h4>Issues & cover</h4>
+              <span>${issues.length}</span>
+            </div>
+            <div class="cockpit-gap-list">
+              ${issues.length ? issues.map(issue => renderCockpitIssue(issue, day.date)).join("") : '<p class="quiet">Nothing needs action for this filter.</p>'}
+            </div>
+          </article>
+        </div>
+        ${fullRotaOpen ? "" : '<p class="quiet selected-day-note">Only the selected day is expanded. Use Show full rota if you need broader rota context.</p>'}
+      </section>
+    `;
+  }
+
+  function getSelectedDayForBoard_(board) {
+    const days = board.days || [];
+    if (!days.length) return "";
+    if (state.selectedDay && days.some(day => String(day.date || "") === String(state.selectedDay))) {
+      return state.selectedDay;
+    }
+    const uncovered = days.find(day => Number((day.summary || {}).uncoveredCount || 0) > 0);
+    if (uncovered) return uncovered.date;
+    const suggested = days.find(day => Number((day.summary || {}).suggestionCount || 0) > 0);
+    if (suggested) return suggested.date;
+    const today = formatDateInput(new Date());
+    const todayInWeek = days.find(day => String(day.date || "") === today);
+    return (todayInWeek || days[0]).date;
+  }
+
+  function getDayAbsenceIssues_(day) {
+    return (day.issues || []).filter(issue =>
+      String(issue.issueType || issue.type || "").toLowerCase() === "absence"
+    );
+  }
+
+  function getFilteredDayIssues_(day) {
+    const filter = state.detailFilter || "all";
+    const issues = (day.issues || []).filter(issue =>
+      String(issue.issueType || issue.type || "").toLowerCase() !== "absence"
+    );
+    if (filter === "all") return issues.filter(issue => !isIssueResolved_(issue));
+    if (filter === "needs_action") return issues.filter(issue => !isIssueResolved_(issue));
+    if (filter === "gaps") return issues.filter(issue => issue.gapId || issue.issueType === "gap" || issue.type === "uncovered");
+    if (filter === "absences") return getDayAbsenceIssues_(day);
+    if (filter === "agency") return issues.filter(issue => !issue.bestSuggestion || /agency/i.test(String(issue.status || "")));
+    if (filter === "resolved") return (day.issues || []).filter(isIssueResolved_);
+    return issues;
+  }
+
+  function isIssueResolved_(issue) {
+    return /resolved|snoozed|ignored|agency_requested/i.test(String(issue.status || ""));
+  }
+
+  function renderDetailFilterButton_(filter, label) {
+    return `<button class="secondary mini ${state.detailFilter === filter ? "active" : ""}" type="button" data-detail-filter="${escapeHtml(filter)}">${escapeHtml(label)}</button>`;
+  }
+
+  function renderSnapshotHealth_(board) {
+    const diagnostics = board.diagnostics || {};
+    const generatedAt = board.generatedAt || diagnostics.generatedAt || "";
+    const stale = board.snapshotStale || diagnostics.stale;
+    return `
+      <div class="snapshot-health ${stale ? "stale" : ""}">
+        <span>${stale ? "Snapshot needs refresh" : "Snapshot ready"}</span>
+        <strong>${escapeHtml(diagnostics.source || "snapshot")}</strong>
+        <em>${generatedAt ? "Refreshed " + escapeHtml(formatDisplayDateTime_(generatedAt)) : "No refresh time"}</em>
+      </div>
+    `;
+  }
+
+  function renderFullyCoveredState_(day, board) {
+    const scheduled = Number((day.summary || {}).scheduledCount || (day.fullRota || []).length || 0);
+    const absences = Number((day.summary || {}).absenceCount || 0);
+    return `
+      <div class="fully-covered-state">
+        <strong>Fully covered for this day.</strong>
+        <span>${scheduled} scheduled · ${absences} absences · last refreshed ${escapeHtml(formatDisplayDateTime_(board.generatedAt || ""))}</span>
+        <div class="cockpit-gap-actions">
+          <button class="secondary mini" type="button" data-detail-filter="all">Show day detail</button>
+          <button class="secondary mini" type="button" data-rebuild-current="true">Rebuild snapshot</button>
+        </div>
+      </div>
     `;
   }
 
@@ -1174,6 +1495,7 @@
         <b>${escapeHtml(person.role || "Role")}</b>
         <span>${escapeHtml(person.employeeName || "Unassigned")}</span>
         ${person.startTime || person.endTime ? `<small>${escapeHtml([person.startTime, person.endTime].filter(Boolean).join("–"))}</small>` : ""}
+        ${person.source ? `<small class="source-badge">${escapeHtml(formatSourceBadge_(person.source))}</small>` : ""}
         ${person.absenceType ? `<small>${escapeHtml(person.absenceType)}</small>` : ""}
         ${person.coverName ? `<small>Covered by ${escapeHtml(person.coverName)}</small>` : ""}
       </button>
@@ -1321,6 +1643,7 @@
       .withSuccessHandler(board => {
         if (!board || board.ok === false) return;
         state.currentCockpit = board;
+        state.snapshotsByKey[getSnapshotCacheKey_(siteId, weekStart)] = board;
         renderRotaCockpit(board);
         window.scrollTo(0, scrollY);
       })
@@ -1435,7 +1758,7 @@
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Employee marked sick.");
         closePersonRotaModal();
-        queueQuietCockpitRefresh();
+        rebuildCurrentSnapshot();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not mark employee sick.");
@@ -1488,7 +1811,7 @@
         showToast((result && result.message) || "Person standard rota saved.");
         state.settingsLoaded = false;
         openPersonRotaProfile(selected.employeeId, selected.date || "");
-        if (state.cockpitLoaded) queueQuietCockpitRefresh();
+        if (state.cockpitLoaded) rebuildCurrentSnapshot();
       })
       .withFailureHandler(error => {
         if (submit) {
@@ -1867,6 +2190,14 @@
 
   function firstName_(name) {
     return String(name || "").trim().split(/\s+/)[0] || "cover";
+  }
+
+  function formatSourceBadge_(source) {
+    const text = String(source || "").replace(/_/g, " ").toLowerCase();
+    if (text.indexOf("person") !== -1) return "person standard";
+    if (text.indexOf("actual") !== -1) return "actual rota";
+    if (text.indexOf("manual") !== -1) return "manual";
+    return "site standard";
   }
 
   function cssEscape_(value) {
