@@ -7,6 +7,7 @@
     cockpitLoaded: false,
     showFullRota: false,
     currentCockpit: null,
+    cockpitRefreshTimer: null,
     selectedPerson: null,
     gapsById: {}
   };
@@ -616,18 +617,18 @@
       showToast("Manager name and email are required.");
       return;
     }
-    setBusy(true);
+    setFormSubmitting_(form, true, "Saving...");
     google.script.run
       .withSuccessHandler(result => {
         showToast(result.message || "Manager saved.");
         form.reset();
         state.settingsLoaded = false;
-        loadDashboard();
         loadSettingsLibrary();
+        setFormSubmitting_(form, false);
       })
       .withFailureHandler(error => {
         showToast(error.message || "Manager save failed.");
-        setBusy(false);
+        setFormSubmitting_(form, false);
       })
       .saveWorkforceManagerFromUi(data);
   }
@@ -639,18 +640,18 @@
       showToast("Agency name and email are required.");
       return;
     }
-    setBusy(true);
+    setFormSubmitting_(form, true, "Saving...");
     google.script.run
       .withSuccessHandler(result => {
         showToast(result.message || "Agency contact saved.");
         form.reset();
         state.settingsLoaded = false;
-        loadDashboard();
         loadSettingsLibrary();
+        setFormSubmitting_(form, false);
       })
       .withFailureHandler(error => {
         showToast(error.message || "Agency save failed.");
-        setBusy(false);
+        setFormSubmitting_(form, false);
       })
       .saveWorkforceAgencyContactFromUi(data);
   }
@@ -662,18 +663,18 @@
       showToast("Site, weekday and role are required.");
       return;
     }
-    setBusy(true);
+    setFormSubmitting_(form, true, "Saving...");
     google.script.run
       .withSuccessHandler(result => {
         showToast(result.message || "Standard rota row saved.");
         form.reset();
         state.settingsLoaded = false;
-        loadDashboard();
         loadSettingsLibrary();
+        setFormSubmitting_(form, false);
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not save standard rota row.");
-        setBusy(false);
+        setFormSubmitting_(form, false);
       })
       .saveRotaTemplateFromUi(data);
   }
@@ -922,18 +923,17 @@
       showToast("Could not find that staff member.");
       return;
     }
-    showToast(isReliefTeam ? "Adding to relief team…" : "Removing from relief team…");
-    setBusy(true);
+    person.reliefTeam = Boolean(isReliefTeam);
+    renderSettingsSelectors(state.settings);
+    showToast(isReliefTeam ? "Adding to relief team in the background..." : "Removing from relief team in the background...");
     google.script.run
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Relief team updated.");
-        state.settingsLoaded = false;
-        loadDashboard();
-        loadSettingsLibrary();
       })
       .withFailureHandler(error => {
+        person.reliefTeam = !Boolean(isReliefTeam);
+        renderSettingsSelectors(state.settings);
         showToast(error.message || "Could not update relief team.");
-        setBusy(false);
       })
       .setReliefTeamMemberFromUi(person.employeeId || "", person.name || "", isReliefTeam);
   }
@@ -997,7 +997,7 @@
   function renderCockpitDay(day) {
     const scheduled = day.fullRota || day.scheduled || [];
     const issues = day.issues || [];
-    const openIssues = issues.filter(issue => !/resolved|snoozed|ignored/i.test(String(issue.status || "")));
+    const openIssues = issues.filter(issue => !/resolved|snoozed|ignored|agency_requested/i.test(String(issue.status || "")));
     return `
       <article class="cockpit-day status-${escapeHtml(day.status || "closed")}">
         <header>
@@ -1113,6 +1113,123 @@
     `;
   }
 
+  function applyCockpitGapUpdate(gapId, action, result) {
+    const board = state.currentCockpit;
+    if (!board || !gapId) return false;
+    let changed = false;
+    (board.days || []).forEach(day => {
+      (day.issues || []).forEach(issue => {
+        if (String(issue.gapId || issue.issueId || "") !== String(gapId)) return;
+        changed = true;
+        if (action === "approve") {
+          const suggestion = issue.bestSuggestion || {};
+          issue.status = "resolved";
+          issue.type = "resolved";
+          issue.coverName = suggestion.employeeName || (result && result.coverName) || "Approved cover";
+          issue.primaryAction = "Cover approved";
+        } else if (action === "agency") {
+          issue.status = "agency_requested";
+          issue.type = "resolved";
+          issue.primaryAction = "Agency requested";
+        } else if (action === "resolved") {
+          issue.status = "resolved";
+          issue.type = "resolved";
+          issue.primaryAction = "Resolved";
+        }
+      });
+      (day.fullRota || []).forEach(person => {
+        const personName = normaliseClientText_(person.employeeName);
+        const matchingIssue = (day.issues || []).find(issue =>
+          String(issue.gapId || issue.issueId || "") === String(gapId) &&
+          normaliseClientText_(issue.employeeName || issue.missingEmployeeName) === personName
+        );
+        if (matchingIssue && action === "approve") {
+          person.status = "covered";
+          person.coverName = matchingIssue.coverName || "";
+          person.coverType = "Relief";
+        }
+      });
+    });
+    if (!changed) return false;
+    recomputeCockpitBoard(board);
+    renderRotaCockpit(board);
+    return true;
+  }
+
+  function recomputeCockpitBoard(board) {
+    const totals = {
+      scheduled: 0,
+      absences: 0,
+      uncovered: 0,
+      uncoveredGaps: 0,
+      suggestions: 0,
+      coverSuggested: 0,
+      conflicts: 0,
+      unresolvedActions: 0,
+      resolved: 0
+    };
+    (board.days || []).forEach(day => {
+      const fullRota = day.fullRota || day.scheduled || [];
+      const issues = day.issues || [];
+      const openIssues = issues.filter(issue => !/resolved|snoozed|ignored|agency_requested/i.test(String(issue.status || "")));
+      const openGaps = openIssues.filter(issue => issue.gapId || issue.type === "uncovered" || issue.type === "cover_suggested");
+      day.summary = {
+        scheduledCount: fullRota.length,
+        absenceCount: issues.filter(issue => String(issue.type || "") === "absence").length,
+        issueCount: openIssues.length,
+        uncoveredCount: openGaps.filter(issue => !issue.bestSuggestion).length,
+        suggestionCount: openGaps.filter(issue => issue.bestSuggestion).length,
+        conflictCount: openIssues.filter(issue => String(issue.type || "") === "conflict").length,
+        resolvedCount: issues.length - openIssues.length
+      };
+      day.status = !fullRota.length ? "closed"
+        : day.summary.uncoveredCount ? "uncovered"
+        : day.summary.suggestionCount || day.summary.conflictCount ? "cover_suggested"
+        : "covered";
+      totals.scheduled += fullRota.length;
+      totals.absences += day.absences ? day.absences.length : day.summary.absenceCount;
+      totals.uncoveredGaps += day.summary.uncoveredCount;
+      totals.uncovered += day.summary.uncoveredCount;
+      totals.coverSuggested += day.summary.suggestionCount;
+      totals.suggestions += day.summary.suggestionCount;
+      totals.conflicts += day.summary.conflictCount;
+      totals.resolved += day.summary.resolvedCount;
+      totals.unresolvedActions += Math.max(0, day.summary.issueCount - day.summary.uncoveredCount - day.summary.suggestionCount - day.summary.conflictCount);
+    });
+    board.totals = totals;
+  }
+
+  function normaliseClientText_(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function queueQuietCockpitRefresh() {
+    window.clearTimeout(state.cockpitRefreshTimer);
+    state.cockpitRefreshTimer = window.setTimeout(() => {
+      refreshRotaCockpitQuietly();
+    }, 1800);
+  }
+
+  function refreshRotaCockpitQuietly() {
+    const siteSelect = document.getElementById("cockpitSiteSelect");
+    const weekInput = document.getElementById("cockpitWeekStartInput");
+    const siteId = siteSelect ? siteSelect.value : "";
+    const weekStart = weekInput ? weekInput.value : "";
+    if (!siteId) return;
+    const scrollY = window.scrollY;
+    google.script.run
+      .withSuccessHandler(board => {
+        if (!board || board.ok === false) return;
+        state.currentCockpit = board;
+        renderRotaCockpit(board);
+        window.scrollTo(0, scrollY);
+      })
+      .withFailureHandler(error => {
+        showToast(error.message || "Cockpit saved, but quiet refresh failed.");
+      })
+      .getRotaCockpitFromUi(siteId, weekStart);
+  }
+
   function formatCockpitStatus(status) {
     const map = {
       covered: "Covered",
@@ -1215,7 +1332,7 @@
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Employee marked sick.");
         closePersonRotaModal();
-        loadRotaCockpit();
+        queueQuietCockpitRefresh();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not mark employee sick.");
@@ -1268,7 +1385,7 @@
         showToast((result && result.message) || "Person standard rota saved.");
         state.settingsLoaded = false;
         openPersonRotaProfile(selected.employeeId, selected.date || "");
-        if (state.cockpitLoaded) loadRotaCockpit();
+        if (state.cockpitLoaded) queueQuietCockpitRefresh();
       })
       .withFailureHandler(error => {
         if (submit) {
@@ -1293,18 +1410,22 @@
       openCoverPickerForCockpitGap(gapId);
       return;
     }
+    const optimisticChanged = applyCockpitGapUpdate(gapId, action, {});
+    if (optimisticChanged) showToast("Updating in the background...");
     button.disabled = true;
     const originalText = button.textContent;
     button.textContent = "Saving...";
     const runner = google.script.run
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Gap updated.");
-        loadRotaCockpit();
+        if (!optimisticChanged) applyCockpitGapUpdate(gapId, action, result || {});
+        queueQuietCockpitRefresh();
       })
       .withFailureHandler(error => {
         button.disabled = false;
         button.textContent = originalText;
         showToast(error.message || "Could not update gap.");
+        refreshRotaCockpitQuietly();
       });
     if (action === "approve") runner.approveSuggestedCoverFromUi(gapId);
     if (action === "agency") runner.requestAgencyForGapFromUi(gapId);
@@ -1484,19 +1605,23 @@
       showToast("Choose an agency.");
       return;
     }
-    showToast("Saving gap action…");
-    setBusy(true);
+    closeGapModal();
+    applyCoverageGapLocalUpdate(data.gapId, data.action);
+    if (state.cockpitLoaded) {
+      applyCockpitGapUpdate(data.gapId, data.action === "cover" ? "approve" : "agency", {
+        coverName: data.coverName || ""
+      });
+    }
+    showToast("Saving gap action in the background...");
     const runner = google.script.run
       .withSuccessHandler(result => {
-        closeGapModal();
         showToast((result && result.message) || "Gap action saved.");
-        loadDashboard();
-        if (state.cockpitLoaded) loadRotaCockpit();
-        loadCoverageGaps();
+        if (state.cockpitLoaded) queueQuietCockpitRefresh();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not save gap action.");
-        setBusy(false);
+        loadCoverageGaps();
+        if (state.cockpitLoaded) refreshRotaCockpitQuietly();
       });
     if (data.action === "cover") {
       runner.assignCoverForGapFromUi(data.gapId, data);
@@ -1507,19 +1632,35 @@
 
   function markGap(gapId, action) {
     if (!gapId) return;
-    showToast("Updating gap…");
-    setBusy(true);
+    applyCoverageGapLocalUpdate(gapId, action);
+    showToast("Updating gap in the background...");
     google.script.run
       .withSuccessHandler(result => {
         showToast((result && result.message) || "Gap updated.");
-        loadDashboard();
-        loadCoverageGaps();
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not update gap.");
-        setBusy(false);
+        loadCoverageGaps();
       })
       .markCoverageGapFromUi(gapId, action, {});
+  }
+
+  function applyCoverageGapLocalUpdate(gapId, action) {
+    if (!gapId) return;
+    delete state.gapsById[gapId];
+    const button = document.querySelector(`[data-gap-id="${cssEscape_(gapId)}"]`);
+    const card = button ? button.closest(".gap-card") : null;
+    if (!card) return;
+    card.style.opacity = "0.45";
+    card.style.transform = "scale(.985)";
+    card.setAttribute("aria-busy", "true");
+    window.setTimeout(() => {
+      card.remove();
+      const list = document.getElementById("gapList");
+      if (list && !list.querySelector(".gap-card")) {
+        list.innerHTML = '<div class="empty-state">No open gaps found</div>';
+      }
+    }, 180);
   }
 
   function renderRelief(reliefSummary) {
@@ -1556,6 +1697,15 @@
     document.querySelectorAll("button").forEach(button => {
       button.disabled = isBusy;
     });
+  }
+
+  function setFormSubmitting_(form, isSubmitting, label) {
+    if (!form) return;
+    const button = form.querySelector("button[type='submit']");
+    if (!button) return;
+    if (!button.dataset.defaultText) button.dataset.defaultText = button.textContent;
+    button.disabled = Boolean(isSubmitting);
+    button.textContent = isSubmitting ? (label || "Saving...") : button.dataset.defaultText;
   }
 
   function setPanelLoading(id, message) {
@@ -1608,5 +1758,10 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  function cssEscape_(value) {
+    if (window.CSS && typeof window.CSS.escape === "function") return window.CSS.escape(String(value || ""));
+    return String(value || "").replace(/["\\]/g, "\\$&");
   }
 </script>
