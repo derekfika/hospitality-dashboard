@@ -195,6 +195,22 @@ function getRotaCockpitFromUi(siteId, weekStartDate) {
   }
 }
 
+function getRotaAssistantWeekFromUi(siteId, weekStartDate) {
+  try {
+    return toPlainJson_(buildRotaAssistantWeek_(siteId, weekStartDate));
+  } catch (error) {
+    return toPlainJson_({
+      ok: false,
+      error: error.message || String(error),
+      siteId: String(siteId || ""),
+      weekStart: String(weekStartDate || ""),
+      generatedAt: new Date(),
+      days: [],
+      totals: getEmptyRotaAssistantTotals_()
+    });
+  }
+}
+
 function getPersonStandardRotaFromUi(employeeId) {
   return toPlainJson_({
     ok: true,
@@ -242,6 +258,10 @@ function approveSuggestedCoverFromUi(gapId) {
   });
 }
 
+function approveBestCoverFromUi(issueId) {
+  return approveSuggestedCoverFromUi(issueId);
+}
+
 function chooseCoverForGapFromUi(gapId, employeeId) {
   const person = getStaffLiteByEmployeeId_(employeeId);
   if (!person || !person.name) throw new Error("Could not find that employee.");
@@ -251,6 +271,10 @@ function chooseCoverForGapFromUi(gapId, employeeId) {
     coverType: "Relief",
     notes: "Chosen manually from rota cockpit"
   });
+}
+
+function chooseCoverForIssueFromUi(issueId, employeeId) {
+  return chooseCoverForGapFromUi(issueId, employeeId);
 }
 
 function requestAgencyForGapFromUi(gapId, agencyId, details) {
@@ -264,15 +288,35 @@ function requestAgencyForGapFromUi(gapId, agencyId, details) {
   });
 }
 
+function requestAgencyForIssueFromUi(issueId) {
+  return requestAgencyForGapFromUi(issueId);
+}
+
 function markGapResolvedFromUi(gapId) {
   return markCoverageGap_(gapId, "resolved", {
     notes: "Resolved from rota cockpit"
   });
 }
 
+function markIssueResolvedFromUi(issueId) {
+  return markGapResolvedFromUi(issueId);
+}
+
+function ignoreIssueFromUi(issueId) {
+  return markCoverageGap_(issueId, "ignored", {
+    notes: "Ignored from Rota Assistant"
+  });
+}
+
 function snoozeGapFromUi(gapId) {
   return markCoverageGap_(gapId, "snoozed", {
     notes: "Snoozed from rota cockpit"
+  });
+}
+
+function snoozeIssueFromUi(issueId, untilDate) {
+  return markCoverageGap_(issueId, "snoozed", {
+    notes: "Snoozed from Rota Assistant" + (untilDate ? " until " + untilDate : "")
   });
 }
 
@@ -874,6 +918,141 @@ function buildRotaCockpit_(siteId, weekStartDate) {
     weekEnd: weekEnd,
     days: days,
     totals: getRotaCockpitTotals_(days)
+  };
+}
+
+function buildRotaAssistantWeek_(siteId, weekStartDate) {
+  const cockpit = buildRotaCockpit_(siteId, weekStartDate);
+  const days = (cockpit.days || []).filter(function(day) {
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+      .indexOf(String(day.weekday || "")) !== -1;
+  }).map(function(day) {
+    const issues = (day.issues || [])
+      .filter(function(issue) {
+        return !/resolved|snoozed|ignored|agency_requested/i.test(String(issue.status || ""));
+      })
+      .map(function(issue) {
+        return formatAssistantIssue_(issue, day, cockpit);
+      });
+    const fullRota = (day.fullRota || []).map(function(row) {
+      const issueIds = issues
+        .filter(function(issue) {
+          return normaliseWorkforcePerson_(issue.personName) === normaliseWorkforcePerson_(row.employeeName) ||
+            String(issue.role || "") === String(row.role || "");
+        })
+        .map(function(issue) { return issue.issueId; });
+      return {
+        employeeId: String(row.employeeId || ""),
+        employeeName: String(row.employeeName || ""),
+        role: String(row.role || ""),
+        startTime: String(row.startTime || ""),
+        endTime: String(row.endTime || ""),
+        source: String(row.source || row.Source || "site_standard"),
+        hasIssue: Boolean(issueIds.length),
+        issueIds: issueIds
+      };
+    });
+    const summary = {
+      scheduledCount: fullRota.length,
+      absenceCount: issues.filter(function(issue) { return issue.issueType === "absence"; }).length,
+      issueCount: issues.length,
+      uncoveredCount: issues.filter(function(issue) { return issue.status === "needs_action"; }).length,
+      suggestionCount: issues.filter(function(issue) { return issue.status === "suggested"; }).length
+    };
+    const status = !fullRota.length ? "closed"
+      : summary.uncoveredCount ? "uncovered"
+      : summary.suggestionCount ? "cover_suggested"
+      : "covered";
+    return {
+      date: day.date,
+      weekday: day.weekday,
+      status: status,
+      summary: summary,
+      issues: issues,
+      fullRota: fullRota
+    };
+  });
+  return {
+    ok: true,
+    siteId: cockpit.siteId,
+    siteName: cockpit.siteName,
+    weekStart: cockpit.weekStart,
+    weekEnd: cockpit.weekEnd,
+    generatedAt: new Date(),
+    totals: getRotaAssistantTotals_(days),
+    days: days
+  };
+}
+
+function formatAssistantIssue_(issue, day, cockpit) {
+  const suggestion = issue.bestSuggestion ? {
+    employeeId: String(issue.bestSuggestion.employeeId || ""),
+    employeeName: String(issue.bestSuggestion.employeeName || ""),
+    role: String(issue.bestSuggestion.role || ""),
+    homeSite: String(issue.bestSuggestion.homeSite || ""),
+    score: Number(issue.bestSuggestion.score || 0),
+    confidence: String(issue.bestSuggestion.confidence || ""),
+    reason: String(issue.bestSuggestion.reason || ""),
+    matchBullets: getAssistantMatchBullets_(issue.bestSuggestion)
+  } : null;
+  const hasSuggestion = Boolean(suggestion && suggestion.employeeName);
+  const rawType = String(issue.type || "");
+  const issueType = rawType === "conflict" ? "conflict"
+    : rawType === "absence" ? "absence"
+    : hasSuggestion ? "suggestion"
+    : "gap";
+  return {
+    issueId: String(issue.gapId || issue.issueId || ""),
+    gapId: String(issue.gapId || issue.issueId || ""),
+    issueType: issueType,
+    type: hasSuggestion ? "cover_suggested" : rawType || "uncovered",
+    status: hasSuggestion ? "suggested" : "needs_action",
+    personId: String(issue.employeeId || ""),
+    personName: String(issue.employeeName || issue.missingEmployeeName || ""),
+    employeeId: String(issue.employeeId || ""),
+    employeeName: String(issue.employeeName || issue.missingEmployeeName || ""),
+    missingEmployeeName: String(issue.missingEmployeeName || issue.employeeName || ""),
+    role: String(issue.role || ""),
+    siteName: String(cockpit.siteName || cockpit.siteId || ""),
+    date: day.date,
+    weekday: day.weekday,
+    absenceType: String(issue.absenceType || ""),
+    absenceReason: String(issue.reason || issue.absenceType || ""),
+    gapReason: String(issue.reason || issue.absenceType || "Needs cover"),
+    reason: String(issue.reason || issue.absenceType || "Needs cover"),
+    priority: Number(issue.priority || 3),
+    bestSuggestion: suggestion
+  };
+}
+
+function getAssistantMatchBullets_(suggestion) {
+  const reason = String((suggestion && suggestion.reason) || "");
+  return reason.split("|")
+    .map(function(part) { return part.trim(); })
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function getRotaAssistantTotals_(days) {
+  const totals = getEmptyRotaAssistantTotals_();
+  (days || []).forEach(function(day) {
+    const summary = day.summary || {};
+    totals.absenceCount += Number(summary.absenceCount || 0);
+    totals.issueCount += Number(summary.issueCount || 0);
+    totals.uncoveredGapCount += Number(summary.uncoveredCount || 0);
+    totals.suggestionCount += Number(summary.suggestionCount || 0);
+    totals.resolvedCount += Number(summary.resolvedCount || 0);
+  });
+  return totals;
+}
+
+function getEmptyRotaAssistantTotals_() {
+  return {
+    absenceCount: 0,
+    issueCount: 0,
+    uncoveredGapCount: 0,
+    suggestionCount: 0,
+    resolvedCount: 0
   };
 }
 

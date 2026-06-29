@@ -111,6 +111,25 @@
     transform: translateX(2px);
   }
 
+  .nav-admin-button {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 42px;
+    padding: 11px 13px;
+    color: var(--muted);
+    background: transparent;
+    box-shadow: none;
+    text-align: left;
+  }
+
+  .nav-admin-button:hover,
+  .nav-admin-button.active {
+    color: var(--ink);
+    background: rgba(255,255,255,.88);
+    box-shadow: var(--shadow-soft);
+    transform: translateX(2px);
+  }
+
   .sidebar-version {
     margin-top: auto;
     padding: 14px 15px;
@@ -218,6 +237,65 @@
   .cockpit-hero {
     min-height: 260px;
     align-items: center;
+  }
+
+  .assistant-topbar {
+    scroll-margin-top: 24px;
+    min-height: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 18px;
+    align-items: center;
+    padding: 24px;
+    border: 1px solid rgba(255,255,255,.72);
+    border-radius: 30px;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 95% 0%, rgba(117,239,184,.22), transparent 16rem),
+      linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.78));
+    box-shadow: var(--shadow-soft);
+  }
+
+  .assistant-topbar h2 {
+    margin-bottom: 0;
+    color: var(--ink);
+    font-size: clamp(30px, 4vw, 52px);
+    line-height: .98;
+  }
+
+  .assistant-topbar .hero-card {
+    box-shadow: inset 0 0 0 1px rgba(33,21,95,.08);
+  }
+
+  .assistant-topbar .cockpit-controls label {
+    color: var(--muted);
+  }
+
+  .assistant-topbar .week-nav {
+    background: rgba(33,21,95,.055);
+    box-shadow: inset 0 0 0 1px rgba(33,21,95,.07);
+  }
+
+  .assistant-topbar .week-nav button {
+    background: #fff;
+  }
+
+  .assistant-section {
+    padding: 18px 20px;
+    border-radius: 24px;
+    background: rgba(255,255,255,.72);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.72), var(--shadow-soft);
+  }
+
+  .assistant-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .assistant-heading h3 {
+    margin-bottom: 0;
   }
 
   .cockpit-controls {
@@ -507,6 +585,22 @@
   .best-suggestion em {
     color: var(--accent);
     font-style: normal;
+    font-weight: 900;
+  }
+
+  .match-bullets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 2px;
+  }
+
+  .match-bullets small {
+    padding: 4px 7px;
+    border-radius: 999px;
+    color: #277a55;
+    background: rgba(117,239,184,.22);
+    font-size: 10px;
     font-weight: 900;
   }
 
@@ -1534,14 +1628,15 @@
     .brand-mark { width: 92px; height: 44px; }
     main { padding: 20px; }
     nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .hero { grid-template-columns: 1fr; padding: 26px; border-radius: 26px; }
+    .hero, .assistant-topbar { grid-template-columns: 1fr; padding: 26px; border-radius: 26px; }
     h2 { font-size: clamp(32px, 10vw, 54px); }
     .cockpit-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .metrics, .checklist, .two-col, .timeline, .settings-grid, .settings-forms, .gap-card, .control-row, .wide-form, .person-profile-grid { grid-template-columns: 1fr; }
     .cockpit-controls label { min-width: min(100%, 220px); }
     .form-title-row,
     .wide-form button { grid-column: auto; }
-    .form-title-row { align-items: stretch; flex-direction: column; }
+    .form-title-row,
+    .assistant-heading { align-items: stretch; flex-direction: column; }
     .modal-backdrop { padding: 12px; }
     .modal-card { min-height: auto; }
   }

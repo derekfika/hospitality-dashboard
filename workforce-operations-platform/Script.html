@@ -5,6 +5,13 @@
     settingsLoaded: false,
     gapsLoaded: false,
     cockpitLoaded: false,
+    adminVisible: false,
+    currentSiteId: "",
+    currentWeekStart: "",
+    selectedDay: "",
+    selectedIssueId: "",
+    loadedWeeksBySite: {},
+    openDrawer: null,
     showFullRota: false,
     currentCockpit: null,
     cockpitRefreshTimer: null,
@@ -36,6 +43,20 @@
     });
   }
 
+  function toggleAdmin() {
+    state.adminVisible = !state.adminVisible;
+    document.querySelectorAll(".admin-section").forEach(section => {
+      section.classList.toggle("hidden", !state.adminVisible);
+    });
+    const button = document.getElementById("toggleAdminBtn");
+    if (button) {
+      button.classList.toggle("active", state.adminVisible);
+      button.textContent = state.adminVisible ? "Hide admin" : "Admin";
+    }
+    if (state.adminVisible && !state.settingsLoaded) loadSettingsLibrary();
+    showToast(state.adminVisible ? "Admin tools shown." : "Admin tools hidden.");
+  }
+
   function bindActions() {
     onClick("syncEverythingBtn", () => {
       runLiveWorkforceSync();
@@ -60,6 +81,8 @@
     onClick("nextWeekBtn", () => shiftCockpitWeek(7));
     onClick("weekAfterBtn", () => shiftCockpitWeek(14));
     onClick("toggleFullRotaBtn", toggleFullRota);
+    onClick("toggleAdminBtn", toggleAdmin);
+    onClick("downloadAssistantPdfBtn", generateSelectedWeekReliefRotaPdf);
     onClick("previewLegacyBtn", () => {
       runLegacyPreview();
     });
@@ -402,9 +425,11 @@
     const siteId = siteSelect ? siteSelect.value : "";
     const weekStart = weekInput ? weekInput.value : "";
     if (!siteId) {
-      setCockpitLoading("Choose a site to load the rota cockpit.");
+      setCockpitLoading("Choose a site to load the rota assistant.");
       return;
     }
+    state.currentSiteId = siteId;
+    state.currentWeekStart = weekStart;
     setCockpitLoading("Loading selected site/week…");
     google.script.run
       .withSuccessHandler(board => {
@@ -412,13 +437,14 @@
         if (board.ok === false && board.error) showToast(board.error);
         state.cockpitLoaded = true;
         state.currentCockpit = board;
+        state.loadedWeeksBySite[siteId + "|" + weekStart] = board;
         renderRotaCockpit(board);
       })
       .withFailureHandler(error => {
-        showToast(error.message || "Could not load rota cockpit.");
+        showToast(error.message || "Could not load rota assistant.");
         setCockpitLoading("Could not load this rota week.");
       })
-      .getRotaCockpitFromUi(siteId, weekStart);
+      .getRotaAssistantWeekFromUi(siteId, weekStart);
   }
 
   function generateSelectedWeekReliefRotaPdf() {
@@ -430,7 +456,7 @@
       showToast("Choose a site in the rota cockpit first.");
       return;
     }
-    const button = document.getElementById("generateReliefRotaBtn");
+    const button = document.getElementById("downloadAssistantPdfBtn") || document.getElementById("generateReliefRotaBtn");
     if (button) {
       button.disabled = true;
       button.dataset.defaultText = button.dataset.defaultText || button.textContent;
@@ -1016,7 +1042,7 @@
       <div class="skeleton-card">
         <span class="loader small"></span>
         <div>
-          <strong>${escapeHtml(message || "Loading rota cockpit…")}</strong>
+          <strong>${escapeHtml(message || "Loading rota assistant…")}</strong>
           <p class="quiet">Only the selected site and week are being loaded.</p>
         </div>
       </div>
@@ -1027,10 +1053,16 @@
     const root = document.getElementById("cockpitBoard");
     if (!root) return;
     const totals = board.totals || {};
-    text("cockpitScheduled", totals.scheduled || 0);
-    text("cockpitAbsences", totals.absences || 0);
-    text("cockpitSuggested", totals.coverSuggested || 0);
-    text("cockpitUncovered", totals.uncoveredGaps || 0);
+    const scheduledTotal = totals.scheduled != null
+      ? Number(totals.scheduled || 0)
+      : (board.days || []).reduce((sum, day) => sum + Number((day.summary && day.summary.scheduledCount) || ((day.fullRota || []).length) || 0), 0);
+    const absenceTotal = Number(totals.absences != null ? totals.absences : (totals.absenceCount || 0));
+    const suggestedTotal = Number(totals.coverSuggested != null ? totals.coverSuggested : (totals.suggestionCount || totals.suggestions || 0));
+    const uncoveredTotal = Number(totals.uncoveredGaps != null ? totals.uncoveredGaps : (totals.uncoveredGapCount || totals.uncovered || 0));
+    text("cockpitScheduled", scheduledTotal);
+    text("cockpitAbsences", absenceTotal);
+    text("cockpitSuggested", suggestedTotal);
+    text("cockpitUncovered", uncoveredTotal);
     if (!board.days || !board.days.length) {
       root.innerHTML = '<div class="empty-state">No standard rota found for this site/week.</div>';
       return;
@@ -1041,7 +1073,7 @@
           <p class="eyebrow">${escapeHtml(board.siteName || board.siteId || "Site")}</p>
           <h3>Week commencing ${escapeHtml(formatDisplayDate(board.weekStart || ""))}</h3>
         </div>
-        <span>${Number(totals.uncoveredGaps || 0)} uncovered · ${Number(totals.coverSuggested || 0)} suggested</span>
+        <span>${uncoveredTotal} uncovered · ${suggestedTotal} suggested</span>
       </div>
       <div class="cockpit-days">
         ${board.days.map(day => renderCockpitDay(day)).join("")}
@@ -1150,6 +1182,7 @@
 
   function renderCockpitGap(gap, date) {
     const suggestion = gap.bestSuggestion || null;
+    const matchBullets = suggestion && suggestion.matchBullets ? suggestion.matchBullets : [];
     return `
       <div class="cockpit-gap" data-gap-id="${escapeHtml(gap.gapId || "")}">
         <button class="issue-person-link" type="button" data-person-profile="${escapeHtml(gap.employeeId || "")}" data-person-date="${escapeHtml(date || "")}">
@@ -1160,14 +1193,16 @@
           <div class="best-suggestion">
             <b>${escapeHtml(suggestion.employeeName || "")}</b>
             <span>${escapeHtml(suggestion.reason || "")}</span>
+            ${matchBullets.length ? `<div class="match-bullets">${matchBullets.slice(0, 3).map(bullet => `<small>✓ ${escapeHtml(bullet)}</small>`).join("")}</div>` : ""}
             <em>${escapeHtml(suggestion.confidence || "")} · ${escapeHtml(suggestion.score || "")}</em>
           </div>
         ` : '<div class="best-suggestion empty">No cover suggestion yet</div>'}
         <div class="cockpit-gap-actions">
-          ${suggestion ? `<button class="mini primary-mini" data-cockpit-action="approve" data-gap-id="${escapeHtml(gap.gapId || "")}">Approve</button>` : `<button class="mini primary-mini" data-cockpit-action="agency" data-gap-id="${escapeHtml(gap.gapId || "")}">Agency</button>`}
+          ${suggestion ? `<button class="mini primary-mini" data-cockpit-action="approve" data-gap-id="${escapeHtml(gap.gapId || "")}">Approve ${escapeHtml(firstName_(suggestion.employeeName))}</button>` : `<button class="mini primary-mini" data-cockpit-action="agency" data-gap-id="${escapeHtml(gap.gapId || "")}">Agency</button>`}
           <button class="secondary mini" data-cockpit-action="choose" data-gap-id="${escapeHtml(gap.gapId || "")}">Change</button>
           ${suggestion ? `<button class="secondary mini" data-cockpit-action="agency" data-gap-id="${escapeHtml(gap.gapId || "")}">Agency</button>` : ""}
           <button class="secondary mini" data-cockpit-action="resolved" data-gap-id="${escapeHtml(gap.gapId || "")}">Resolve</button>
+          <button class="secondary mini" data-cockpit-action="ignore" data-gap-id="${escapeHtml(gap.gapId || "")}">Ignore</button>
           <button class="secondary mini" data-person-profile="${escapeHtml(gap.employeeId || "")}" data-person-date="${escapeHtml(date || "")}">Edit rota</button>
         </div>
       </div>
@@ -1196,6 +1231,10 @@
           issue.status = "resolved";
           issue.type = "resolved";
           issue.primaryAction = "Resolved";
+        } else if (action === "ignore") {
+          issue.status = "ignored";
+          issue.type = "resolved";
+          issue.primaryAction = "Ignored";
         }
       });
       (day.fullRota || []).forEach(person => {
@@ -1288,7 +1327,7 @@
       .withFailureHandler(error => {
         showToast(error.message || "Cockpit saved, but quiet refresh failed.");
       })
-      .getRotaCockpitFromUi(siteId, weekStart);
+      .getRotaAssistantWeekFromUi(siteId, weekStart);
   }
 
   function formatCockpitStatus(status) {
@@ -1314,6 +1353,8 @@
     }
     const modal = document.getElementById("personRotaModal");
     if (modal) modal.classList.remove("hidden");
+    state.openDrawer = "personRota";
+    state.selectedDay = dateText || getCockpitSelectedDate_();
     state.selectedPerson = { employeeId: employeeId, date: dateText || getCockpitSelectedDate_() };
     text("personRotaTitle", "Loading employee…");
     text("personRotaSummary", "Pulling their standard rota and profile.");
@@ -1379,6 +1420,7 @@
   function closePersonRotaModal() {
     const modal = document.getElementById("personRotaModal");
     if (modal) modal.classList.add("hidden");
+    state.openDrawer = null;
   }
 
   function markSelectedPersonSick() {
@@ -1467,6 +1509,7 @@
     const action = button.dataset.cockpitAction;
     const gapId = button.dataset.gapId;
     if (!gapId) return;
+    state.selectedIssueId = gapId;
     if (action === "choose") {
       openCoverPickerForCockpitGap(gapId);
       return;
@@ -1488,10 +1531,11 @@
         showToast(error.message || "Could not update gap.");
         refreshRotaCockpitQuietly();
       });
-    if (action === "approve") runner.approveSuggestedCoverFromUi(gapId);
-    if (action === "agency") runner.requestAgencyForGapFromUi(gapId);
-    if (action === "resolved") runner.markGapResolvedFromUi(gapId);
-    if (action === "snooze") runner.snoozeGapFromUi(gapId);
+    if (action === "approve") runner.approveBestCoverFromUi(gapId);
+    if (action === "agency") runner.requestAgencyForIssueFromUi(gapId);
+    if (action === "resolved") runner.markIssueResolvedFromUi(gapId);
+    if (action === "ignore") runner.ignoreIssueFromUi(gapId);
+    if (action === "snooze") runner.snoozeIssueFromUi(gapId);
   }
 
   function openCoverPickerForCockpitGap(gapId) {
@@ -1819,6 +1863,10 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  function firstName_(name) {
+    return String(name || "").trim().split(/\s+/)[0] || "cover";
   }
 
   function cssEscape_(value) {

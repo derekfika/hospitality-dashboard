@@ -14,13 +14,12 @@
           </div>
           <div>
             <p class="eyebrow">FIKA</p>
-            <h1>Workforce Ops</h1>
+            <h1>Rota Assistant</h1>
           </div>
         </div>
         <nav>
-          <a class="active" href="#overview">Rota Cockpit</a>
-          <a href="#brighthr">Admin</a>
-          <a href="#settings">Settings</a>
+          <a class="active" href="#overview">Assistant</a>
+          <button class="nav-admin-button" id="toggleAdminBtn" type="button">Admin</button>
         </nav>
         <div class="sidebar-version">
           <span>Build</span>
@@ -29,14 +28,10 @@
       </aside>
 
       <main>
-        <section class="hero cockpit-hero" id="overview">
+        <section class="assistant-topbar cockpit-hero" id="overview">
           <div>
-            <p class="eyebrow">Rota cockpit</p>
-            <h2>Pick a site and week. Fix the gaps.</h2>
-            <p class="hero-copy">
-              A weekly heads-up board for Gill: scheduled staff, BrightHR absences,
-              uncovered roles and the best cover suggestion in one place.
-            </p>
+            <p class="eyebrow">Rota Assistant</p>
+            <h2>Weekly rota exceptions and cover planning</h2>
             <div class="cockpit-controls">
               <label>Site <select id="cockpitSiteSelect"></select></label>
               <label>Week <input id="cockpitWeekStartInput" type="date"></label>
@@ -46,7 +41,7 @@
                 <button class="week-nav-btn" id="nextWeekBtn" type="button" title="Next week">→</button>
                 <button class="week-nav-btn wide" id="weekAfterBtn" type="button" title="Week after next">+2</button>
               </div>
-              <button id="loadCockpitBtn" type="button">Load week</button>
+              <button id="loadCockpitBtn" type="button">Refresh week</button>
               <button class="secondary" id="toggleFullRotaBtn" type="button">Show full rota</button>
             </div>
           </div>
@@ -64,11 +59,21 @@
           <article><span>Uncovered</span><strong id="cockpitUncovered">—</strong></article>
         </section>
 
-        <section class="cockpit-board" id="cockpitBoard">
-          <div class="empty-state">Choose a site and week to load the rota cockpit.</div>
+        <section class="assistant-section">
+          <div class="assistant-heading">
+            <div>
+              <p class="eyebrow">Needs action</p>
+              <h3>What needs fixing this week?</h3>
+            </div>
+            <button id="downloadAssistantPdfBtn" class="secondary mini" type="button">Download week PDF</button>
+          </div>
         </section>
 
-        <section class="grid metrics">
+        <section class="cockpit-board" id="cockpitBoard">
+          <div class="empty-state">Choose a site and week to load the rota assistant.</div>
+        </section>
+
+        <section class="grid metrics admin-section hidden">
           <article class="metric-card">
             <span>Staff</span>
             <strong id="staffCount">—</strong>
@@ -96,7 +101,7 @@
           </article>
         </section>
 
-        <section class="panel" id="brighthr">
+        <section class="panel admin-section hidden" id="brighthr">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">BrightHR sync</p>
@@ -129,7 +134,7 @@
           </div>
         </section>
 
-        <section class="two-col">
+        <section class="two-col admin-section hidden">
           <article class="panel" id="rota">
             <div class="panel-heading">
               <div>
@@ -168,7 +173,7 @@
           </article>
         </section>
 
-        <section class="panel" id="gaps">
+        <section class="panel admin-section hidden" id="gaps">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Gap detection</p>
@@ -184,7 +189,7 @@
           </div>
         </section>
 
-        <section class="panel admin-only hidden" id="legacy">
+        <section class="panel admin-only admin-section hidden" id="legacy">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Legacy rota import</p>
@@ -205,7 +210,7 @@
           <div class="empty-state" id="legacyImportSummary">No legacy import preview yet</div>
         </section>
 
-        <section class="panel admin-only hidden" id="relief-import">
+        <section class="panel admin-only admin-section hidden" id="relief-import">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Relief rota import</p>
@@ -223,7 +228,7 @@
           <div class="empty-state" id="reliefImportSummary">No relief import preview yet</div>
         </section>
 
-        <section class="panel" id="agency">
+        <section class="panel admin-section hidden" id="agency">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Agency control</p>
@@ -238,7 +243,7 @@
           </div>
         </section>
 
-        <section class="panel" id="settings">
+        <section class="panel admin-section hidden" id="settings">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Settings library</p>
