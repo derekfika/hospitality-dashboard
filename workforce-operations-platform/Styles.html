@@ -641,6 +641,14 @@
   .cockpit-day.status-cover_suggested::before { background: var(--amber); }
   .cockpit-day.status-uncovered::before { background: var(--coral); }
   .cockpit-day.status-closed::before { background: rgba(33,21,95,.22); }
+  .cockpit-day.status-loading::before {
+    background: linear-gradient(90deg, var(--mint), var(--accent-2), var(--mint));
+    background-size: 220% 100%;
+    animation: snapshotSkeleton 1.2s linear infinite;
+  }
+  .cockpit-day.status-loading {
+    opacity: .86;
+  }
   .cockpit-day.status-closed { opacity: .72; background: rgba(255,255,255,.58); }
 
   .cockpit-day header,
@@ -956,8 +964,40 @@
     transition: width .25s ease;
   }
 
+  .snapshot-admin-card.is-loading .snapshot-progress span {
+    width: 38% !important;
+    background:
+      linear-gradient(90deg, rgba(117,239,184,.9), rgba(116,92,255,.8), rgba(117,239,184,.9));
+    animation: snapshotIndeterminate 1.15s ease-in-out infinite alternate;
+  }
+
+  @keyframes snapshotIndeterminate {
+    from { transform: translateX(-18%); }
+    to { transform: translateX(170%); }
+  }
+
   .snapshot-coverage-grid {
     overflow-x: auto;
+  }
+
+  .snapshot-loading-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(80px, 1fr));
+    gap: 8px;
+  }
+
+  .snapshot-loading-grid span {
+    height: 34px;
+    border-radius: 12px;
+    background:
+      linear-gradient(90deg, rgba(33,21,95,.045), rgba(255,255,255,.9), rgba(33,21,95,.045));
+    background-size: 220% 100%;
+    animation: snapshotSkeleton 1.2s linear infinite;
+  }
+
+  @keyframes snapshotSkeleton {
+    from { background-position: 100% 0; }
+    to { background-position: -120% 0; }
   }
 
   .snapshot-coverage-table {

@@ -444,6 +444,10 @@
       setCockpitLoading("Choose a site to load the rota assistant.");
       return;
     }
+    if (siteId === "__all_sites") {
+      loadAllSitesCockpitDayByDay(weekStart);
+      return;
+    }
     state.currentSiteId = siteId;
     state.currentWeekStart = weekStart;
     const cacheKey = getSnapshotCacheKey_(siteId, weekStart);
@@ -468,6 +472,83 @@
         setCockpitLoading("Could not load this rota week.");
       })
       .getRotaAssistantWeekFromUi(siteId, weekStart);
+  }
+
+  function loadAllSitesCockpitDayByDay(weekStart) {
+    const board = createAllSitesLoadingBoard_(weekStart);
+    state.currentSiteId = "__all_sites";
+    state.currentWeekStart = weekStart;
+    state.currentCockpit = board;
+    state.cockpitLoaded = true;
+    renderRotaCockpit(board);
+    board.days.forEach(day => {
+      google.script.run
+        .withSuccessHandler(result => {
+          result = result || {};
+          const nextBoard = state.currentCockpit || board;
+          const index = (nextBoard.days || []).findIndex(candidate => candidate.date === day.date);
+          if (index !== -1 && result.day) {
+            nextBoard.days[index] = result.day;
+            nextBoard.diagnostics = Object.assign({}, nextBoard.diagnostics || {}, result.diagnostics || {});
+            recomputeCockpitBoard(nextBoard);
+            state.snapshotsByKey[getSnapshotCacheKey_("__all_sites", weekStart)] = nextBoard;
+            renderRotaCockpit(nextBoard);
+          }
+        })
+        .withFailureHandler(error => {
+          showToast(error.message || "Could not load one all-sites day.");
+        })
+        .getAllSitesRotaAssistantDayFromUi(weekStart, day.date);
+    });
+  }
+
+  function createAllSitesLoadingBoard_(weekStart) {
+    const monday = weekStart ? new Date(weekStart + "T00:00:00") : getMondayForDate(new Date());
+    const days = Array.from({ length: 5 }).map((_, index) => {
+      const date = new Date(monday.getTime());
+      date.setDate(monday.getDate() + index);
+      return {
+        date: formatDateInput(date),
+        weekday: date.toLocaleDateString("en-GB", { weekday: "long" }),
+        status: "loading",
+        summary: {
+          scheduledCount: 0,
+          absenceCount: 0,
+          issueCount: 0,
+          uncoveredCount: 0,
+          suggestionCount: 0
+        },
+        issues: [],
+        fullRota: [],
+        siteSummaries: [],
+        loading: true
+      };
+    });
+    return {
+      ok: true,
+      allSites: true,
+      siteId: "__all_sites",
+      siteName: "All sites",
+      weekStart: formatDateInput(monday),
+      weekEnd: days[days.length - 1].date,
+      generatedAt: new Date().toISOString(),
+      totals: getEmptyClientCockpitTotals_(),
+      days: days,
+      diagnostics: {
+        source: "all_sites_day_by_day",
+        loading: true
+      }
+    };
+  }
+
+  function getEmptyClientCockpitTotals_() {
+    return {
+      scheduled: 0,
+      absences: 0,
+      uncoveredGaps: 0,
+      coverSuggested: 0,
+      issueCount: 0
+    };
   }
 
   function generateSelectedWeekReliefRotaPdf() {
@@ -686,17 +767,35 @@
   }
 
   function loadSnapshotBuildStatus() {
+    setSnapshotStatusLoading("Checking snapshot coverage in the background...");
     google.script.run
       .withSuccessHandler(result => {
         renderSnapshotBuildStatus(result || {});
       })
       .withFailureHandler(error => {
+        setSnapshotStatusLoading("", false);
         text("snapshotBuildMessage", error.message || "Could not load snapshot status.");
       })
       .getRotaSnapshotBuildStatusFromUi();
   }
 
+  function setSnapshotStatusLoading(message, isLoading) {
+    const card = document.getElementById("snapshotAdminCard");
+    const loading = isLoading !== false;
+    if (card) card.classList.toggle("is-loading", loading);
+    if (message) text("snapshotBuildMessage", message);
+    const root = document.getElementById("snapshotCoverageGrid");
+    if (root && loading && !root.querySelector(".snapshot-coverage-table")) {
+      root.innerHTML = `
+        <div class="snapshot-loading-grid">
+          ${Array.from({ length: 18 }).map(() => '<span></span>').join("")}
+        </div>
+      `;
+    }
+  }
+
   function renderSnapshotBuildStatus(status) {
+    setSnapshotStatusLoading("", false);
     const total = Number(status.total || 0);
     const built = Number(status.built || 0);
     const missing = Number(status.missing || 0);
@@ -1435,6 +1534,19 @@
 
   function renderSelectedDayDetail(day, board) {
     if (!day) return "";
+    if (day.loading) {
+      return `
+        <section class="selected-day-panel status-loading">
+          <div class="skeleton-card">
+            <span class="loader small"></span>
+            <div>
+              <strong>Loading ${escapeHtml(day.weekday || "day")}...</strong>
+              <p class="quiet">All sites are being loaded one day at a time in the background.</p>
+            </div>
+          </div>
+        </section>
+      `;
+    }
     const scheduled = day.fullRota || day.scheduled || [];
     const absences = getDayAbsenceIssues_(day);
     const issues = getFilteredDayIssues_(day);
@@ -1738,6 +1850,7 @@
       resolved: 0
     };
     (board.days || []).forEach(day => {
+      if (day.loading) return;
       const fullRota = day.fullRota || day.scheduled || [];
       const issues = day.issues || [];
       const openIssues = issues.filter(issue => !/resolved|snoozed|ignored|agency_requested/i.test(String(issue.status || "")));
@@ -1805,7 +1918,8 @@
       covered: "Covered",
       cover_suggested: "Cover suggested",
       uncovered: "Uncovered",
-      closed: "Closed"
+      closed: "Closed",
+      loading: "Loading"
     };
     return map[status] || "Open";
   }

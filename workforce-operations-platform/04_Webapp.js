@@ -372,6 +372,100 @@ function getAllSitesRotaAssistantWeekFromUi(weekStartDate) {
   };
 }
 
+function getAllSitesRotaAssistantDayFromUi(weekStartDate, dateText) {
+  const weekStart = normaliseWeekStart_(weekStartDate);
+  const targetDate = normaliseWorkforceDate_(dateText);
+  const weekDay = getWeekDates_(weekStart).filter(function(day) {
+    return day.date === targetDate;
+  })[0];
+  if (!weekDay) {
+    return toPlainJson_({
+      ok: false,
+      error: "That date is not in the selected rota week.",
+      date: targetDate
+    });
+  }
+  const options = safeGetRotaAppOptions_();
+  const sites = (options.sites || []).filter(function(site) {
+    return site && site.siteId;
+  });
+  const aggregate = {
+    date: targetDate,
+    weekday: weekDay.weekday,
+    status: "covered",
+    summary: {
+      scheduledCount: 0,
+      absenceCount: 0,
+      issueCount: 0,
+      uncoveredCount: 0,
+      suggestionCount: 0
+    },
+    issues: [],
+    fullRota: [],
+    siteSummaries: []
+  };
+  const missingSnapshots = [];
+  const staleSnapshots = [];
+  sites.forEach(function(site) {
+    const loaded = loadRotaWeekSnapshotFromDrive_(site.siteId, weekStart);
+    if (!loaded.snapshot) {
+      missingSnapshots.push(site.siteName || site.siteId);
+      return;
+    }
+    if (isRotaSnapshotStale_(loaded.snapshot)) staleSnapshots.push(site.siteName || site.siteId);
+    const day = (loaded.snapshot.days || []).filter(function(candidate) {
+      return candidate.date === targetDate;
+    })[0];
+    if (!day) return;
+    const summary = day.summary || {};
+    aggregate.summary.scheduledCount += Number(summary.scheduledCount || 0);
+    aggregate.summary.absenceCount += Number(summary.absenceCount || 0);
+    aggregate.summary.issueCount += Number(summary.issueCount || 0);
+    aggregate.summary.uncoveredCount += Number(summary.uncoveredCount || 0);
+    aggregate.summary.suggestionCount += Number(summary.suggestionCount || 0);
+    aggregate.issues = aggregate.issues.concat((day.issues || []).map(function(issue) {
+      const copy = {};
+      Object.keys(issue || {}).forEach(function(key) { copy[key] = issue[key]; });
+      copy.siteId = loaded.snapshot.siteId;
+      copy.siteName = loaded.snapshot.siteName;
+      copy.issueId = [loaded.snapshot.siteId, copy.issueId || copy.gapId || ""].join("__");
+      copy.gapId = copy.gapId || "";
+      return copy;
+    }));
+    aggregate.fullRota = aggregate.fullRota.concat((day.fullRota || []).map(function(row) {
+      const copy = {};
+      Object.keys(row || {}).forEach(function(key) { copy[key] = row[key]; });
+      copy.siteId = loaded.snapshot.siteId;
+      copy.siteName = loaded.snapshot.siteName;
+      return copy;
+    }));
+    aggregate.siteSummaries.push({
+      siteId: loaded.snapshot.siteId,
+      siteName: loaded.snapshot.siteName,
+      status: day.status,
+      summary: day.summary || {},
+      issueCount: (day.issues || []).length
+    });
+  });
+  aggregate.status = !aggregate.summary.scheduledCount ? "closed"
+    : aggregate.summary.uncoveredCount ? "uncovered"
+    : aggregate.summary.suggestionCount ? "cover_suggested"
+    : "covered";
+  return toPlainJson_({
+    ok: true,
+    weekStart: weekStart,
+    date: targetDate,
+    day: aggregate,
+    diagnostics: {
+      source: "all_sites_day_snapshot",
+      missingSnapshotCount: missingSnapshots.length,
+      staleSnapshotCount: staleSnapshots.length,
+      missingSnapshots: missingSnapshots.slice(0, 12),
+      staleSnapshots: staleSnapshots.slice(0, 12)
+    }
+  });
+}
+
 function nightlyWorkforceSnapshotSync() {
   const result = {
     ok: true,
