@@ -24,6 +24,16 @@ function runWorkforcePlatformTests() {
   };
 }
 
+function authoriseRotaSnapshotDriveAccess() {
+  const folder = getOrCreateRotaSnapshotFolder_();
+  return {
+    ok: true,
+    folderId: folder.getId(),
+    folderName: folder.getName(),
+    message: "Drive access authorised for rota snapshots."
+  };
+}
+
 function safeTestReliefRotaGeneratorDryRun_() {
   try {
     return testReliefRotaGeneratorDryRun();
