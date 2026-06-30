@@ -197,6 +197,9 @@ function getRotaCockpitFromUi(siteId, weekStartDate) {
 
 function getRotaAssistantWeekFromUi(siteId, weekStartDate) {
   try {
+    if (isAllSitesRotaRequest_(siteId)) {
+      return toPlainJson_(getAllSitesRotaAssistantWeekFromUi(weekStartDate));
+    }
     const startedAt = new Date().getTime();
     const weekStart = normaliseWeekStart_(weekStartDate);
     const snapshotResult = loadRotaWeekSnapshotFromDrive_(siteId, weekStart);
@@ -247,6 +250,128 @@ function rebuildAllRotaSnapshotsFromUi() {
   return toPlainJson_(rebuildAllRotaSnapshots_());
 }
 
+function buildNextMonthRotaSnapshotsFromUi() {
+  return toPlainJson_(startNextMonthRotaSnapshotBuild_());
+}
+
+function getRotaSnapshotBuildStatusFromUi() {
+  return toPlainJson_(getRotaSnapshotBuildStatus_());
+}
+
+function getAllSitesRotaAssistantWeekFromUi(weekStartDate) {
+  const startedAt = new Date().getTime();
+  const weekStart = normaliseWeekStart_(weekStartDate);
+  const options = safeGetRotaAppOptions_();
+  const sites = (options.sites || []).filter(function(site) {
+    return site && site.siteId;
+  });
+  const missingSnapshots = [];
+  const staleSnapshots = [];
+  const siteSnapshots = sites.map(function(site) {
+    const loaded = loadRotaWeekSnapshotFromDrive_(site.siteId, weekStart);
+    if (!loaded.snapshot) {
+      missingSnapshots.push(site.siteName || site.siteId);
+      return null;
+    }
+    if (isRotaSnapshotStale_(loaded.snapshot)) staleSnapshots.push(site.siteName || site.siteId);
+    return loaded.snapshot;
+  }).filter(function(snapshot) {
+    return snapshot && snapshot.ok !== false;
+  });
+  const daysByDate = {};
+  siteSnapshots.forEach(function(snapshot) {
+    (snapshot.days || []).forEach(function(day) {
+      if (!daysByDate[day.date]) {
+        daysByDate[day.date] = {
+          date: day.date,
+          weekday: day.weekday,
+          status: "covered",
+          summary: {
+            scheduledCount: 0,
+            absenceCount: 0,
+            issueCount: 0,
+            uncoveredCount: 0,
+            suggestionCount: 0
+          },
+          issues: [],
+          fullRota: [],
+          siteSummaries: []
+        };
+      }
+      const aggregate = daysByDate[day.date];
+      const summary = day.summary || {};
+      aggregate.summary.scheduledCount += Number(summary.scheduledCount || 0);
+      aggregate.summary.absenceCount += Number(summary.absenceCount || 0);
+      aggregate.summary.issueCount += Number(summary.issueCount || 0);
+      aggregate.summary.uncoveredCount += Number(summary.uncoveredCount || 0);
+      aggregate.summary.suggestionCount += Number(summary.suggestionCount || 0);
+      aggregate.issues = aggregate.issues.concat((day.issues || []).map(function(issue) {
+        const copy = {};
+        Object.keys(issue || {}).forEach(function(key) { copy[key] = issue[key]; });
+        copy.siteId = snapshot.siteId;
+        copy.siteName = snapshot.siteName;
+        copy.issueId = [snapshot.siteId, copy.issueId || copy.gapId || ""].join("__");
+        copy.gapId = copy.gapId || "";
+        return copy;
+      }));
+      aggregate.fullRota = aggregate.fullRota.concat((day.fullRota || []).map(function(row) {
+        const copy = {};
+        Object.keys(row || {}).forEach(function(key) { copy[key] = row[key]; });
+        copy.siteId = snapshot.siteId;
+        copy.siteName = snapshot.siteName;
+        return copy;
+      }));
+      aggregate.siteSummaries.push({
+        siteId: snapshot.siteId,
+        siteName: snapshot.siteName,
+        status: day.status,
+        summary: day.summary || {},
+        issueCount: (day.issues || []).length
+      });
+    });
+  });
+  const days = Object.keys(daysByDate).sort().map(function(date) {
+    const day = daysByDate[date];
+    day.status = !day.summary.scheduledCount ? "closed"
+      : day.summary.uncoveredCount ? "uncovered"
+      : day.summary.suggestionCount ? "cover_suggested"
+      : "covered";
+    return day;
+  });
+  const totals = getRotaAssistantTotals_(days);
+  return {
+    ok: true,
+    allSites: true,
+    siteId: "__all_sites",
+    siteName: "All sites",
+    weekStart: weekStart,
+    weekEnd: days.length ? days[days.length - 1].date : weekStart,
+    generatedAt: new Date().toISOString(),
+    totals: totals,
+    days: days,
+    diagnostics: {
+      source: "all_sites_snapshots",
+      totalBackendMs: new Date().getTime() - startedAt,
+      snapshotLoadMs: 0,
+      snapshotBuildMs: 0,
+      payloadKb: 0,
+      generatedAt: new Date().toISOString(),
+      stale: false,
+      fresh: true,
+      dayCount: days.length,
+      issueCount: totals.issueCount || 0,
+      scheduledCount: days.reduce(function(sum, day) {
+        return sum + Number((day.summary || {}).scheduledCount || 0);
+      }, 0),
+      siteCount: siteSnapshots.length,
+      missingSnapshotCount: missingSnapshots.length,
+      staleSnapshotCount: staleSnapshots.length,
+      missingSnapshots: missingSnapshots.slice(0, 12),
+      staleSnapshots: staleSnapshots.slice(0, 12)
+    }
+  };
+}
+
 function nightlyWorkforceSnapshotSync() {
   const result = {
     ok: true,
@@ -266,7 +391,7 @@ function nightlyWorkforceSnapshotSync() {
   } catch (error) {
     result.warnings.push("Absence sync failed: " + (error.message || String(error)));
   }
-  result.snapshots = rebuildAllRotaSnapshots_();
+  result.snapshots = startNextMonthRotaSnapshotBuild_();
   result.finishedAt = new Date();
   result.message = [
     "Nightly workforce snapshot sync complete.",
@@ -576,7 +701,7 @@ function approveHighConfidenceSuggestionsForWeekFromUi(siteId, weekStartDate, pr
       if (issue.issueType === "conflict") return;
       if (confidence && confidence !== "high" && confidence !== "strong") return;
       candidates.push({
-        issueId: issue.issueId || issue.gapId,
+        issueId: issue.gapId || issue.issueId,
         date: day.date,
         weekday: day.weekday,
         role: issue.role,
@@ -1359,15 +1484,13 @@ function markRotaSnapshotStaleForIssue_(issueId) {
   }
 }
 
-function rebuildAllRotaSnapshots_() {
+function rebuildAllRotaSnapshots_(weekCount) {
   const options = safeGetRotaAppOptions_();
   const sites = (options.sites || []).filter(function(site) {
     return site && site.siteId;
   });
   const baseWeek = normaliseWeekStart_(new Date());
-  const weeks = [0, 7, 14, 21].map(function(offset) {
-    return addDays_(baseWeek, offset);
-  });
+  const weeks = getRollingRotaSnapshotWeeks_(baseWeek, weekCount || 4);
   const results = [];
   sites.forEach(function(site) {
     weeks.forEach(function(weekStart) {
@@ -1398,6 +1521,207 @@ function rebuildAllRotaSnapshots_() {
     results: results,
     message: "Rebuilt " + results.filter(function(row) { return row.ok; }).length + " rota snapshot(s)."
   };
+}
+
+function startNextMonthRotaSnapshotBuild_() {
+  const options = safeGetRotaAppOptions_();
+  const sites = (options.sites || []).filter(function(site) {
+    return site && site.siteId;
+  });
+  const baseWeek = normaliseWeekStart_(new Date());
+  const weeks = getRollingRotaSnapshotWeeks_(baseWeek, 5);
+  const queue = [];
+  sites.forEach(function(site) {
+    weeks.forEach(function(weekStart) {
+      queue.push({
+        siteId: site.siteId,
+        siteName: site.siteName,
+        weekStart: weekStart
+      });
+    });
+  });
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty("ROTA_SNAPSHOT_BUILD_QUEUE", JSON.stringify(queue));
+  properties.setProperty("ROTA_SNAPSHOT_BUILD_RESULTS", JSON.stringify([]));
+  properties.setProperty("ROTA_SNAPSHOT_BUILD_STARTED_AT", new Date().toISOString());
+  clearRotaSnapshotBuildTriggers_();
+  const result = processNextMonthRotaSnapshotBuild_();
+  result.started = true;
+  return result;
+}
+
+function processNextMonthRotaSnapshotBuild_() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) {
+    return {
+      ok: true,
+      running: true,
+      message: "Snapshot build is already running."
+    };
+  }
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    const startedAt = new Date().getTime();
+    const maxMs = 4.5 * 60 * 1000;
+    const maxItems = 8;
+    const queue = JSON.parse(properties.getProperty("ROTA_SNAPSHOT_BUILD_QUEUE") || "[]");
+    const results = JSON.parse(properties.getProperty("ROTA_SNAPSHOT_BUILD_RESULTS") || "[]");
+    let processed = 0;
+    while (queue.length && processed < maxItems && new Date().getTime() - startedAt < maxMs) {
+      const item = queue.shift();
+      try {
+        const snapshot = buildAndSaveRotaWeekSnapshot_(item.siteId, item.weekStart, { forced: true });
+        results.push({
+          ok: true,
+          siteId: item.siteId,
+          siteName: item.siteName,
+          weekStart: item.weekStart,
+          issueCount: (snapshot.totals || {}).issueCount || 0
+        });
+      } catch (error) {
+        results.push({
+          ok: false,
+          siteId: item.siteId,
+          siteName: item.siteName,
+          weekStart: item.weekStart,
+          error: error.message || String(error)
+        });
+      }
+      processed += 1;
+    }
+    properties.setProperty("ROTA_SNAPSHOT_BUILD_QUEUE", JSON.stringify(queue));
+    properties.setProperty("ROTA_SNAPSHOT_BUILD_RESULTS", JSON.stringify(results));
+    if (queue.length) {
+      scheduleNextRotaSnapshotBuildRun_();
+      return {
+        ok: true,
+        complete: false,
+        processedThisRun: processed,
+        saved: results.filter(function(row) { return row.ok; }).length,
+        failed: results.filter(function(row) { return !row.ok; }).length,
+        remaining: queue.length,
+        message: "Snapshot build running. " + queue.length + " snapshot(s) remaining."
+      };
+    }
+    clearRotaSnapshotBuildTriggers_();
+    properties.deleteProperty("ROTA_SNAPSHOT_BUILD_QUEUE");
+    properties.deleteProperty("ROTA_SNAPSHOT_BUILD_RESULTS");
+    properties.deleteProperty("ROTA_SNAPSHOT_BUILD_STARTED_AT");
+    return {
+      ok: true,
+      complete: true,
+      processedThisRun: processed,
+      saved: results.filter(function(row) { return row.ok; }).length,
+      failed: results.filter(function(row) { return !row.ok; }).length,
+      remaining: 0,
+      results: results,
+      message: "Next month rota snapshots complete. " +
+        results.filter(function(row) { return row.ok; }).length + " saved, " +
+        results.filter(function(row) { return !row.ok; }).length + " failed."
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getRotaSnapshotBuildStatus_() {
+  const properties = PropertiesService.getScriptProperties();
+  const queue = JSON.parse(properties.getProperty("ROTA_SNAPSHOT_BUILD_QUEUE") || "[]");
+  const results = JSON.parse(properties.getProperty("ROTA_SNAPSHOT_BUILD_RESULTS") || "[]");
+  const startedAt = properties.getProperty("ROTA_SNAPSHOT_BUILD_STARTED_AT") || "";
+  const options = safeGetRotaAppOptions_();
+  const sites = (options.sites || []).filter(function(site) {
+    return site && site.siteId;
+  });
+  const weeks = getRollingRotaSnapshotWeeks_(normaliseWeekStart_(new Date()), 5);
+  const rows = [];
+  let built = 0;
+  let stale = 0;
+  let missing = 0;
+  let availableUntil = "";
+  sites.forEach(function(site) {
+    weeks.forEach(function(weekStart) {
+      const loaded = loadRotaWeekSnapshotFromDrive_(site.siteId, weekStart);
+      const hasSnapshot = Boolean(loaded.snapshot);
+      const isStale = hasSnapshot && isRotaSnapshotStale_(loaded.snapshot);
+      if (hasSnapshot && !isStale) {
+        built += 1;
+        availableUntil = maxDateText_(availableUntil, addDays_(weekStart, 4));
+      } else if (hasSnapshot && isStale) {
+        stale += 1;
+      } else {
+        missing += 1;
+      }
+      rows.push({
+        siteId: site.siteId,
+        siteName: site.siteName,
+        weekStart: weekStart,
+        weekEnd: addDays_(weekStart, 4),
+        status: !hasSnapshot ? "missing" : isStale ? "stale" : "built",
+        generatedAt: hasSnapshot ? String(loaded.snapshot.generatedAt || "") : "",
+        issueCount: hasSnapshot ? Number((loaded.snapshot.totals || {}).issueCount || 0) : 0,
+        scheduledCount: hasSnapshot
+          ? (loaded.snapshot.days || []).reduce(function(sum, day) {
+              return sum + Number((day.summary || {}).scheduledCount || 0);
+            }, 0)
+          : 0
+      });
+    });
+  });
+  return {
+    ok: true,
+    running: queue.length > 0,
+    startedAt: startedAt,
+    queueRemaining: queue.length,
+    processed: results.length,
+    built: built,
+    stale: stale,
+    missing: missing,
+    total: sites.length * weeks.length,
+    availableUntil: availableUntil,
+    sites: sites,
+    weeks: weeks,
+    rows: rows,
+    message: queue.length
+      ? "Snapshot builder is running. " + queue.length + " snapshot(s) remaining."
+      : "Snapshot builder is idle."
+  };
+}
+
+function maxDateText_(a, b) {
+  if (!a) return b || "";
+  if (!b) return a || "";
+  return String(a) > String(b) ? a : b;
+}
+
+function scheduleNextRotaSnapshotBuildRun_() {
+  clearRotaSnapshotBuildTriggers_();
+  ScriptApp.newTrigger("processNextMonthRotaSnapshotBuild_")
+    .timeBased()
+    .after(60 * 1000)
+    .create();
+}
+
+function clearRotaSnapshotBuildTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction && trigger.getHandlerFunction() === "processNextMonthRotaSnapshotBuild_") {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+function getRollingRotaSnapshotWeeks_(baseWeek, weekCount) {
+  const count = Math.max(1, Number(weekCount || 5));
+  const weeks = [];
+  for (let index = 0; index < count; index += 1) {
+    weeks.push(addDays_(baseWeek, index * 7));
+  }
+  return weeks;
+}
+
+function isAllSitesRotaRequest_(siteId) {
+  const clean = String(siteId || "").trim().toLowerCase();
+  return clean === "__all_sites" || clean === "all_sites" || clean === "all";
 }
 
 function buildSnapshotDiagnostics_(snapshot, source, startedAt, loadMs, buildMs, wasStale) {

@@ -56,6 +56,7 @@
       button.textContent = state.adminVisible ? "Hide admin" : "Admin";
     }
     if (state.adminVisible && !state.settingsLoaded) loadSettingsLibrary();
+    if (state.adminVisible) loadSnapshotBuildStatus();
     showToast(state.adminVisible ? "Admin tools shown." : "Admin tools hidden.");
   }
 
@@ -76,8 +77,9 @@
       runAction("Discovering BrightHR absence endpoint…", "discoverBrightHrAbsenceEndpointFromUi");
     });
     onClick("rebuildAllSnapshotsBtn", () => {
-      runAction("Rebuilding rota snapshots…", "rebuildAllRotaSnapshotsFromUi");
+      startMonthSnapshotBuilder();
     });
+    onClick("refreshSnapshotStatusBtn", loadSnapshotBuildStatus);
     onClick("showDiagnosticsBtn", showPerformanceDiagnostics);
     onClick("loadCockpitBtn", () => {
       loadRotaCockpit();
@@ -230,6 +232,7 @@
       testBrightHrAbsenceEndpointFromUi: () => runner.testBrightHrAbsenceEndpointFromUi(),
       discoverBrightHrAbsenceEndpointFromUi: () => runner.discoverBrightHrAbsenceEndpointFromUi(),
       rebuildAllRotaSnapshotsFromUi: () => runner.rebuildAllRotaSnapshotsFromUi(),
+      buildNextMonthRotaSnapshotsFromUi: () => runner.buildNextMonthRotaSnapshotsFromUi(),
       importLegacyRotaFromUi: () => runner.importLegacyRotaFromUi(),
       importReliefRotaFromUi: () => runner.importReliefRotaFromUi(),
       clearLegacyRotaShiftNoiseFromUi: () => runner.clearLegacyRotaShiftNoiseFromUi(),
@@ -413,6 +416,11 @@
       showToast("Choose a site first.");
       return;
     }
+    if (siteId === "__all_sites") {
+      showToast("Building the next month for all sites. This may take a while.");
+      runAction("Building next month of rota snapshots…", "buildNextMonthRotaSnapshotsFromUi");
+      return;
+    }
     showLoading("Loading rota board…", "Building the weekly rota view.");
     google.script.run
       .withSuccessHandler(board => {
@@ -469,6 +477,10 @@
     const weekStart = weekInput ? weekInput.value : "";
     if (!siteId) {
       showToast("Choose a site in the rota cockpit first.");
+      return;
+    }
+    if (siteId === "__all_sites") {
+      showToast("Choose one site before downloading a relief rota PDF.");
       return;
     }
     const button = document.getElementById("downloadAssistantPdfBtn") || document.getElementById("generateReliefRotaBtn");
@@ -643,6 +655,113 @@
     const output = document.getElementById("brightHrDebugPreview");
     if (output) output.textContent = preview;
     showToast("Performance diagnostics shown in Admin.");
+  }
+
+  function startMonthSnapshotBuilder() {
+    const button = document.getElementById("rebuildAllSnapshotsBtn");
+    if (button) {
+      button.disabled = true;
+      button.dataset.defaultText = button.dataset.defaultText || button.textContent;
+      button.textContent = "Starting...";
+    }
+    text("snapshotBuildMessage", "Starting month snapshot builder...");
+    google.script.run
+      .withSuccessHandler(result => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Build next month snapshots";
+        }
+        showToast((result && result.message) || "Snapshot builder started.");
+        renderSnapshotBuildStatus(result || {});
+        window.setTimeout(loadSnapshotBuildStatus, 2000);
+      })
+      .withFailureHandler(error => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultText || "Build next month snapshots";
+        }
+        showToast(error.message || "Could not start snapshot builder.");
+      })
+      .buildNextMonthRotaSnapshotsFromUi();
+  }
+
+  function loadSnapshotBuildStatus() {
+    google.script.run
+      .withSuccessHandler(result => {
+        renderSnapshotBuildStatus(result || {});
+      })
+      .withFailureHandler(error => {
+        text("snapshotBuildMessage", error.message || "Could not load snapshot status.");
+      })
+      .getRotaSnapshotBuildStatusFromUi();
+  }
+
+  function renderSnapshotBuildStatus(status) {
+    const total = Number(status.total || 0);
+    const built = Number(status.built || 0);
+    const missing = Number(status.missing || 0);
+    const stale = Number(status.stale || 0);
+    text("snapshotBuiltCount", built);
+    text("snapshotMissingCount", missing);
+    text("snapshotStaleCount", stale);
+    text("snapshotAvailableUntil", status.availableUntil ? formatDisplayDate(status.availableUntil) : "Not ready");
+    const bar = document.getElementById("snapshotProgressBar");
+    if (bar) {
+      const percent = total ? Math.round((built / total) * 100) : 0;
+      bar.style.width = Math.max(2, percent) + "%";
+    }
+    const message = [
+      status.message || "Snapshot status loaded.",
+      total ? `${built}/${total} fresh snapshot(s).` : "",
+      status.queueRemaining ? `${status.queueRemaining} queued.` : "",
+      status.processed ? `${status.processed} processed in current job.` : ""
+    ].filter(Boolean).join(" ");
+    text("snapshotBuildMessage", message);
+    renderSnapshotCoverageGrid(status);
+    window.clearTimeout(renderSnapshotBuildStatus.timer);
+    if (status.running || Number(status.queueRemaining || 0) > 0) {
+      renderSnapshotBuildStatus.timer = window.setTimeout(loadSnapshotBuildStatus, 15000);
+    }
+  }
+
+  function renderSnapshotCoverageGrid(status) {
+    const root = document.getElementById("snapshotCoverageGrid");
+    if (!root) return;
+    const sites = status.sites || [];
+    const weeks = status.weeks || [];
+    const rows = status.rows || [];
+    if (!sites.length || !weeks.length) {
+      root.innerHTML = '<div class="empty-state compact">No snapshot coverage data yet.</div>';
+      return;
+    }
+    const byKey = {};
+    rows.forEach(row => {
+      byKey[[row.siteId, row.weekStart].join("|")] = row;
+    });
+    root.innerHTML = `
+      <div class="snapshot-coverage-table" style="--snapshot-week-count:${weeks.length}">
+        <div class="snapshot-cell snapshot-head">Site</div>
+        ${weeks.map(week => `<div class="snapshot-cell snapshot-head">${escapeHtml(formatShortWeek_(week))}</div>`).join("")}
+        ${sites.map(site => `
+          <div class="snapshot-cell snapshot-site">${escapeHtml(site.siteName || site.siteId)}</div>
+          ${weeks.map(week => {
+            const row = byKey[[site.siteId, week].join("|")] || {};
+            return `
+              <div class="snapshot-cell snapshot-state ${escapeHtml(row.status || "missing")}" title="${escapeHtml(row.generatedAt || "No snapshot")}">
+                <strong>${escapeHtml(row.status || "missing")}</strong>
+                <span>${Number(row.issueCount || 0)} issues</span>
+              </div>
+            `;
+          }).join("")}
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function formatShortWeek_(weekStart) {
+    const date = new Date(String(weekStart || "") + "T00:00:00");
+    if (Number.isNaN(date.getTime())) return weekStart || "";
+    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }
 
   function previewBulkApproveSafeSuggestions(button) {
@@ -942,10 +1061,15 @@
 
   function fillSiteSelect_(select, sites) {
     const current = select.value;
+    const allSitesOption = select.id === "cockpitSiteSelect"
+      ? ['<option value="__all_sites">All sites</option>']
+      : [];
     select.innerHTML = ['<option value="">Choose site…</option>']
+      .concat(allSitesOption)
       .concat((sites || []).map(site => `<option value="${escapeHtml(site.siteId)}">${escapeHtml(site.siteName)}</option>`))
       .join("");
     if (current) select.value = current;
+    if (!select.value && select.id === "cockpitSiteSelect") select.value = "__all_sites";
     if (!select.value && sites[0]) select.value = sites[0].siteId;
   }
 
@@ -1334,6 +1458,7 @@
         </div>
         ${renderSnapshotHealth_(board)}
         ${!issues.length && !absences.length ? renderFullyCoveredState_(day, board) : ""}
+        ${renderAllSitesSelectedDaySummary_(day)}
         <div class="selected-day-grid">
           <article class="day-detail-card">
             <div class="detail-card-heading">
@@ -1415,10 +1540,13 @@
     const diagnostics = board.diagnostics || {};
     const generatedAt = board.generatedAt || diagnostics.generatedAt || "";
     const stale = board.snapshotStale || diagnostics.stale;
+    const missing = Number(diagnostics.missingSnapshotCount || 0);
+    const staleCount = Number(diagnostics.staleSnapshotCount || 0);
     return `
       <div class="snapshot-health ${stale ? "stale" : ""}">
-        <span>${stale ? "Snapshot needs refresh" : "Snapshot ready"}</span>
+        <span>${missing ? missing + " missing snapshot(s)" : stale ? "Snapshot needs refresh" : "Snapshot ready"}</span>
         <strong>${escapeHtml(diagnostics.source || "snapshot")}</strong>
+        ${staleCount ? `<strong>${staleCount} stale</strong>` : ""}
         <em>${generatedAt ? "Refreshed " + escapeHtml(formatDisplayDateTime_(generatedAt)) : "No refresh time"}</em>
       </div>
     `;
@@ -1435,6 +1563,24 @@
           <button class="secondary mini" type="button" data-detail-filter="all">Show day detail</button>
           <button class="secondary mini" type="button" data-rebuild-current="true">Rebuild snapshot</button>
         </div>
+      </div>
+    `;
+  }
+
+  function renderAllSitesSelectedDaySummary_(day) {
+    const sites = (day && day.siteSummaries) || [];
+    if (!sites.length) return "";
+    return `
+      <div class="all-sites-summary-strip">
+        ${sites.map(site => {
+          const summary = site.summary || {};
+          return `
+            <button class="site-summary-chip status-${escapeHtml(site.status || "covered")}" type="button">
+              <strong>${escapeHtml(site.siteName || site.siteId || "Site")}</strong>
+              <span>${Number(summary.scheduledCount || 0)} scheduled · ${Number(summary.issueCount || 0)} issues</span>
+            </button>
+          `;
+        }).join("")}
       </div>
     `;
   }
@@ -1476,7 +1622,7 @@
       <div class="cockpit-gap issue-${escapeHtml(issue.type || "issue")}">
         <button class="issue-person-link" type="button" data-person-profile="${escapeHtml(employeeId)}" data-person-date="${escapeHtml(date || "")}">
           <strong>${escapeHtml(issue.employeeName || issue.missingEmployeeName || "Person")}</strong>
-          <span>${escapeHtml(issue.role || "Role")} · ${escapeHtml(issue.type || "Issue")}</span>
+          <span>${escapeHtml([issue.siteName || "", issue.role || "Role", issue.type || "Issue"].filter(Boolean).join(" · "))}</span>
         </button>
         <div class="best-suggestion ${issue.status === "resolved" ? "" : "empty"}">
           <b>${escapeHtml(issue.reason || issue.absenceType || "Needs attention")}</b>
@@ -1494,6 +1640,7 @@
       <button class="cockpit-person person-${escapeHtml(person.status || "scheduled")}" type="button" data-person-profile="${escapeHtml(person.employeeId || "")}" data-person-date="${escapeHtml(date || "")}">
         <b>${escapeHtml(person.role || "Role")}</b>
         <span>${escapeHtml(person.employeeName || "Unassigned")}</span>
+        ${person.siteName ? `<small>${escapeHtml(person.siteName)}</small>` : ""}
         ${person.startTime || person.endTime ? `<small>${escapeHtml([person.startTime, person.endTime].filter(Boolean).join("–"))}</small>` : ""}
         ${person.source ? `<small class="source-badge">${escapeHtml(formatSourceBadge_(person.source))}</small>` : ""}
         ${person.absenceType ? `<small>${escapeHtml(person.absenceType)}</small>` : ""}
@@ -1509,7 +1656,7 @@
       <div class="cockpit-gap" data-gap-id="${escapeHtml(gap.gapId || "")}">
         <button class="issue-person-link" type="button" data-person-profile="${escapeHtml(gap.employeeId || "")}" data-person-date="${escapeHtml(date || "")}">
           <strong>${escapeHtml(gap.role || "Role gap")}</strong>
-          <span>${escapeHtml(gap.missingEmployeeName || "Missing person")} · ${escapeHtml(gap.absenceType || "Gap")}</span>
+          <span>${escapeHtml([gap.siteName || "", gap.missingEmployeeName || "Missing person", gap.absenceType || "Gap"].filter(Boolean).join(" · "))}</span>
         </button>
         ${suggestion ? `
           <div class="best-suggestion">

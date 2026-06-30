@@ -579,6 +579,42 @@
     margin: 0;
   }
 
+  .all-sites-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 9px;
+  }
+
+  .site-summary-chip {
+    min-height: auto;
+    display: grid;
+    gap: 3px;
+    padding: 10px 11px;
+    border-radius: 16px;
+    color: var(--ink);
+    text-align: left;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line), 0 6px 14px rgba(36,17,118,.04);
+  }
+
+  .site-summary-chip::before {
+    content: "";
+    width: 28px;
+    height: 4px;
+    border-radius: 999px;
+    background: #40b879;
+  }
+
+  .site-summary-chip.status-cover_suggested::before { background: var(--amber); }
+  .site-summary-chip.status-uncovered::before { background: var(--coral); }
+  .site-summary-chip.status-closed::before { background: rgba(33,21,95,.22); }
+
+  .site-summary-chip span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 850;
+  }
+
   .cockpit-day {
     min-width: 210px;
     display: grid;
@@ -853,6 +889,133 @@
   .endpoint-card strong {
     display: block;
     margin-top: 4px;
+  }
+
+  .snapshot-admin-card {
+    display: grid;
+    gap: 14px;
+    margin: 14px 0;
+    padding: 16px;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .snapshot-admin-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .snapshot-admin-heading h4 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .snapshot-status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .snapshot-status-grid div {
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(33,21,95,.045);
+  }
+
+  .snapshot-status-grid span {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .snapshot-status-grid strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 22px;
+  }
+
+  .snapshot-progress {
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(33,21,95,.075);
+  }
+
+  .snapshot-progress span {
+    display: block;
+    width: 2%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--mint), var(--accent-2));
+    transition: width .25s ease;
+  }
+
+  .snapshot-coverage-grid {
+    overflow-x: auto;
+  }
+
+  .snapshot-coverage-table {
+    min-width: 760px;
+    display: grid;
+    grid-template-columns: minmax(170px, 1.2fr) repeat(var(--snapshot-week-count, 5), minmax(105px, 1fr));
+    gap: 6px;
+  }
+
+  .snapshot-cell {
+    padding: 9px 10px;
+    border-radius: 12px;
+    background: rgba(33,21,95,.045);
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .snapshot-head {
+    color: var(--muted);
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: 10px;
+  }
+
+  .snapshot-site {
+    color: var(--ink);
+    background: rgba(255,255,255,.9);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .snapshot-state {
+    display: grid;
+    gap: 2px;
+    box-shadow: inset 3px 0 0 rgba(33,21,95,.18);
+  }
+
+  .snapshot-state.built {
+    color: #277a55;
+    background: rgba(117,239,184,.16);
+    box-shadow: inset 3px 0 0 #40b879;
+  }
+
+  .snapshot-state.stale {
+    color: #8a6200;
+    background: rgba(255,194,87,.18);
+    box-shadow: inset 3px 0 0 var(--amber);
+  }
+
+  .snapshot-state.missing {
+    color: #9a331f;
+    background: rgba(255,128,102,.13);
+    box-shadow: inset 3px 0 0 var(--coral);
+  }
+
+  .snapshot-state span {
+    color: var(--muted);
+    font-size: 11px;
   }
 
   .metric-card,
