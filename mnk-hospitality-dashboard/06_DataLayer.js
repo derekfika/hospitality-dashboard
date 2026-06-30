@@ -5,6 +5,19 @@
 function getDashboardSheet_() {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const expectedSpreadsheetId = CONFIG.DASHBOARD_SPREADSHEET_ID || "";
+
+  if (!ss) {
+    throw new Error("No active dashboard spreadsheet was found.");
+  }
+
+  if (expectedSpreadsheetId && ss.getId() !== expectedSpreadsheetId) {
+    throw new Error(
+      "This dashboard script is connected to spreadsheet '" + ss.getName() +
+      "' (" + ss.getId() + "), but MNK dashboard data should be in " +
+      expectedSpreadsheetId + "."
+    );
+  }
 
   const sheetName = getConfiguredValue_("SHEET_NAME", CONFIG.SHEET_NAME);
   const sh = ss.getSheetByName(sheetName);

@@ -13,12 +13,12 @@ MNK version of the client-facing hospitality booking experience. It keeps the sa
 
 ## Setup
 
-1. Create or connect an Apps Script project to the MNK dashboard spreadsheet.
+1. Create or connect an Apps Script project to the MNK booking platform data spreadsheet: `1eR9J1x7VDOYtLT572burlr_GPIi4JPFoqopRpuyFJkQ`.
 2. Copy this folder's files into that project.
-3. Run `setDashboardSpreadsheetId("FULL_GOOGLE_SHEETS_URL_OR_ID")` once with the MNK hospitality dashboard spreadsheet URL, not a separate booking platform data spreadsheet.
-4. Run `testBookingPlatformConnection()` and confirm it reports the correct spreadsheet and finds `Dashboard Data`.
-5. Confirm `SITE_CONFIG.integration.dashboardSheetName` matches the existing dashboard data tab.
-6. Run `setupBookingPlatformSheets()` once. It validates the dashboard headers and creates only the client line-item/settings sheets.
+3. Confirm `SITE_CONFIG.integration.bookingSpreadsheetId` is the booking platform data sheet: `1eR9J1x7VDOYtLT572burlr_GPIi4JPFoqopRpuyFJkQ`.
+4. Confirm `SITE_CONFIG.integration.dashboardSpreadsheetId` is the dashboard data sheet: `1GIGIh_oAY0yLrrlXPaSvHte2oMPT8S_dKFAYdZN6nuc`.
+5. Run `testBookingPlatformConnection()` and confirm it reports both spreadsheet names and finds `Dashboard Data` in the dashboard spreadsheet.
+6. Run `setupBookingPlatformSheets()` once. It creates only the client line-item/settings sheets in the booking platform data spreadsheet, then validates the dashboard headers in the dashboard data spreadsheet.
 7. Run `runBookingPlatformTests()` and confirm `ok: true`.
 8. Deploy as a web app.
 
@@ -26,7 +26,7 @@ After both MNK Apps Script projects are linked and deployment IDs are filled in,
 
 ## Branding settings
 
-`setupBookingPlatformSheets()` creates a `Platform Settings` sheet. Branding can then be changed without editing the app:
+`setupBookingPlatformSheets()` creates a `Platform Settings` sheet in the booking platform data spreadsheet. Branding can then be changed without editing the app:
 
 - `FIKA_LOGO_URL`
 - `FIKA_LOGO_ALT`
@@ -49,7 +49,7 @@ The brochure states:
 
 ## Dashboard compatibility
 
-Successful submissions are written to `Dashboard Data` with:
+Successful submissions are written to the dashboard spreadsheet's `Dashboard Data` tab with:
 
 - `Status = READY`
 - the dashboard's existing `ParsedJSON` booking shape

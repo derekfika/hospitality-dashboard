@@ -11,6 +11,8 @@ const SITE_CONFIG = Object.freeze({
   notificationRecipients: [],
   integration: {
     mode: "direct_dashboard",
+    bookingSpreadsheetId: "1eR9J1x7VDOYtLT572burlr_GPIi4JPFoqopRpuyFJkQ",
+    dashboardSpreadsheetId: "1GIGIh_oAY0yLrrlXPaSvHte2oMPT8S_dKFAYdZN6nuc",
     spreadsheetId: "",
     dashboardSheetName: "Dashboard Data",
     managementFeeRate: 0.08,

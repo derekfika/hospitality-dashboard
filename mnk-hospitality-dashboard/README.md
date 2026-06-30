@@ -51,6 +51,7 @@ After both MNK Apps Script projects are linked and deployment IDs are filled in,
 
 - App name: `Fika at MNK Hospitality Dashboard`
 - Location name/code: `110 Bishopsgate, EC2N 4AY` / `MNK`
+- Dashboard spreadsheet ID: `1GIGIh_oAY0yLrrlXPaSvHte2oMPT8S_dKFAYdZN6nuc`
 - Quote/root folder fallback: `MNK Hospitality`
 - Processed Gmail label fallback: `MNK_HOSPITALITY_PROCESSED`
 - Default colours use the MNK blue palette.

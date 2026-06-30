@@ -39,6 +39,7 @@ const DASHBOARD_REQUIRED_HEADERS = [
 
 function setupBookingPlatformSheets() {
   const spreadsheet = getBookingSpreadsheet_();
+  const dashboardSpreadsheet = getDashboardSpreadsheet_();
   const result = { ok: true, sheets: [] };
 
   if (SITE_CONFIG.integration.keepClientRequestLog) {
@@ -54,10 +55,11 @@ function setupBookingPlatformSheets() {
   const settings = setupPlatformSettingsSheet_(spreadsheet);
   result.sheets.push(settings.getName());
 
-  const dashboard = getDashboardDataSheet_(spreadsheet);
+  const dashboard = getDashboardDataSheet_(dashboardSpreadsheet);
   const map = getSheetHeaderMap_(dashboard);
   assertHeaders_(map, DASHBOARD_REQUIRED_HEADERS, dashboard.getName());
-  result.sheets.push(dashboard.getName());
+  result.dashboardSpreadsheet = dashboardSpreadsheet.getName();
+  result.dashboardSheet = dashboard.getName();
   return result;
 }
 
@@ -90,7 +92,8 @@ function writeBookingRequest_(booking) {
   }
 
   const spreadsheet = getBookingSpreadsheet_();
-  const dashboardSheet = getDashboardDataSheet_(spreadsheet);
+  const dashboardSpreadsheet = getDashboardSpreadsheet_();
+  const dashboardSheet = getDashboardDataSheet_(dashboardSpreadsheet);
   const lineSheet = getOrCreateSheet_(spreadsheet, SITE_CONFIG.sheets.bookingLineItems, LINE_ITEM_HEADERS);
   const dashboardBooking = adaptClientBookingForDashboard_(booking);
   const dashboardRow = appendDashboardBooking_(dashboardSheet, dashboardBooking);
@@ -281,13 +284,13 @@ function appendClientRequestLog_(sheet, booking) {
 
 function getBookingSpreadsheet_() {
   const propertyId = PropertiesService.getScriptProperties()
-    .getProperty("DASHBOARD_SPREADSHEET_ID");
-  const configuredValue = propertyId || SITE_CONFIG.integration.spreadsheetId;
+    .getProperty("BOOKING_SPREADSHEET_ID");
+  const configuredValue = SITE_CONFIG.integration.bookingSpreadsheetId || propertyId;
   const id = extractSpreadsheetId_(configuredValue);
 
   if (configuredValue && !id) {
     throw new Error(
-      "The configured dashboard spreadsheet value is not a valid spreadsheet ID or Google Sheets URL. " +
+      "The configured booking platform spreadsheet value is not a valid spreadsheet ID or Google Sheets URL. " +
       "Use the value between /d/ and /edit, not the tab gid."
     );
   }
@@ -297,10 +300,35 @@ function getBookingSpreadsheet_() {
   const active = SpreadsheetApp.getActiveSpreadsheet();
   if (!active) {
     throw new Error(
-      "No dashboard spreadsheet is configured. Run setDashboardSpreadsheetId('YOUR_SPREADSHEET_ID') once."
+      "No booking platform spreadsheet is configured. Run setBookingSpreadsheetId('YOUR_BOOKING_PLATFORM_SPREADSHEET_ID') once."
     );
   }
   return active;
+}
+
+function getDashboardSpreadsheet_() {
+  const propertyId = PropertiesService.getScriptProperties()
+    .getProperty("DASHBOARD_SPREADSHEET_ID");
+  const configuredValue =
+    SITE_CONFIG.integration.dashboardSpreadsheetId ||
+    propertyId ||
+    SITE_CONFIG.integration.spreadsheetId;
+  const id = extractSpreadsheetId_(configuredValue);
+
+  if (configuredValue && !id) {
+    throw new Error(
+      "The configured dashboard spreadsheet value is not a valid spreadsheet ID or Google Sheets URL. " +
+      "Use the value between /d/ and /edit, not the tab gid."
+    );
+  }
+
+  if (!id) {
+    throw new Error(
+      "No dashboard spreadsheet is configured. Run setDashboardSpreadsheetId('YOUR_DASHBOARD_SPREADSHEET_ID') once."
+    );
+  }
+
+  return SpreadsheetApp.openById(id);
 }
 
 function getDashboardDataSheet_(spreadsheet) {
@@ -331,7 +359,32 @@ function extractSpreadsheetId_(value) {
 }
 
 /**
- * Connects this booking platform to the dashboard spreadsheet.
+ * Connects this booking platform to its own data spreadsheet.
+ * Pass either the full Google Sheets URL or the spreadsheet ID between /d/ and /edit.
+ */
+function setBookingSpreadsheetId(value) {
+  const id = extractSpreadsheetId_(value);
+  if (!id) {
+    throw new Error(
+      "Invalid spreadsheet value. Paste the full Google Sheets URL or the spreadsheet ID between /d/ and /edit."
+    );
+  }
+
+  SpreadsheetApp.openById(id);
+  PropertiesService.getScriptProperties()
+    .setProperty("BOOKING_SPREADSHEET_ID", id);
+
+  return testBookingPlatformConnection();
+}
+
+function clearBookingSpreadsheetId() {
+  PropertiesService.getScriptProperties()
+    .deleteProperty("BOOKING_SPREADSHEET_ID");
+  return { ok: true };
+}
+
+/**
+ * Connects this booking platform to the hospitality dashboard spreadsheet.
  * Pass either the full Google Sheets URL or the spreadsheet ID between /d/ and /edit.
  */
 function setDashboardSpreadsheetId(value) {
@@ -342,7 +395,7 @@ function setDashboardSpreadsheetId(value) {
     );
   }
 
-  const spreadsheet = SpreadsheetApp.openById(id);
+  SpreadsheetApp.openById(id);
   PropertiesService.getScriptProperties()
     .setProperty("DASHBOARD_SPREADSHEET_ID", id);
 
@@ -356,22 +409,33 @@ function clearDashboardSpreadsheetId() {
 }
 
 function testBookingPlatformConnection() {
-  const spreadsheet = getBookingSpreadsheet_();
-  const tabs = spreadsheet.getSheets()
+  const bookingSpreadsheet = getBookingSpreadsheet_();
+  const dashboardSpreadsheet = getDashboardSpreadsheet_();
+  const bookingTabs = bookingSpreadsheet.getSheets()
+    .map(function(sheet) { return sheet.getName(); });
+  const dashboardTabs = dashboardSpreadsheet.getSheets()
     .map(function(sheet) { return sheet.getName(); });
   const expectedTab = SITE_CONFIG.integration.dashboardSheetName;
-  const found = tabs.indexOf(expectedTab) !== -1;
+  const dashboardFound = dashboardTabs.indexOf(expectedTab) !== -1;
+  const bookingHasSettings = bookingTabs.indexOf(SITE_CONFIG.sheets.settings) !== -1;
+  const bookingHasLineItems = bookingTabs.indexOf(SITE_CONFIG.sheets.bookingLineItems) !== -1;
 
   return {
-    ok: found,
-    spreadsheetId: spreadsheet.getId(),
-    spreadsheetName: spreadsheet.getName(),
+    ok: dashboardFound,
+    bookingSpreadsheetId: bookingSpreadsheet.getId(),
+    bookingSpreadsheetName: bookingSpreadsheet.getName(),
+    bookingTabs: bookingTabs,
+    bookingHasSettings: bookingHasSettings,
+    bookingHasLineItems: bookingHasLineItems,
+    dashboardSpreadsheetId: dashboardSpreadsheet.getId(),
+    dashboardSpreadsheetName: dashboardSpreadsheet.getName(),
     expectedDashboardTab: expectedTab,
-    availableTabs: tabs,
-    message: found
-      ? "Connected to '" + spreadsheet.getName() + "' and found '" + expectedTab + "'."
-      : "Connected to '" + spreadsheet.getName() + "' but could not find '" +
-        expectedTab + "'. Available tabs: " + tabs.join(", ")
+    dashboardTabs: dashboardTabs,
+    message: dashboardFound
+      ? "Booking data uses '" + bookingSpreadsheet.getName() + "'. Dashboard writes to '" +
+        dashboardSpreadsheet.getName() + "' and found '" + expectedTab + "'."
+      : "Dashboard target '" + dashboardSpreadsheet.getName() + "' does not contain '" +
+        expectedTab + "'. Available tabs: " + dashboardTabs.join(", ")
   };
 }
 

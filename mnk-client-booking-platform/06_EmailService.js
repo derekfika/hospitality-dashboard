@@ -102,7 +102,7 @@ function getBookingNotificationDashboardUrl_(configuredUrl) {
   if (/^https:\/\/\S+$/i.test(value)) return value;
 
   try {
-    return getBookingSpreadsheet_().getUrl();
+    return getDashboardSpreadsheet_().getUrl();
   } catch (error) {
     return "";
   }
