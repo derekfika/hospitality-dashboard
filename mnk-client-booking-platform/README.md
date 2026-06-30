@@ -15,7 +15,7 @@ MNK version of the client-facing hospitality booking experience. It keeps the sa
 
 1. Create or connect an Apps Script project to the MNK dashboard spreadsheet.
 2. Copy this folder's files into that project.
-3. Run `setDashboardSpreadsheetId("FULL_GOOGLE_SHEETS_URL_OR_ID")` once.
+3. Run `setDashboardSpreadsheetId("FULL_GOOGLE_SHEETS_URL_OR_ID")` once with the MNK hospitality dashboard spreadsheet URL, not a separate booking platform data spreadsheet.
 4. Run `testBookingPlatformConnection()` and confirm it reports the correct spreadsheet and finds `Dashboard Data`.
 5. Confirm `SITE_CONFIG.integration.dashboardSheetName` matches the existing dashboard data tab.
 6. Run `setupBookingPlatformSheets()` once. It validates the dashboard headers and creates only the client line-item/settings sheets.
