@@ -36,6 +36,7 @@ Icons.html             SVG icon library
    - `ensureSettingsDefaults_()`
    - `runDashboardPureTests()`
    - `getDashboardLiveTestChecklist()`
+   - Opening the dashboard, or calling `getDashboardSheet_()`, will initialise headers in an empty `Dashboard Data` tab.
 5. Fill the generated `Settings` sheet with MNK values, especially:
    - `QUOTE_TEMPLATE_DOC_ID`
    - `QUOTE_ROOT_FOLDER_NAME`

@@ -37,6 +37,18 @@ const DASHBOARD_REQUIRED_HEADERS = [
   "MgmtFee", "NetPrice", "Vat", "GrossPrice", "ItemsJSON", "ParsedJSON"
 ];
 
+const DASHBOARD_HEADERS = [
+  "BookingID", "Status", "ValidationErrors", "EmailReceived", "MessageId", "ThreadId",
+  "AttachmentName", "SourceEmailFrom", "SourceEmailSubject", "ClientCompany", "HostName",
+  "HostEmail", "InvoiceReference", "Pax", "EventDate", "ServiceTimes", "ServiceType",
+  "Location", "Floor", "Notes", "TotalPrice", "MgmtFee", "NetPrice", "Vat", "GrossPrice",
+  "ItemsJSON", "ParsedJSON", "QuoteURL", "QuoteCreatedAt", "QuotePrintedAt",
+  "CalendarEventId", "CalendarEventURL", "CalendarCreatedAt", "ManuallyEdited",
+  "LastEditedBy", "LastEditedAt", "CreatedAt", "UpdatedAt", "Error", "QuoteStale",
+  "CalendarStale", "CalendarRemovedAt", "CancelledAt", "CancelledBy",
+  "CancellationEmailSentAt"
+];
+
 function setupBookingPlatformSheets() {
   const spreadsheet = getBookingSpreadsheet_();
   const dashboardSpreadsheet = getDashboardSpreadsheet_();
@@ -56,10 +68,12 @@ function setupBookingPlatformSheets() {
   result.sheets.push(settings.getName());
 
   const dashboard = getDashboardDataSheet_(dashboardSpreadsheet);
+  const dashboardWasInitialised = ensureDashboardHeaders_(dashboard);
   const map = getSheetHeaderMap_(dashboard);
   assertHeaders_(map, DASHBOARD_REQUIRED_HEADERS, dashboard.getName());
   result.dashboardSpreadsheet = dashboardSpreadsheet.getName();
   result.dashboardSheet = dashboard.getName();
+  result.dashboardInitialised = dashboardWasInitialised;
   return result;
 }
 
@@ -450,10 +464,27 @@ function getOrCreateSheet_(spreadsheet, name, headers) {
 }
 
 function getSheetHeaderMap_(sheet) {
+  if (sheet.getLastColumn() < 1) {
+    throw new Error(
+      "Sheet '" + sheet.getName() + "' has no headers. Run setupBookingPlatformSheets() to initialise an empty Dashboard Data tab, or add the dashboard headers first."
+    );
+  }
+
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const map = {};
   headers.forEach(function(header, index) { map[String(header).trim()] = index + 1; });
   return map;
+}
+
+function ensureDashboardHeaders_(sheet) {
+  if (sheet.getLastRow() > 0 && sheet.getLastColumn() > 0) return false;
+
+  sheet.getRange(1, 1, 1, DASHBOARD_HEADERS.length).setValues([DASHBOARD_HEADERS]);
+  sheet.getRange(1, 1, 1, DASHBOARD_HEADERS.length)
+    .setFontWeight("bold").setBackground("#176f8e").setFontColor("#ffffff");
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, DASHBOARD_HEADERS.length);
+  return true;
 }
 
 function assertHeaders_(map, required, sheetName) {

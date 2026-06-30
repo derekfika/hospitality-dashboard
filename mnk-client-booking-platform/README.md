@@ -18,7 +18,7 @@ MNK version of the client-facing hospitality booking experience. It keeps the sa
 3. Confirm `SITE_CONFIG.integration.bookingSpreadsheetId` is the booking platform data sheet: `1eR9J1x7VDOYtLT572burlr_GPIi4JPFoqopRpuyFJkQ`.
 4. Confirm `SITE_CONFIG.integration.dashboardSpreadsheetId` is the dashboard data sheet: `1GIGIh_oAY0yLrrlXPaSvHte2oMPT8S_dKFAYdZN6nuc`.
 5. Run `testBookingPlatformConnection()` and confirm it reports both spreadsheet names and finds `Dashboard Data` in the dashboard spreadsheet.
-6. Run `setupBookingPlatformSheets()` once. It creates only the client line-item/settings sheets in the booking platform data spreadsheet, then validates the dashboard headers in the dashboard data spreadsheet.
+6. Run `setupBookingPlatformSheets()` once. It creates only the client line-item/settings sheets in the booking platform data spreadsheet, and initialises the dashboard headers if `Dashboard Data` is an empty tab.
 7. Run `runBookingPlatformTests()` and confirm `ok: true`.
 8. Deploy as a web app.
 

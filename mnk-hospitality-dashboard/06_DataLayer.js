@@ -2,6 +2,18 @@
 // DATA LAYER
 // =========================
 
+const DASHBOARD_DATA_HEADERS = [
+  "BookingID", "Status", "ValidationErrors", "EmailReceived", "MessageId", "ThreadId",
+  "AttachmentName", "SourceEmailFrom", "SourceEmailSubject", "ClientCompany", "HostName",
+  "HostEmail", "InvoiceReference", "Pax", "EventDate", "ServiceTimes", "ServiceType",
+  "Location", "Floor", "Notes", "TotalPrice", "MgmtFee", "NetPrice", "Vat", "GrossPrice",
+  "ItemsJSON", "ParsedJSON", "QuoteURL", "QuoteCreatedAt", "QuotePrintedAt",
+  "CalendarEventId", "CalendarEventURL", "CalendarCreatedAt", "ManuallyEdited",
+  "LastEditedBy", "LastEditedAt", "CreatedAt", "UpdatedAt", "Error", "QuoteStale",
+  "CalendarStale", "CalendarRemovedAt", "CancelledAt", "CancelledBy",
+  "CancellationEmailSentAt"
+];
+
 function getDashboardSheet_() {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -28,7 +40,20 @@ function getDashboardSheet_() {
     );
   }
 
+  ensureDashboardDataHeaders_(sh);
+
   return sh;
+}
+
+function ensureDashboardDataHeaders_(sh) {
+  if (sh.getLastRow() > 0 && sh.getLastColumn() > 0) return false;
+
+  sh.getRange(1, 1, 1, DASHBOARD_DATA_HEADERS.length).setValues([DASHBOARD_DATA_HEADERS]);
+  sh.getRange(1, 1, 1, DASHBOARD_DATA_HEADERS.length)
+    .setFontWeight("bold").setBackground("#176f8e").setFontColor("#ffffff");
+  sh.setFrozenRows(1);
+  sh.autoResizeColumns(1, DASHBOARD_DATA_HEADERS.length);
+  return true;
 }
 
 
@@ -39,6 +64,10 @@ function getDashboardSheet_() {
 function getHeaderMap_() {
 
   const sh = getDashboardSheet_();
+
+  if (sh.getLastColumn() < 1) {
+    throw new Error(`Sheet '${sh.getName()}' has no dashboard headers`);
+  }
 
   const headers = sh
     .getRange(1, 1, 1, sh.getLastColumn())
