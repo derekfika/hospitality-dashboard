@@ -417,8 +417,8 @@
       return;
     }
     if (siteId === "__all_sites") {
-      showToast("Building the next month for all sites. This may take a while.");
-      runAction("Building next month of rota snapshots…", "buildNextMonthRotaSnapshotsFromUi");
+      showToast("Building the next 3 months for all sites. This may take a while.");
+      runAction("Building 3 months of rota snapshots…", "buildNextMonthRotaSnapshotsFromUi");
       return;
     }
     showLoading("Loading rota board…", "Building the weekly rota view.");
@@ -664,12 +664,12 @@
       button.dataset.defaultText = button.dataset.defaultText || button.textContent;
       button.textContent = "Starting...";
     }
-    text("snapshotBuildMessage", "Starting month snapshot builder...");
+    text("snapshotBuildMessage", "Starting 3 month snapshot builder...");
     google.script.run
       .withSuccessHandler(result => {
         if (button) {
           button.disabled = false;
-          button.textContent = button.dataset.defaultText || "Build next month snapshots";
+          button.textContent = button.dataset.defaultText || "Build 3 month snapshots";
         }
         showToast((result && result.message) || "Snapshot builder started.");
         renderSnapshotBuildStatus(result || {});
@@ -678,7 +678,7 @@
       .withFailureHandler(error => {
         if (button) {
           button.disabled = false;
-          button.textContent = button.dataset.defaultText || "Build next month snapshots";
+          button.textContent = button.dataset.defaultText || "Build 3 month snapshots";
         }
         showToast(error.message || "Could not start snapshot builder.");
       })

@@ -1490,7 +1490,7 @@ function rebuildAllRotaSnapshots_(weekCount) {
     return site && site.siteId;
   });
   const baseWeek = normaliseWeekStart_(new Date());
-  const weeks = getRollingRotaSnapshotWeeks_(baseWeek, weekCount || 4);
+  const weeks = getRollingRotaSnapshotWeeks_(baseWeek, weekCount || getStandardRotaSnapshotWeekCount_());
   const results = [];
   sites.forEach(function(site) {
     weeks.forEach(function(weekStart) {
@@ -1529,7 +1529,7 @@ function startNextMonthRotaSnapshotBuild_() {
     return site && site.siteId;
   });
   const baseWeek = normaliseWeekStart_(new Date());
-  const weeks = getRollingRotaSnapshotWeeks_(baseWeek, 5);
+  const weeks = getRollingRotaSnapshotWeeks_(baseWeek, getStandardRotaSnapshotWeekCount_());
   const queue = [];
   sites.forEach(function(site) {
     weeks.forEach(function(weekStart) {
@@ -1615,7 +1615,7 @@ function processNextMonthRotaSnapshotBuild_() {
       failed: results.filter(function(row) { return !row.ok; }).length,
       remaining: 0,
       results: results,
-      message: "Next month rota snapshots complete. " +
+      message: "Three-month rota snapshots complete. " +
         results.filter(function(row) { return row.ok; }).length + " saved, " +
         results.filter(function(row) { return !row.ok; }).length + " failed."
     };
@@ -1633,7 +1633,7 @@ function getRotaSnapshotBuildStatus_() {
   const sites = (options.sites || []).filter(function(site) {
     return site && site.siteId;
   });
-  const weeks = getRollingRotaSnapshotWeeks_(normaliseWeekStart_(new Date()), 5);
+  const weeks = getRollingRotaSnapshotWeeks_(normaliseWeekStart_(new Date()), getStandardRotaSnapshotWeekCount_());
   const rows = [];
   let built = 0;
   let stale = 0;
@@ -1711,12 +1711,16 @@ function clearRotaSnapshotBuildTriggers_() {
 }
 
 function getRollingRotaSnapshotWeeks_(baseWeek, weekCount) {
-  const count = Math.max(1, Number(weekCount || 5));
+  const count = Math.max(1, Number(weekCount || getStandardRotaSnapshotWeekCount_()));
   const weeks = [];
   for (let index = 0; index < count; index += 1) {
     weeks.push(addDays_(baseWeek, index * 7));
   }
   return weeks;
+}
+
+function getStandardRotaSnapshotWeekCount_() {
+  return 13;
 }
 
 function isAllSitesRotaRequest_(siteId) {
