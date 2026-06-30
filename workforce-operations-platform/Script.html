@@ -488,6 +488,7 @@
           const nextBoard = state.currentCockpit || board;
           const index = (nextBoard.days || []).findIndex(candidate => candidate.date === day.date);
           if (index !== -1 && result.day) {
+            result.day.loading = false;
             nextBoard.days[index] = result.day;
             nextBoard.diagnostics = Object.assign({}, nextBoard.diagnostics || {}, result.diagnostics || {});
             recomputeCockpitBoard(nextBoard);
@@ -1571,16 +1572,18 @@
         ${renderSnapshotHealth_(board)}
         ${!issues.length && !absences.length ? renderFullyCoveredState_(day, board) : ""}
         ${renderAllSitesSelectedDaySummary_(day)}
-        <div class="selected-day-grid">
-          <article class="day-detail-card">
-            <div class="detail-card-heading">
-              <h4>Scheduled</h4>
-              <span>${scheduled.length}</span>
-            </div>
-            <div class="cockpit-staff-list">
-              ${scheduled.length ? scheduled.map(person => renderCockpitPerson(person, day.date)).join("") : '<p class="quiet">No rota for this day.</p>'}
-            </div>
-          </article>
+        <div class="selected-day-grid ${fullRotaOpen ? "" : "issues-only"}">
+          ${fullRotaOpen ? `
+            <article class="day-detail-card">
+              <div class="detail-card-heading">
+                <h4>Scheduled</h4>
+                <span>${scheduled.length}</span>
+              </div>
+              <div class="cockpit-staff-list">
+                ${scheduled.length ? scheduled.map(person => renderCockpitPerson(person, day.date)).join("") : '<p class="quiet">No rota for this day.</p>'}
+              </div>
+            </article>
+          ` : ""}
           <article class="day-detail-card">
             <div class="detail-card-heading">
               <h4>Absences</h4>
@@ -1600,7 +1603,7 @@
             </div>
           </article>
         </div>
-        ${fullRotaOpen ? "" : '<p class="quiet selected-day-note">Only the selected day is expanded. Use Show full rota if you need broader rota context.</p>'}
+        ${fullRotaOpen ? "" : '<p class="quiet selected-day-note">Scheduled rota is hidden by default so this view stays focused on what needs fixing. Use Show full rota if you need it.</p>'}
       </section>
     `;
   }
@@ -1608,16 +1611,21 @@
   function getSelectedDayForBoard_(board) {
     const days = board.days || [];
     if (!days.length) return "";
-    if (state.selectedDay && days.some(day => String(day.date || "") === String(state.selectedDay))) {
+    const selected = state.selectedDay
+      ? days.find(day => String(day.date || "") === String(state.selectedDay))
+      : null;
+    const loadedDays = days.filter(day => !day.loading);
+    if (selected && !selected.loading) {
       return state.selectedDay;
     }
-    const uncovered = days.find(day => Number((day.summary || {}).uncoveredCount || 0) > 0);
+    const searchDays = loadedDays.length ? loadedDays : days;
+    const uncovered = searchDays.find(day => Number((day.summary || {}).uncoveredCount || 0) > 0);
     if (uncovered) return uncovered.date;
-    const suggested = days.find(day => Number((day.summary || {}).suggestionCount || 0) > 0);
+    const suggested = searchDays.find(day => Number((day.summary || {}).suggestionCount || 0) > 0);
     if (suggested) return suggested.date;
     const today = formatDateInput(new Date());
-    const todayInWeek = days.find(day => String(day.date || "") === today);
-    return (todayInWeek || days[0]).date;
+    const todayInWeek = searchDays.find(day => String(day.date || "") === today);
+    return (todayInWeek || searchDays[0] || days[0]).date;
   }
 
   function getDayAbsenceIssues_(day) {
@@ -1898,6 +1906,10 @@
     const siteId = siteSelect ? siteSelect.value : "";
     const weekStart = weekInput ? weekInput.value : "";
     if (!siteId) return;
+    if (siteId === "__all_sites") {
+      loadAllSitesCockpitDayByDay(weekStart);
+      return;
+    }
     const scrollY = window.scrollY;
     google.script.run
       .withSuccessHandler(board => {

@@ -546,7 +546,7 @@ function approveSuggestedCoverFromUi(gapId) {
 
 function approveBestCoverFromUi(issueId) {
   const result = approveSuggestedCoverFromUi(issueId);
-  markRotaSnapshotStaleForIssue_(issueId);
+  result.snapshot = rebuildRotaSnapshotForIssue_(issueId);
   return toPlainJson_(result);
 }
 
@@ -563,7 +563,7 @@ function chooseCoverForGapFromUi(gapId, employeeId) {
 
 function chooseCoverForIssueFromUi(issueId, employeeId) {
   const result = chooseCoverForGapFromUi(issueId, employeeId);
-  markRotaSnapshotStaleForIssue_(issueId);
+  result.snapshot = rebuildRotaSnapshotForIssue_(issueId);
   return toPlainJson_(result);
 }
 
@@ -580,7 +580,7 @@ function requestAgencyForGapFromUi(gapId, agencyId, details) {
 
 function requestAgencyForIssueFromUi(issueId) {
   const result = requestAgencyForGapFromUi(issueId);
-  markRotaSnapshotStaleForIssue_(issueId);
+  result.snapshot = rebuildRotaSnapshotForIssue_(issueId);
   return toPlainJson_(result);
 }
 
@@ -592,7 +592,7 @@ function markGapResolvedFromUi(gapId) {
 
 function markIssueResolvedFromUi(issueId) {
   const result = markGapResolvedFromUi(issueId);
-  markRotaSnapshotStaleForIssue_(issueId);
+  result.snapshot = rebuildRotaSnapshotForIssue_(issueId);
   return toPlainJson_(result);
 }
 
@@ -600,7 +600,7 @@ function ignoreIssueFromUi(issueId) {
   const result = markCoverageGap_(issueId, "ignored", {
     notes: "Ignored from Rota Assistant"
   });
-  markRotaSnapshotStaleForIssue_(issueId);
+  result.snapshot = rebuildRotaSnapshotForIssue_(issueId);
   return toPlainJson_(result);
 }
 
@@ -614,7 +614,7 @@ function snoozeIssueFromUi(issueId, untilDate) {
   const result = markCoverageGap_(issueId, "snoozed", {
     notes: "Snoozed from Rota Assistant" + (untilDate ? " until " + untilDate : "")
   });
-  markRotaSnapshotStaleForIssue_(issueId);
+  result.snapshot = rebuildRotaSnapshotForIssue_(issueId);
   return toPlainJson_(result);
 }
 
@@ -1177,6 +1177,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
   const absenceIndex = buildAbsenceIndex_(absences);
   const exceptionIndex = buildRotaExceptionIndex_(exceptions);
   const coverIndex = buildRotaCoverIndex_(exceptions);
+  const assignedCoverDateIndex = buildAssignedCoverDateIndex_(exceptions);
   const existingGapIndex = buildExistingCockpitGapIndex_(existingGaps);
   const generatedGaps = [];
   const suggestions = [];
@@ -1194,6 +1195,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
       if (!personName) return;
       const employeeId = String(template["Employee ID"] || "") ||
         ((staffLookup.byName[normaliseWorkforcePerson_(personName)] || {}).employeeId || "");
+      const isReliefTeamPerson = isReliefTeamScheduledPerson_(employeeId, personName, staffLookup);
       const templateKey = getGapTemplateDateKey_(template, day.date);
       const absence = absenceIndex[getGapPersonDateKey_(personName, day.date)];
       const exception = exceptionIndex[templateKey];
@@ -1218,7 +1220,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
         absenceType: absence ? String(absence["Absence Type"] || "Absence") : "",
         notes: exception ? String(exception.Notes || "") : ""
       });
-      if (absence) {
+      if (absence && !isReliefTeamPerson) {
         const absenceIssue = {
           issueId: ["absence", cleanSiteId, day.date, slugifyWorkforce_(personName)].join("_"),
           type: "absence",
@@ -1236,7 +1238,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
         dayAbsences.push(absenceIssue);
         issues.push(absenceIssue);
       }
-      if ((absence || (exception && String(exception["Exception Type"] || ""))) && !isCleared) {
+      if ((absence || (exception && String(exception["Exception Type"] || ""))) && !isCleared && !isReliefTeamPerson) {
         const gap = existingGapIndex[templateKey] || buildCoverageGap_(
           template,
           day.date,
@@ -1246,7 +1248,7 @@ function buildRotaCockpit_(siteId, weekStartDate) {
           exception ? exception.Notes || "" : ""
         );
         generatedGaps.push(gap);
-        const gapSuggestions = getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability, coverHistory);
+        const gapSuggestions = getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability, coverHistory, assignedCoverDateIndex);
         suggestions.push.apply(suggestions, gapSuggestions.rows);
         const gapIssue = {
           issueId: String(gap["Gap ID"] || ""),
@@ -1578,6 +1580,27 @@ function markRotaSnapshotStaleForIssue_(issueId) {
   }
 }
 
+function rebuildRotaSnapshotForIssue_(issueId) {
+  try {
+    const spreadsheet = getWorkforceSpreadsheet_();
+    const gap = getCoverageGapById_(spreadsheet, issueId);
+    const siteId = gap["Site ID"] || "";
+    const weekStart = normaliseWeekStart_(normaliseWorkforceDate_(gap.Date));
+    const snapshot = buildAndSaveRotaWeekSnapshot_(siteId, weekStart, { forced: true });
+    return {
+      ok: true,
+      siteId: siteId,
+      weekStart: weekStart,
+      issueCount: (snapshot.totals || {}).issueCount || 0
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error.message || String(error)
+    };
+  }
+}
+
 function rebuildAllRotaSnapshots_(weekCount) {
   const options = safeGetRotaAppOptions_();
   const sites = (options.sites || []).filter(function(site) {
@@ -1848,13 +1871,15 @@ function addDays_(dateText, days) {
   return Utilities.formatDate(new Date(base.getTime() + Number(days || 0) * 86400000), WORKFORCE_CONFIG.timeZone, "yyyy-MM-dd");
 }
 
-function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability, coverHistory) {
+function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailability, coverHistory, assignedCoverDateIndex) {
   const date = normaliseWorkforceDate_(gap.Date);
   const availableRelief = reliefAvailability[date] || [];
   const candidates = staff.filter(function(person) {
+    const personKey = normaliseWorkforcePerson_(person.Name);
     return String(person.Name || "") &&
-      normaliseWorkforcePerson_(person.Name) !== normaliseWorkforcePerson_(gap["Employee Name"]) &&
-      !absenceIndex[getGapPersonDateKey_(person.Name, date)];
+      personKey !== normaliseWorkforcePerson_(gap["Employee Name"]) &&
+      !absenceIndex[getGapPersonDateKey_(person.Name, date)] &&
+      !(assignedCoverDateIndex && assignedCoverDateIndex[getAssignedCoverDateKey_(person.Name, date)]);
   }).map(function(person) {
     const reliefMatch = findReliefAvailabilityForPerson_(availableRelief, person.Name);
     const historySignal = getCoverHistorySignal_(coverHistory, gap, person);
@@ -1892,6 +1917,35 @@ function getCockpitSuggestionsForGap_(gap, staff, absenceIndex, reliefAvailabili
     confidence: getSuggestionConfidence_(Number(rows[0].Score || 0))
   } : null;
   return { best: best, rows: rows };
+}
+
+function buildAssignedCoverDateIndex_(exceptions) {
+  const index = {};
+  (exceptions || []).forEach(function(exception) {
+    if (!isGapClearedByException_(exception)) return;
+    const coverName = String(exception["Employee Name"] || "").trim();
+    const date = normaliseWorkforceDate_(exception.Date);
+    if (!coverName || !date) return;
+    index[getAssignedCoverDateKey_(coverName, date)] = true;
+  });
+  return index;
+}
+
+function getAssignedCoverDateKey_(personName, dateText) {
+  return [
+    normaliseWorkforcePerson_(personName),
+    normaliseWorkforceDate_(dateText)
+  ].join("|");
+}
+
+function isReliefTeamScheduledPerson_(employeeId, personName, staffLookup) {
+  const byId = employeeId && staffLookup && staffLookup.byId
+    ? staffLookup.byId[String(employeeId)]
+    : null;
+  const byName = personName && staffLookup && staffLookup.byName
+    ? staffLookup.byName[normaliseWorkforcePerson_(personName)]
+    : null;
+  return Boolean((byId && byId.reliefTeam) || (byName && byName.reliefTeam));
 }
 
 function uniqueCockpitTemplates_(rows) {
@@ -2122,12 +2176,14 @@ function buildCockpitStaffLiteLookup_(spreadsheet) {
   const nameValues = map.Name ? sheet.getRange(2, map.Name, rowCount, 1).getDisplayValues() : [];
   const emailValues = map.Email ? sheet.getRange(2, map.Email, rowCount, 1).getDisplayValues() : [];
   const roleValues = map.Role ? sheet.getRange(2, map.Role, rowCount, 1).getDisplayValues() : [];
+  const reliefValues = map["Relief Team"] ? sheet.getRange(2, map["Relief Team"], rowCount, 1).getDisplayValues() : [];
   for (let index = 0; index < rowCount; index += 1) {
     const person = {
       employeeId: (idValues[index] && idValues[index][0]) || "",
       name: (nameValues[index] && nameValues[index][0]) || "",
       email: (emailValues[index] && emailValues[index][0]) || "",
-      role: (roleValues[index] && roleValues[index][0]) || ""
+      role: (roleValues[index] && roleValues[index][0]) || "",
+      reliefTeam: workforceBoolean_((reliefValues[index] && reliefValues[index][0]) || "")
     };
     if (person.employeeId) lookup.byId[person.employeeId] = person;
     if (person.name) lookup.byName[normaliseWorkforcePerson_(person.name)] = person;
