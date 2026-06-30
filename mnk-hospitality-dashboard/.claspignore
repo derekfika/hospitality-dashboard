@@ -1,0 +1,18 @@
+# ignore folders / subprojects
+client-booking-platform/**
+cpu-dashboard/**
+58ve-dashboard/**
+.artifact-work/**
+node_modules/**
+.git/**
+.npm-cache/**
+
+# ignore docs/dev files
+README.md
+CHANGELOG.md
+.gitignore
+
+# keep root Apps Script files
+!appsscript.json
+!*.js
+!*.html
