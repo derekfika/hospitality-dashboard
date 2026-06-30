@@ -240,6 +240,28 @@ function getRotaAssistantWeekFromUi(siteId, weekStartDate) {
   }
 }
 
+function getReliefRotaWindowFromUi(siteId, weekStartDate) {
+  try {
+    return toPlainJson_(buildReliefRotaWindow_(siteId, weekStartDate));
+  } catch (error) {
+    return toPlainJson_({
+      ok: false,
+      error: error.message || String(error),
+      siteId: String(siteId || ""),
+      weekStart: String(weekStartDate || ""),
+      days: [],
+      people: [],
+      rows: [],
+      totals: {
+        assignments: 0,
+        people: 0,
+        accepted: 0,
+        draft: 0
+      }
+    });
+  }
+}
+
 function buildAndSaveRotaWeekSnapshotFromUi(siteId, weekStartDate) {
   return toPlainJson_(buildAndSaveRotaWeekSnapshot_(siteId, normaliseWeekStart_(weekStartDate), {
     forced: true
@@ -464,6 +486,134 @@ function getAllSitesRotaAssistantDayFromUi(weekStartDate, dateText) {
       staleSnapshots: staleSnapshots.slice(0, 12)
     }
   });
+}
+
+function buildReliefRotaWindow_(siteId, weekStartDate) {
+  const spreadsheet = getWorkforceSpreadsheet_();
+  const cleanSiteId = String(siteId || "").trim();
+  const includeAllSites = !cleanSiteId || isAllSitesRotaRequest_(cleanSiteId);
+  const weekStart = normaliseWeekStart_(weekStartDate);
+  const weekDates = getWeekDates_(weekStart).filter(function(day) {
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].indexOf(day.weekday) !== -1;
+  });
+  const dateSet = {};
+  weekDates.forEach(function(day) {
+    dateSet[day.date] = true;
+  });
+  const acceptedRows = readCoverHistoryRows_(spreadsheet)
+    .filter(function(row) {
+      const date = normaliseWorkforceDate_(row.Date);
+      if (!dateSet[date]) return false;
+      if (!includeAllSites && String(row["Site ID"] || "") !== cleanSiteId) return false;
+      return !/cancelled|ignored|snoozed/i.test(String(row.Outcome || ""));
+    })
+    .map(function(row) {
+      return normaliseReliefRotaWindowRow_(row, "Accepted", "Cover history");
+    });
+  const assignmentSheet = spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefAssignments);
+  const draftRows = readWorkforceObjects_(assignmentSheet)
+    .filter(function(row) {
+      const date = normaliseWorkforceDate_(row.Date);
+      if (!dateSet[date]) return false;
+      if (!includeAllSites && String(row["Site ID"] || "") !== cleanSiteId) return false;
+      return !/cancelled|ignored|declined/i.test(String(row.Status || ""));
+    })
+    .map(function(row) {
+      return normaliseReliefRotaWindowRow_(row, row.Status || "Draft", "Relief assignment");
+    });
+  const rowsByKey = {};
+  acceptedRows.concat(draftRows).forEach(function(row) {
+    const key = [
+      row.gapId || row.assignmentId || row.source,
+      row.date,
+      normaliseWorkforcePerson_(row.coveringEmployeeName),
+      row.siteId,
+      normaliseWorkforcePerson_(row.coveredEmployeeName),
+      String(row.role || "").toLowerCase()
+    ].join("|");
+    const existing = rowsByKey[key];
+    if (!existing || existing.status !== "Accepted") rowsByKey[key] = row;
+  });
+  const rows = Object.keys(rowsByKey).map(function(key) {
+    return rowsByKey[key];
+  }).sort(function(a, b) {
+    return String(a.coveringEmployeeName || "").localeCompare(String(b.coveringEmployeeName || "")) ||
+      String(a.date || "").localeCompare(String(b.date || "")) ||
+      String(a.siteName || "").localeCompare(String(b.siteName || ""));
+  });
+  const peopleByKey = {};
+  rows.forEach(function(row) {
+    const key = normaliseWorkforcePerson_(row.coveringEmployeeName) || row.coveringEmployeeId || "unassigned";
+    if (!peopleByKey[key]) {
+      peopleByKey[key] = {
+        employeeId: row.coveringEmployeeId || "",
+        employeeName: row.coveringEmployeeName || "Unassigned relief",
+        email: row.coveringEmail || "",
+        assignmentCount: 0,
+        assignmentsByDate: {}
+      };
+    }
+    const person = peopleByKey[key];
+    person.assignmentCount += 1;
+    if (!person.assignmentsByDate[row.date]) person.assignmentsByDate[row.date] = [];
+    person.assignmentsByDate[row.date].push(row);
+  });
+  const people = Object.keys(peopleByKey).map(function(key) {
+    return peopleByKey[key];
+  }).sort(function(a, b) {
+    return String(a.employeeName || "").localeCompare(String(b.employeeName || ""));
+  });
+  const accepted = rows.filter(function(row) {
+    return String(row.status || "").toLowerCase() === "accepted" ||
+      String(row.source || "").toLowerCase() === "cover history";
+  }).length;
+  const draft = rows.length - accepted;
+  return {
+    ok: true,
+    siteId: includeAllSites ? "__all_sites" : cleanSiteId,
+    siteName: includeAllSites ? "All sites" : getReliefRotaSiteName_(spreadsheet, cleanSiteId),
+    weekStart: weekStart,
+    weekEnd: weekDates.length ? weekDates[weekDates.length - 1].date : weekStart,
+    days: weekDates,
+    rows: rows,
+    people: people,
+    totals: {
+      assignments: rows.length,
+      people: people.length,
+      accepted: accepted,
+      draft: draft
+    }
+  };
+}
+
+function normaliseReliefRotaWindowRow_(row, status, source) {
+  return {
+    assignmentId: String(row["Assignment ID"] || row["Cover History ID"] || ""),
+    gapId: String(row["Gap ID"] || ""),
+    siteId: String(row["Site ID"] || ""),
+    siteName: String(row["Site Name"] || ""),
+    date: normaliseWorkforceDate_(row.Date),
+    weekday: String(row.Weekday || ""),
+    role: String(row.Role || ""),
+    coveringEmployeeId: String(row["Covering Employee ID"] || ""),
+    coveringEmployeeName: String(row["Covering Employee Name"] || ""),
+    coveringEmail: String(row["Covering Email"] || ""),
+    coveredEmployeeName: String(row["Covered Employee Name"] || ""),
+    coverType: String(row["Cover Type"] || "Relief"),
+    source: source || "",
+    status: String(status || "Draft"),
+    score: row.Score || "",
+    reason: String(row.Reason || row.Notes || ""),
+    notes: String(row.Notes || "")
+  };
+}
+
+function getReliefRotaSiteName_(spreadsheet, siteId) {
+  const site = readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.sites))
+    .filter(function(row) {
+      return String(row["Site ID"] || "") === String(siteId || "");
+    })[0];
+  return site ? String(site["Site Name"] || siteId) : String(siteId || "");
 }
 
 function nightlyWorkforceSnapshotSync() {

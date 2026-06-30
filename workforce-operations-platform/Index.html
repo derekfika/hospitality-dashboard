@@ -66,9 +66,25 @@
               <h3>What needs fixing this week?</h3>
             </div>
             <div class="assistant-actions">
-              <button id="downloadAssistantPdfBtn" class="secondary mini" type="button">Download week PDF</button>
               <button id="rebuildCurrentSnapshotBtn" class="secondary mini" type="button">Rebuild snapshot</button>
             </div>
+          </div>
+        </section>
+
+        <section class="assistant-section relief-rota-panel" id="reliefRotaPanel">
+          <div class="assistant-heading">
+            <div>
+              <p class="eyebrow">Relief rota</p>
+              <h3>Who's covering who this week?</h3>
+              <p class="muted-text">A quick weekly view of accepted cover and generated draft relief assignments.</p>
+            </div>
+            <div class="assistant-actions">
+              <button id="loadReliefRotaWindowBtn" class="secondary mini" type="button">Refresh relief rota</button>
+              <button id="downloadAssistantPdfBtn" class="mini" type="button">Generate PDF</button>
+            </div>
+          </div>
+          <div class="relief-rota-window" id="reliefRotaWindow">
+            <div class="empty-state">Choose a site/week above, then refresh the relief rota.</div>
           </div>
         </section>
 

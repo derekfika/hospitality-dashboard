@@ -90,6 +90,7 @@
     onClick("weekAfterBtn", () => shiftCockpitWeek(14));
     onClick("toggleFullRotaBtn", toggleFullRota);
     onClick("toggleAdminBtn", toggleAdmin);
+    onClick("loadReliefRotaWindowBtn", () => loadReliefRotaWindow());
     onClick("downloadAssistantPdfBtn", generateSelectedWeekReliefRotaPdf);
     onClick("rebuildCurrentSnapshotBtn", rebuildCurrentSnapshot);
     onClick("previewLegacyBtn", () => {
@@ -446,6 +447,7 @@
     }
     if (siteId === "__all_sites") {
       loadAllSitesCockpitDayByDay(weekStart);
+      loadReliefRotaWindow({ quiet: true });
       return;
     }
     state.currentSiteId = siteId;
@@ -466,6 +468,7 @@
         state.loadedWeeksBySite[siteId + "|" + weekStart] = board;
         state.snapshotsByKey[cacheKey] = board;
         renderRotaCockpit(board);
+        loadReliefRotaWindow({ quiet: true });
       })
       .withFailureHandler(error => {
         showToast(error.message || "Could not load rota assistant.");
@@ -481,6 +484,7 @@
     state.currentCockpit = board;
     state.cockpitLoaded = true;
     renderRotaCockpit(board);
+    loadReliefRotaWindow({ quiet: true });
     board.days.forEach(day => {
       google.script.run
         .withSuccessHandler(result => {
@@ -553,16 +557,10 @@
   }
 
   function generateSelectedWeekReliefRotaPdf() {
-    const siteSelect = document.getElementById("cockpitSiteSelect");
     const weekInput = document.getElementById("cockpitWeekStartInput");
-    const siteId = siteSelect ? siteSelect.value : "";
     const weekStart = weekInput ? weekInput.value : "";
-    if (!siteId) {
-      showToast("Choose a site in the rota cockpit first.");
-      return;
-    }
-    if (siteId === "__all_sites") {
-      showToast("Choose one site before downloading a relief rota PDF.");
+    if (!weekStart) {
+      showToast("Choose a week first.");
       return;
     }
     const button = document.getElementById("downloadAssistantPdfBtn") || document.getElementById("generateReliefRotaBtn");
@@ -584,6 +582,7 @@
         }
         downloadBase64File_(result.base64, result.mimeType || "application/pdf", result.filename || "relief-rota.pdf");
         showToast(result.message || "Relief rota PDF downloaded.");
+        loadReliefRotaWindow({ quiet: true });
         queueQuietCockpitRefresh();
       })
       .withFailureHandler(error => {
@@ -593,7 +592,7 @@
         }
         showToast(error.message || "Could not generate relief rota PDF.");
       })
-      .generateReliefRotaPdfForSelectedWeekFromUi(siteId, weekStart);
+      .generateReliefRotaPdfForSelectedWeekFromUi("__all_sites", weekStart);
   }
 
   function downloadBase64File_(base64, mimeType, filename) {
@@ -615,6 +614,136 @@
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function loadReliefRotaWindow(options) {
+    options = options || {};
+    const siteSelect = document.getElementById("cockpitSiteSelect");
+    const weekInput = document.getElementById("cockpitWeekStartInput");
+    const siteId = state.currentSiteId || (siteSelect ? siteSelect.value : "");
+    const weekStart = state.currentWeekStart || (weekInput ? weekInput.value : "");
+    const root = document.getElementById("reliefRotaWindow");
+    if (!root) return;
+    if (!siteId || !weekStart) {
+      root.innerHTML = '<div class="empty-state">Choose a site and week above to load the relief rota.</div>';
+      return;
+    }
+    const button = document.getElementById("loadReliefRotaWindowBtn");
+    if (!options.quiet) {
+      root.innerHTML = `
+        <div class="skeleton-card">
+          <span class="loader small"></span>
+          <div>
+            <strong>Loading relief rota...</strong>
+            <p class="quiet">Checking accepted cover and draft relief assignments for this week.</p>
+          </div>
+        </div>
+      `;
+    }
+    setButtonLoading_(button, true, "Refreshing...");
+    google.script.run
+      .withSuccessHandler(result => {
+        setButtonLoading_(button, false);
+        if (!result || result.ok === false) {
+          root.innerHTML = `<div class="empty-state">${escapeHtml((result && result.error) || "Could not load relief rota.")}</div>`;
+          return;
+        }
+        renderReliefRotaWindow(result);
+      })
+      .withFailureHandler(error => {
+        setButtonLoading_(button, false);
+        root.innerHTML = `<div class="empty-state">${escapeHtml(error.message || "Could not load relief rota.")}</div>`;
+      })
+      .getReliefRotaWindowFromUi(siteId, weekStart);
+  }
+
+  function renderReliefRotaWindow(data) {
+    const root = document.getElementById("reliefRotaWindow");
+    if (!root) return;
+    const days = data.days || [];
+    const people = data.people || [];
+    const totals = data.totals || {};
+    if (!people.length) {
+      root.innerHTML = `
+        <div class="relief-rota-empty">
+          <div>
+            <strong>No relief cover recorded for this week yet.</strong>
+            <p class="muted-text">Approve cover from the issue cards or generate the PDF to create draft assignments.</p>
+          </div>
+          <span>${escapeHtml(data.siteName || "")} · WC ${escapeHtml(data.weekStart || "")}</span>
+        </div>
+      `;
+      return;
+    }
+    root.innerHTML = `
+      <div class="relief-rota-summary">
+        <div>
+          <span>Week</span>
+          <strong>${escapeHtml(data.siteName || "Relief rota")} · WC ${escapeHtml(data.weekStart || "")}</strong>
+        </div>
+        <div><span>People</span><strong>${escapeHtml(totals.people || 0)}</strong></div>
+        <div><span>Assignments</span><strong>${escapeHtml(totals.assignments || 0)}</strong></div>
+        <div><span>Accepted</span><strong>${escapeHtml(totals.accepted || 0)}</strong></div>
+        <div><span>Draft</span><strong>${escapeHtml(totals.draft || 0)}</strong></div>
+      </div>
+      <div class="relief-rota-calendar" style="--relief-days:${Math.max(1, days.length)}">
+        <div class="relief-rota-corner">Relief team</div>
+        ${days.map(day => `
+          <div class="relief-rota-day-head">
+            <strong>${escapeHtml(day.weekday || "")}</strong>
+            <span>${escapeHtml(formatDayMonth_(day.date))}</span>
+          </div>
+        `).join("")}
+        ${people.map(person => renderReliefRotaPersonRow_(person, days)).join("")}
+      </div>
+    `;
+  }
+
+  function renderReliefRotaPersonRow_(person, days) {
+    return `
+      <div class="relief-rota-person">
+        <strong>${escapeHtml(person.employeeName || "Unassigned relief")}</strong>
+        <span>${escapeHtml(person.assignmentCount || 0)} assignment${Number(person.assignmentCount || 0) === 1 ? "" : "s"}</span>
+        ${person.email ? `<small>${escapeHtml(person.email)}</small>` : ""}
+      </div>
+      ${days.map(day => {
+        const assignments = (person.assignmentsByDate && person.assignmentsByDate[day.date]) || [];
+        return `
+          <div class="relief-rota-cell ${assignments.length ? "has-cover" : ""}">
+            ${assignments.length ? assignments.map(renderReliefRotaAssignment_).join("") : '<span class="relief-rota-off">-</span>'}
+          </div>
+        `;
+      }).join("")}
+    `;
+  }
+
+  function renderReliefRotaAssignment_(assignment) {
+    const status = String(assignment.status || "Draft").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `
+      <article class="relief-rota-assignment status-${escapeHtml(status)}">
+        <div>
+          <strong>${escapeHtml(assignment.siteName || assignment.siteId || "Site")}</strong>
+          <span>${escapeHtml(assignment.role || "Cover")}</span>
+        </div>
+        <small>Covering ${escapeHtml(assignment.coveredEmployeeName || "rota gap")}</small>
+        ${assignment.reason ? `<small class="relief-reason">${escapeHtml(assignment.reason)}</small>` : ""}
+        <em>${escapeHtml(assignment.status || "Draft")}</em>
+      </article>
+    `;
+  }
+
+  function formatDayMonth_(dateText) {
+    if (!dateText) return "";
+    const date = new Date(dateText + "T00:00:00");
+    if (isNaN(date.getTime())) return dateText;
+    return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  }
+
+  function setButtonLoading_(button, isLoading, label) {
+    if (!button) return;
+    if (!button.dataset.defaultText) button.dataset.defaultText = button.textContent;
+    button.disabled = Boolean(isLoading);
+    button.textContent = isLoading ? (label || "Working...") : button.dataset.defaultText;
   }
 
   function shiftCockpitWeek(days) {
@@ -1803,14 +1932,16 @@
     if (!board || !gapId) return false;
     let changed = false;
     (board.days || []).forEach(day => {
+      let approvedCoverName = "";
       (day.issues || []).forEach(issue => {
         if (String(issue.gapId || issue.issueId || "") !== String(gapId)) return;
         changed = true;
         if (action === "approve") {
           const suggestion = issue.bestSuggestion || {};
+          approvedCoverName = suggestion.employeeName || (result && result.coverName) || "";
           issue.status = "resolved";
           issue.type = "resolved";
-          issue.coverName = suggestion.employeeName || (result && result.coverName) || "Approved cover";
+          issue.coverName = approvedCoverName || "Approved cover";
           issue.primaryAction = "Cover approved";
         } else if (action === "agency") {
           issue.status = "agency_requested";
@@ -1826,6 +1957,9 @@
           issue.primaryAction = "Ignored";
         }
       });
+      if (action === "approve" && approvedCoverName) {
+        removeAssignedReliefFromDaySuggestions_(day, approvedCoverName, gapId);
+      }
       (day.fullRota || []).forEach(person => {
         const personName = normaliseClientText_(person.employeeName);
         const matchingIssue = (day.issues || []).find(issue =>
@@ -1843,6 +1977,23 @@
     recomputeCockpitBoard(board);
     renderRotaCockpit(board);
     return true;
+  }
+
+  function removeAssignedReliefFromDaySuggestions_(day, coverName, approvedGapId) {
+    const assigned = normaliseClientText_(coverName);
+    if (!assigned) return;
+    (day.issues || []).forEach(issue => {
+      const issueId = String(issue.gapId || issue.issueId || "");
+      if (issueId === String(approvedGapId || "")) return;
+      const suggestion = issue.bestSuggestion || null;
+      if (!suggestion || normaliseClientText_(suggestion.employeeName) !== assigned) return;
+      issue.bestSuggestion = null;
+      issue.type = "uncovered";
+      issue.primaryAction = "Choose cover";
+      issue.reason = [issue.reason || issue.gapReason || "", coverName + " is already assigned to another role today."]
+        .filter(Boolean)
+        .join(" ");
+    });
   }
 
   function recomputeCockpitBoard(board) {
@@ -2120,6 +2271,7 @@
         showToast((result && result.message) || "Gap updated.");
         if (!optimisticChanged) applyCockpitGapUpdate(gapId, action, result || {});
         queueQuietCockpitRefresh();
+        loadReliefRotaWindow({ quiet: true });
       })
       .withFailureHandler(error => {
         button.disabled = false;

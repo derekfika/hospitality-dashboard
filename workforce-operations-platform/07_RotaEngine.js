@@ -282,8 +282,6 @@ function generateReliefRotaAssignments(daysAhead) {
 
 function generateReliefRotaPdfForWeek_(siteId, weekStartDate) {
   const spreadsheet = getWorkforceSpreadsheet_();
-  const cleanSiteId = String(siteId || "").trim();
-  if (!cleanSiteId) throw new Error("Choose a site first.");
   const weekStart = normaliseWeekStart_(weekStartDate);
   const weekDates = getWeekDates_(weekStart).filter(function(day) {
     return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].indexOf(day.weekday) !== -1;
@@ -291,19 +289,20 @@ function generateReliefRotaPdfForWeek_(siteId, weekStartDate) {
   const dateSet = {};
   weekDates.forEach(function(day) { dateSet[day.date] = true; });
 
-  const cockpit = buildRotaCockpit_(cleanSiteId, weekStart);
   const gapsById = {};
-  (cockpit.days || []).forEach(function(day) {
-    (day.gaps || []).forEach(function(gap) {
-      if (gap.gapId || gap["Gap ID"]) gapsById[String(gap.gapId || gap["Gap ID"])] = gap;
+  readWorkforceObjects_(spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.coverageGaps))
+    .filter(function(gap) {
+      const date = normaliseWorkforceDate_(gap.Date);
+      return dateSet[date] && String(gap.Status || "").toLowerCase() !== "resolved";
+    })
+    .forEach(function(gap) {
+      if (gap["Gap ID"]) gapsById[String(gap["Gap ID"])] = gap;
     });
-  });
 
   const suggestions = readWorkforceObjects_(
     spreadsheet.getSheetByName(WORKFORCE_CONFIG.sheets.reliefSuggestions)
   ).filter(function(suggestion) {
-    return String(suggestion["Site ID"] || "") === cleanSiteId &&
-      dateSet[normaliseWorkforceDate_(suggestion.Date)] &&
+    return dateSet[normaliseWorkforceDate_(suggestion.Date)] &&
       String(suggestion.Approved || "").toUpperCase() !== "TRUE";
   }).sort(function(a, b) {
     return String(a.Date || "").localeCompare(String(b.Date || "")) ||
@@ -335,8 +334,8 @@ function generateReliefRotaPdfForWeek_(siteId, weekStartDate) {
     assignments.push({
       "Assignment ID": "relief_assignment_" + gapId + "_" + slugifyWorkforce_(personName),
       "Gap ID": gapId,
-      "Site ID": cleanSiteId,
-      "Site Name": cockpit.siteName || cleanSiteId,
+      "Site ID": gap["Site ID"] || suggestion["Site ID"] || "",
+      "Site Name": gap["Site Name"] || suggestion["Site Name"] || "",
       "Date": date,
       "Weekday": gap.weekday || gap.Weekday || getWorkforceWeekday_(new Date(date + "T00:00:00")),
       "Role": gap.role || gap.Role || suggestion.Role,
@@ -358,14 +357,14 @@ function generateReliefRotaPdfForWeek_(siteId, weekStartDate) {
 
   const filename = [
     "FIKA relief rota",
-    cockpit.siteName || cleanSiteId,
     "WC " + weekStart
   ].join(" - ") + ".pdf";
-  const pdf = buildReliefRotaPdfBlob_(cockpit, assignments, weekDates, filename);
+  const reliefRota = buildReliefRotaWindow_("__all_sites", weekStart);
+  const pdf = buildReliefTeamRotaPdfBlob_(reliefRota, filename);
   return {
     ok: true,
-    siteId: cleanSiteId,
-    siteName: cockpit.siteName || cleanSiteId,
+    siteId: "__all_sites",
+    siteName: "All sites",
     weekStart: weekStart,
     weekEnd: weekDates.length ? weekDates[weekDates.length - 1].date : weekStart,
     assignmentsCreated: assignments.length,
@@ -376,6 +375,73 @@ function generateReliefRotaPdfForWeek_(siteId, weekStartDate) {
       ? assignments.length + " relief assignment(s) generated for the selected week."
       : "No relief assignments were needed for the selected week."
   };
+}
+
+function buildReliefTeamRotaPdfBlob_(reliefRota, filename) {
+  const days = reliefRota.days || [];
+  const people = reliefRota.people || [];
+  const totals = reliefRota.totals || {};
+  const colours = ["#b7b7b7", "#ff9900", "#a64d79", "#ff00ff", "#0000ff", "#f4b400", "#cc3a22", "#009688", "#674ea7"];
+  const html = [
+    "<html><head><style>",
+    "@page{size:A4 landscape;margin:12mm}",
+    "body{font-family:Arial,sans-serif;color:#111;margin:0;background:#fff}",
+    ".title{background:#4b2cc9;color:#fff;text-align:center;font-size:28px;font-weight:900;padding:8px 10px;margin-bottom:12px}",
+    ".meta{display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;color:#4b2cc9;font-size:12px;font-weight:800}",
+    "table{width:100%;border-collapse:collapse;table-layout:fixed}",
+    "th,td{border:1px solid #222;padding:4px 5px;font-size:10.5px;vertical-align:top;word-wrap:break-word}",
+    "thead th{background:#4b2cc9;color:#fff;font-size:13px;font-weight:900;text-align:center}",
+    ".label{width:78px;background:#4b2cc9;color:#fff;text-align:left;font-weight:900}",
+    ".ot{width:48px;background:#4b2cc9;color:#fff;text-align:center;font-size:24px;font-weight:900}",
+    ".person td{color:#fff;text-align:center;font-weight:900;font-size:13px;padding:3px 5px;border-color:#222}",
+    ".row-label{background:#f1f1f1;color:#111;font-weight:900;width:78px}",
+    ".site{font-weight:800}",
+    ".shift{font-size:9.5px;color:#333;margin-top:3px}",
+    ".covered{font-size:9px;color:#4b2cc9;font-weight:800;margin-top:3px}",
+    ".reason{font-size:8.5px;color:#555;margin-top:3px}",
+    ".empty{background:#fff;color:#bbb}",
+    "hr{border:0;border-top:1px solid #ddd;margin:5px 0}",
+    ".summary{margin-top:10px;font-size:10px;color:#555}",
+    "</style></head><body>",
+    "<div class='title'>FIKA Relief Team Rota</div>",
+    "<div class='meta'><span>All sites</span><span>Week commencing " + escapeHtmlForPdf_(reliefRota.weekStart || "") + "</span><span>" + String(totals.assignments || 0) + " assignment(s)</span></div>",
+    "<table><thead><tr><th class='label'>Day</th>"
+  ];
+  days.forEach(function(day) {
+    html.push("<th>" + escapeHtmlForPdf_(day.weekday) + "</th>");
+  });
+  html.push("<th class='ot'>OT</th></tr><tr><th class='label'>Date</th>");
+  days.forEach(function(day) {
+    html.push("<th>" + escapeHtmlForPdf_(formatPdfDate_(day.date)) + "</th>");
+  });
+  html.push("<th class='ot'>OT</th></tr></thead><tbody>");
+  if (!people.length) {
+    html.push("<tr><td class='row-label'>Site</td><td colspan='" + String(days.length + 1) + "' class='empty'>No relief cover recorded for this selected week.</td></tr>");
+  }
+  people.forEach(function(person, index) {
+    const colour = colours[index % colours.length];
+    html.push("<tr class='person'><td colspan='" + String(days.length + 2) + "' style='background:" + colour + "'>" + escapeHtmlForPdf_(person.employeeName || "Unassigned relief") + "</td></tr>");
+    html.push("<tr><td class='row-label'>Site<br>Shift</td>");
+    days.forEach(function(day) {
+      const rows = (person.assignmentsByDate && person.assignmentsByDate[day.date]) || [];
+      if (!rows.length) {
+        html.push("<td class='empty'>&nbsp;</td>");
+        return;
+      }
+      html.push("<td>" + rows.map(function(row) {
+        return "<div class='site'>" + escapeHtmlForPdf_(row.siteName || row.siteId || "") +
+          (row.role ? " - " + escapeHtmlForPdf_(row.role) : "") + "</div>" +
+          "<div class='shift'>Covering " + escapeHtmlForPdf_(row.coveredEmployeeName || "rota gap") + "</div>" +
+          "<div class='covered'>" + escapeHtmlForPdf_(row.status || "Draft") + "</div>" +
+          (row.reason ? "<div class='reason'>" + escapeHtmlForPdf_(row.reason) + "</div>" : "");
+      }).join("<hr>") + "</td>");
+    });
+    html.push("<td class='empty'>&nbsp;</td></tr>");
+  });
+  html.push("</tbody></table><div class='summary'>Generated from Workforce Operations. Draft relief assignments are subject to manager confirmation.</div></body></html>");
+  return Utilities.newBlob(html.join(""), "text/html", filename.replace(/\.pdf$/i, ".html"))
+    .getAs("application/pdf")
+    .setName(filename);
 }
 
 function buildReliefRotaPdfBlob_(cockpit, assignments, weekDates, filename) {
