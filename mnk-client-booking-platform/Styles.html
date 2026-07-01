@@ -1667,6 +1667,16 @@
     font-size: 25px;
   }
 
+  .modal-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
   .modal-close {
     position: absolute;
     right: 17px;
@@ -1960,16 +1970,20 @@
   .site-header {
     min-height: 66px;
     padding: 12px clamp(18px, 4vw, 48px);
-    background: linear-gradient(90deg, #eaf7fb 0, #f8fdff 100%);
-    color: var(--ink);
-    border-bottom: 1px solid #d3e8ef;
+    position: absolute;
+    z-index: 20;
+    inset: 0 0 auto;
+    background: transparent;
+    color: #fff;
+    border-bottom: 0;
     box-shadow: none;
   }
 
   .site-header::after {
     content: "Booking   Breakfast   Lunch   Afternoon   Finger food   Bowl food & canapes   Events";
     margin-left: auto;
-    color: var(--ink);
+    margin-right: 58px;
+    color: #fff;
     font-size: 12px;
     font-weight: 800;
     letter-spacing: .08em;
@@ -1983,7 +1997,7 @@
 
   .brand-mark {
     position: relative;
-    color: var(--ink);
+    color: inherit;
     font-size: 42px;
     font-weight: 500;
     letter-spacing: -.08em;
@@ -2003,7 +2017,7 @@
   }
 
   .brand-partner {
-    color: var(--muted);
+    color: rgba(255,255,255,.86);
     font-size: 11px;
     font-weight: 800;
     letter-spacing: .12em;
@@ -2011,7 +2025,7 @@
   }
 
   .brand-place {
-    color: var(--ink);
+    color: #fff;
     font-size: 24px;
     font-weight: 900;
     letter-spacing: -.03em;
@@ -2020,13 +2034,58 @@
 
   .link-button {
     border-radius: 0;
-    color: var(--ink);
+    color: #fff;
     background: transparent;
+  }
+
+  .reset-icon-button {
+    position: absolute;
+    right: clamp(18px, 4vw, 48px);
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,.34);
+    border-radius: 999px;
+    transform: translateY(-50%);
+  }
+
+  .reset-icon-button:hover {
+    background: rgba(255,255,255,.14);
+    transform: translateY(-50%);
+  }
+
+  .reset-icon-button svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .logo-slot-fika .brand-logo-svg {
+    color: #fff;
+  }
+
+  .logo-slot-fika .brand-logo-svg svg *:not([fill="none"]) {
+    fill: #fff !important;
+  }
+
+  .logo-slot-fika .brand-logo-svg svg *:not([stroke="none"]) {
+    stroke: #fff !important;
+  }
+
+  .logo-slot-fika .brand-logo {
+    filter: brightness(0) invert(1);
   }
 
   .hero {
     min-height: 360px;
-    padding: 72px clamp(22px, 7vw, 104px) 74px;
+    padding: 118px clamp(22px, 7vw, 104px) 74px;
     background:
       linear-gradient(135deg, #063f62 0%, #176f8e 48%, #2389a5 100%);
     color: #fff;

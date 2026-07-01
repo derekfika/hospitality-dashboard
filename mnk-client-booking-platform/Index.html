@@ -23,7 +23,12 @@
         <span id="fika-logo-fallback" class="brand-mark">mnk</span>
       </span>
     </a>
-    <button class="link-button" type="button" data-action="reset">Start again</button>
+    <button class="link-button reset-icon-button" type="button" data-action="reset" aria-label="Start again">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+        <path d="M21 3v6h-6"></path>
+      </svg>
+    </button>
   </header>
 
   <main>
@@ -194,10 +199,15 @@
   <div id="reset-modal" class="modal-backdrop" hidden>
     <section class="reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title" aria-describedby="reset-modal-copy">
       <button id="reset-modal-close" class="modal-close" type="button" aria-label="Close">&times;</button>
-      <div class="modal-icon" aria-hidden="true">↺</div>
+      <div class="modal-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+          <path d="M21 3v6h-6"></path>
+        </svg>
+      </div>
       <p class="eyebrow">Start again</p>
       <h2 id="reset-modal-title">Clear this booking?</h2>
-      <p id="reset-modal-copy">Your saved contact details, event information and menu selections will be removed.</p>
+      <p id="reset-modal-copy">This will clear the current booking request from this browser. Saved contact details are kept unless you choose to forget them.</p>
       <div class="modal-actions">
         <button id="reset-modal-cancel" class="secondary-button" type="button">Keep booking</button>
         <button id="reset-modal-confirm" class="danger-button" type="button">Clear and start again</button>
