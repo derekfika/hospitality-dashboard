@@ -6,7 +6,13 @@
     counts: null,
     pendingPayload: null
   };
-  const colors = ["#6f4b33", "#167a62", "#8f3d2f", "#2f5f98"];
+  const colors = ["#6f4b33", "#167a62", "#8f3d2f", "#4F34C7"];
+  const drinkMeta = {
+    "Coffee": { code: "CO", accent: "#6f4b33", tone: "#f5ebe2" },
+    "Tea": { code: "TE", accent: "#167a62", tone: "#e8f4ef" },
+    "Hot Chocolate": { code: "HC", accent: "#8f3d2f", tone: "#fae9e6" },
+    "Drink Special": { code: "DS", accent: "#4F34C7", tone: "#eeeafd" }
+  };
   const $ = selector => document.querySelector(selector);
 
   function init() {
@@ -19,12 +25,15 @@
     $("#floor-selector").innerHTML = (config.floors || []).map(floor =>
       `<button class="floor-button ${floor === state.floor ? "active" : ""}" data-floor="${escapeHtml(floor)}" type="button">${escapeHtml(floor)}</button>`
     ).join("");
-    $("#drink-buttons").innerHTML = (config.drinks || []).map((drink, index) => `
-      <button class="drink-button" data-drink="${escapeHtml(drink)}" style="background:${colors[index % colors.length]}" type="button">
-        <span class="drink-icon">${escapeHtml(initials(drink))}</span>
+    $("#drink-buttons").innerHTML = (config.drinks || []).map((drink, index) => {
+      const meta = drinkMeta[drink] || { code: initials(drink), accent: colors[index % colors.length], tone: "#f3f0ea" };
+      return `
+      <button class="drink-button" data-drink="${escapeHtml(drink)}" style="--drink:${meta.accent}; --drink-soft:${meta.tone}" type="button">
+        <span class="drink-icon">${escapeHtml(meta.code)}</span>
         <span class="drink-label">${escapeHtml(drink)}</span>
       </button>
-    `).join("");
+    `;
+    }).join("");
   }
 
   function bindEvents() {
@@ -105,7 +114,7 @@
     state.counts = counts;
     $("#today-total").textContent = counts.total || 0;
     $("#drink-counts").innerHTML = Object.keys(counts.byDrink || {}).map((drink, index) => `
-      <div class="count-tile" style="border-left-color:${colors[index % colors.length]}">
+      <div class="count-tile" style="--count:${(drinkMeta[drink] && drinkMeta[drink].accent) || colors[index % colors.length]}">
         <span>${escapeHtml(drink)}</span>
         <strong>${counts.byDrink[drink] || 0}</strong>
       </div>
