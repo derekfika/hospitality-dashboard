@@ -1,0 +1,159 @@
+<script>
+(() => {
+  const config = window.APP_CONFIG || {};
+  const state = {
+    floor: config.defaultFloor,
+    counts: null,
+    pendingPayload: null
+  };
+  const colors = ["#6f4b33", "#167a62", "#8f3d2f", "#2f5f98"];
+  const $ = selector => document.querySelector(selector);
+
+  function init() {
+    renderSelectors();
+    bindEvents();
+    refreshCounts();
+  }
+
+  function renderSelectors() {
+    $("#floor-selector").innerHTML = (config.floors || []).map(floor =>
+      `<button class="floor-button ${floor === state.floor ? "active" : ""}" data-floor="${escapeHtml(floor)}" type="button">${escapeHtml(floor)}</button>`
+    ).join("");
+    $("#drink-buttons").innerHTML = (config.drinks || []).map((drink, index) => `
+      <button class="drink-button" data-drink="${escapeHtml(drink)}" style="background:${colors[index % colors.length]}" type="button">
+        <span class="drink-icon">${escapeHtml(initials(drink))}</span>
+        <span class="drink-label">${escapeHtml(drink)}</span>
+      </button>
+    `).join("");
+  }
+
+  function bindEvents() {
+    document.addEventListener("click", event => {
+      const floorButton = event.target.closest("[data-floor]");
+      if (floorButton) return setFloor(floorButton.dataset.floor);
+      const drinkButton = event.target.closest("[data-drink]");
+      if (drinkButton) return tapDrink(drinkButton.dataset.drink, drinkButton);
+    });
+    $("#undo-button").addEventListener("click", undoLast);
+    $("#retry-button").addEventListener("click", retryPending);
+  }
+
+  function setFloor(floor) {
+    state.floor = floor;
+    document.querySelectorAll(".floor-button").forEach(button => button.classList.toggle("active", button.dataset.floor === floor));
+    toast(`Floor set to ${floor}`);
+  }
+
+  function tapDrink(drink, button) {
+    const payload = {
+      floor: state.floor,
+      drink,
+      device: deviceName(),
+      clientTapId: `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    };
+    state.pendingPayload = payload;
+    applyOptimisticCount(drink, 1);
+    flashButton(button);
+    setStatus("Saving...");
+    $("#error-panel").hidden = true;
+    button.disabled = true;
+    setTimeout(() => { button.disabled = false; }, 650);
+    google.script.run
+      .withSuccessHandler(result => {
+        state.pendingPayload = null;
+        if (result && result.counts) setCounts(result.counts);
+        setStatus("Saved");
+      })
+      .withFailureHandler(error => {
+        applyOptimisticCount(drink, -1);
+        showError(error.message || String(error));
+      })
+      .recordDrinkTap(payload);
+  }
+
+  function undoLast() {
+    setStatus("Undoing...");
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result && result.counts) setCounts(result.counts);
+        toast(result && result.ok ? "Last tap undone" : (result.message || "Nothing to undo"));
+        setStatus("Ready");
+      })
+      .withFailureHandler(error => showError(error.message || String(error)))
+      .undoLastTap({ floor: state.floor, device: deviceName() });
+  }
+
+  function retryPending() {
+    if (!state.pendingPayload) return;
+    const payload = state.pendingPayload;
+    google.script.run
+      .withSuccessHandler(result => {
+        state.pendingPayload = null;
+        if (result && result.counts) setCounts(result.counts);
+        $("#error-panel").hidden = true;
+        setStatus("Saved");
+      })
+      .withFailureHandler(error => showError(error.message || String(error)))
+      .recordDrinkTap(payload);
+  }
+
+  function refreshCounts() {
+    google.script.run.withSuccessHandler(setCounts).getTodayCounts();
+  }
+
+  function setCounts(counts) {
+    state.counts = counts;
+    $("#today-total").textContent = counts.total || 0;
+    $("#drink-counts").innerHTML = Object.keys(counts.byDrink || {}).map((drink, index) => `
+      <div class="count-tile" style="border-left-color:${colors[index % colors.length]}">
+        <span>${escapeHtml(drink)}</span>
+        <strong>${counts.byDrink[drink] || 0}</strong>
+      </div>
+    `).join("");
+  }
+
+  function applyOptimisticCount(drink, delta) {
+    const counts = state.counts || { total: 0, byDrink: {}, byFloor: {} };
+    counts.total = Math.max(0, (counts.total || 0) + delta);
+    counts.byDrink[drink] = Math.max(0, (counts.byDrink[drink] || 0) + delta);
+    setCounts(counts);
+  }
+
+  function showError(message) {
+    state.pendingPayload = state.pendingPayload || null;
+    $("#error-message").textContent = message;
+    $("#error-panel").hidden = false;
+    setStatus("Save failed");
+  }
+
+  function flashButton(button) {
+    button.animate([{ transform: "scale(1)" }, { transform: "scale(.97)" }, { transform: "scale(1)" }], { duration: 180 });
+  }
+
+  function setStatus(text) {
+    $("#sync-status").textContent = text;
+  }
+
+  function toast(text) {
+    const toastEl = $("#toast");
+    toastEl.textContent = text;
+    toastEl.hidden = false;
+    clearTimeout(toastEl.timer);
+    toastEl.timer = setTimeout(() => { toastEl.hidden = true; }, 2600);
+  }
+
+  function deviceName() {
+    return `${navigator.platform || "Device"} ${navigator.userAgent.match(/(Android|iPad|iPhone|Windows|Macintosh)/)?.[0] || ""}`.trim();
+  }
+
+  function initials(value) {
+    return String(value).split(/\s+/).map(part => part[0]).join("").slice(0, 2).toUpperCase();
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>

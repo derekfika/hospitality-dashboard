@@ -1,0 +1,207 @@
+<script>
+(() => {
+  const config = window.APP_CONFIG || {};
+  const state = { settingsRows: [] };
+  const $ = selector => document.querySelector(selector);
+
+  function init() {
+    renderFilterOptions();
+    bindEvents();
+    runReport();
+  }
+
+  function renderFilterOptions() {
+    $('[name="floor"]').innerHTML = [`<option>Combined</option>`].concat((config.floors || []).map(floor => `<option>${escapeHtml(floor)}</option>`)).join("");
+    $('[name="drink"]').innerHTML = [`<option>All</option>`].concat((config.drinks || []).map(drink => `<option>${escapeHtml(drink)}</option>`)).join("");
+    const today = config.serverDate || new Date().toISOString().slice(0, 10);
+    $('[name="startDate"]').value = today;
+    $('[name="endDate"]').value = today;
+  }
+
+  function bindEvents() {
+    document.addEventListener("click", event => {
+      const viewButton = event.target.closest("[data-view]");
+      if (viewButton) showView(viewButton.dataset.view);
+    });
+    $("#dashboard-filters").addEventListener("submit", event => {
+      event.preventDefault();
+      runReport();
+    });
+    $("#export-csv").addEventListener("click", exportCsv);
+    $("#setup-button").addEventListener("click", setupSheets);
+    $("#load-settings").addEventListener("click", loadSettings);
+    $("#clear-test-data").addEventListener("click", clearTestData);
+  }
+
+  function showView(view) {
+    document.querySelectorAll(".view").forEach(section => section.hidden = section.id !== `${view}-view`);
+    document.querySelectorAll(".nav-button").forEach(button => button.classList.toggle("active", button.dataset.view === view));
+    if (view === "dashboard") runReport();
+    if (view === "admin") loadSettings();
+  }
+
+  function runReport() {
+    $("#report-summary").innerHTML = metric("Loading", "...");
+    google.script.run
+      .withSuccessHandler(renderReport)
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .getDashboardReport(readFilters());
+  }
+
+  function renderReport(result) {
+    const summary = result.summary || {};
+    $("#report-summary").innerHTML = [
+      metric("Total drinks", summary.total || 0),
+      metric("Average per day", summary.averagePerDay || 0),
+      metric("Peak hour", summary.peakHour || "-"),
+      metric("Quietest hour", summary.quietestHour || "-"),
+      metric("Busiest day", summary.busiestDay || "-"),
+      metric("Tue-Thu daily average", summary.tuesdayThursdayDailyAverage || 0),
+      metric("Mon-Thu daily average", summary.mondayThursdayDailyAverage || 0),
+      metric("Active reporting days", Object.keys(summary.byDate || {}).length)
+    ].join("");
+    renderHeatmap(summary.heatmap || {});
+    renderTrend(summary.trend || []);
+    renderListChart("#drink-mix", summary.byDrink || {}, summary.drinkMix || {});
+    renderListChart("#floor-comparison", summary.byFloor || {});
+  }
+
+  function renderHeatmap(heatmap) {
+    const buckets = (config.timeBuckets || []).map(bucket => bucket.label);
+    const max = Math.max(1, ...Object.values(heatmap).flatMap(row => Object.values(row)));
+    $("#heatmap").innerHTML = `<table>
+      <thead><tr><th>Day</th>${buckets.map(bucket => `<th>${escapeHtml(bucket)}</th>`).join("")}</tr></thead>
+      <tbody>${Object.keys(heatmap).map(day => `<tr><th>${escapeHtml(day)}</th>${buckets.map(bucket => {
+        const value = heatmap[day][bucket] || 0;
+        return `<td class="heat-cell" style="--heat:${Math.max(.06, value / max)}">${value}</td>`;
+      }).join("")}</tr>`).join("")}</tbody>
+    </table>`;
+  }
+
+  function renderTrend(trend) {
+    const max = Math.max(1, ...trend.map(item => item.total));
+    $("#trend").innerHTML = trend.length ? trend.map(item =>
+      `<div class="bar" title="${escapeHtml(item.date)}: ${item.total}" style="height:${Math.max(5, item.total / max * 100)}%"><span>${item.total}</span></div>`
+    ).join("") : `<span class="empty-state">No data in this range</span>`;
+  }
+
+  function renderListChart(selector, values, percentages) {
+    const max = Math.max(1, ...Object.values(values));
+    $(selector).innerHTML = Object.keys(values).map(key => {
+      const value = values[key] || 0;
+      const suffix = percentages && percentages[key] != null ? ` (${percentages[key]}%)` : "";
+      return `<div class="list-row">
+        <span>${escapeHtml(key)}</span>
+        <strong>${value}${suffix}</strong>
+        <i style="width:${Math.max(2, value / max * 100)}%"></i>
+      </div>`;
+    }).join("");
+  }
+
+  function exportCsv() {
+    google.script.run
+      .withSuccessHandler(result => {
+        const blob = new Blob([result.csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = result.filename;
+        link.click();
+        URL.revokeObjectURL(url);
+      })
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .exportFilteredCsv(readFilters());
+  }
+
+  function setupSheets() {
+    google.script.run
+      .withSuccessHandler(result => toast(`Sheets ready: ${result.sheets.join(", ")}`))
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .setupHotDrinkTally();
+  }
+
+  function loadSettings() {
+    google.script.run
+      .withSuccessHandler(result => {
+        state.settingsRows = result.rows || [];
+        renderSettings();
+      })
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .getSettingsForAdmin();
+  }
+
+  function renderSettings() {
+    $("#settings-editor").innerHTML = state.settingsRows.map((row, index) => `
+      <div class="settings-row" data-index="${index}">
+        <select>${["Floor","Drink","Opening Hours","Closed Period","Bank Holiday","Reporting Default"].map(type => `<option ${row[0] === type ? "selected" : ""}>${type}</option>`).join("")}</select>
+        <input value="${escapeAttr(row[1])}" placeholder="Name">
+        <input value="${escapeAttr(row[2])}" placeholder="Value">
+        <select><option ${row[3] === true ? "selected" : ""}>true</option><option ${row[3] === false ? "selected" : ""}>false</option></select>
+        <input value="${escapeAttr(row[4])}" placeholder="Notes">
+      </div>
+    `).join("") + `<div class="settings-actions"><button id="add-setting" type="button">Add setting</button><button id="save-settings" type="button">Save settings</button></div>`;
+    $("#add-setting").addEventListener("click", () => {
+      state.settingsRows.push(["Drink", "", "", true, ""]);
+      renderSettings();
+    });
+    $("#save-settings").addEventListener("click", saveSettings);
+  }
+
+  function saveSettings() {
+    const rows = Array.from(document.querySelectorAll(".settings-row")).map(row => {
+      const fields = row.querySelectorAll("select,input");
+      return [fields[0].value, fields[1].value, fields[2].value, fields[3].value, fields[4].value];
+    });
+    google.script.run
+      .withSuccessHandler(newConfig => {
+        Object.assign(config, newConfig);
+        renderFilterOptions();
+        toast("Settings saved");
+      })
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .saveSettingsRows(rows);
+  }
+
+  function clearTestData() {
+    google.script.run
+      .withSuccessHandler(result => toast(`${result.cleared} test rows cleared`))
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .clearTestData($("#clear-confirm").value);
+  }
+
+  function readFilters() {
+    const form = $("#dashboard-filters");
+    return {
+      preset: form.preset.value,
+      startDate: form.startDate.value,
+      endDate: form.endDate.value,
+      floor: form.floor.value,
+      drink: form.drink.value,
+      excludeBankHolidays: form.excludeBankHolidays.checked,
+      excludeClosedPeriods: form.excludeClosedPeriods.checked
+    };
+  }
+
+  function metric(label, value) {
+    return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  }
+
+  function toast(text) {
+    const toastEl = $("#toast");
+    toastEl.textContent = text;
+    toastEl.hidden = false;
+    clearTimeout(toastEl.timer);
+    toastEl.timer = setTimeout(() => { toastEl.hidden = true; }, 2600);
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/"/g, "&quot;");
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>

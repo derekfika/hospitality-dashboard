@@ -1,0 +1,43 @@
+# Munich RE Hot Drink Tally
+
+## Assumptions
+
+- The Apps Script project is either bound to the Google Sheet that will store the tally data, or `setHotDrinkSpreadsheetId("SHEET_URL_OR_ID")` is run once.
+- The web app is deployed as the deploying user and can be accessed anonymously from the bar tablet.
+- The barista view is designed for a landscape tablet and shows a rotate prompt in portrait orientation.
+- Reporting is deployed separately from `../munich-hot-drinks-reporting` and connected to the same spreadsheet.
+- User email is only captured when Google allows it; otherwise the app stores a device/browser label.
+- Undo marks the latest active row as `UNDONE` and writes an audit entry, preserving the original row.
+- Test data clearing only removes rows whose `Source` or `Device/User` contains `TEST`.
+
+## Files
+
+- `Code.gs` serves the tally web app, menu, setup and public config.
+- `Config.gs` contains sheet names, headers, floors, drinks and heatmap buckets.
+- `SheetService.gs` records taps, handles undo, counts today and writes audit rows.
+- `Reporting.gs` is included only for shared setup compatibility; deploy reporting from the separate reporting app folder.
+- `Index.html`, `Styles.html`, and `JavaScript.html` contain the tablet tally screen.
+
+## Deploy
+
+1. Create a Google Sheet for Munich RE hot drinks.
+2. Open Extensions > Apps Script.
+3. Add these files to the Apps Script project.
+4. Run `setupHotDrinkTally` once and approve permissions.
+5. Deploy > New deployment > Web app.
+6. Set “Execute as” to “Me”.
+7. Set access to the audience needed for the tablets.
+8. Open the tally deployment URL on the Android tablet and use browser “Add to home screen” for a fullscreen-friendly launch.
+
+Deploy the reporting dashboard separately from `munich-hot-drinks-reporting`. Run `setHotDrinkSpreadsheetId("SHEET_URL_OR_ID")` in that project too if it is not bound to the same Sheet.
+
+## Sheet Tabs
+
+The setup function creates:
+
+- `Drink_Log`
+- `Settings`
+- `Dashboard_Data`
+- `Audit_Log`
+
+The tally screen prioritises speed: it updates the visible counters immediately, writes to Sheets in the background, and shows a retry option if a write fails.

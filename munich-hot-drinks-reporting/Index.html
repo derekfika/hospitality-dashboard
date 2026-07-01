@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101820">
+  <?!= include_("Styles"); ?>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <strong>Munich RE</strong>
+      <span>Hot drink reporting</span>
+    </div>
+    <nav aria-label="Reporting sections">
+      <button class="nav-button active" data-view="dashboard" type="button">Dashboard</button>
+      <button class="nav-button" data-view="admin" type="button">Admin</button>
+    </nav>
+  </aside>
+
+  <main>
+    <section id="dashboard-view" class="view">
+      <header class="page-header">
+        <div>
+          <p>Reporting dashboard</p>
+          <h1>Hot drink usage</h1>
+        </div>
+        <button id="export-csv" type="button">Export CSV</button>
+      </header>
+
+      <form id="dashboard-filters" class="filters">
+        <label>Preset<select name="preset">
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="thisWeek">This week</option>
+          <option value="lastWeek">Last week</option>
+          <option value="thisMonth">This month</option>
+          <option value="lastMonth">Last month</option>
+          <option value="custom">Custom range</option>
+          <option value="tueThu">Tuesday-Thursday only</option>
+          <option value="monThu">Monday-Thursday only</option>
+          <option value="excludeFridays">Exclude Fridays</option>
+        </select></label>
+        <label>Start<input name="startDate" type="date"></label>
+        <label>End<input name="endDate" type="date"></label>
+        <label>Floor<select name="floor"></select></label>
+        <label>Drink<select name="drink"></select></label>
+        <label class="check"><input name="excludeBankHolidays" type="checkbox" checked> Exclude bank holidays</label>
+        <label class="check"><input name="excludeClosedPeriods" type="checkbox" checked> Exclude closed periods</label>
+        <button type="submit">Run report</button>
+      </form>
+
+      <div id="report-summary" class="summary-grid"></div>
+
+      <section class="dashboard-grid">
+        <article class="panel wide">
+          <h2>Hourly heatmap</h2>
+          <div id="heatmap" class="heatmap"></div>
+        </article>
+        <article class="panel">
+          <h2>Drink mix</h2>
+          <div id="drink-mix" class="list-chart"></div>
+        </article>
+        <article class="panel">
+          <h2>Floor comparison</h2>
+          <div id="floor-comparison" class="list-chart"></div>
+        </article>
+        <article class="panel wide">
+          <h2>Trend over time</h2>
+          <div id="trend" class="trend"></div>
+        </article>
+      </section>
+    </section>
+
+    <section id="admin-view" class="view" hidden>
+      <header class="page-header">
+        <div>
+          <p>Admin</p>
+          <h1>Settings and maintenance</h1>
+        </div>
+        <button id="setup-button" type="button">Set up sheets</button>
+      </header>
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Settings</h2>
+          <button id="load-settings" type="button">Reload</button>
+        </div>
+        <div id="settings-editor" class="settings-editor"></div>
+      </section>
+      <section class="danger-zone">
+        <h2>Clear test data</h2>
+        <div>
+          <input id="clear-confirm" placeholder="Type CLEAR TEST DATA">
+          <button id="clear-test-data" type="button">Clear test data</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script>
+    window.APP_CONFIG = <?!= initialConfig ?>;
+  </script>
+  <?!= include_("JavaScript"); ?>
+</body>
+</html>

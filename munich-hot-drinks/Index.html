@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101820">
+  <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;Munich RE Hot Drinks&quot;,&quot;short_name&quot;:&quot;Hot Drinks&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;orientation&quot;:&quot;landscape&quot;,&quot;background_color&quot;:&quot;%23f6f3ed&quot;,&quot;theme_color&quot;:&quot;%23101820&quot;}">
+  <?!= include_("Styles"); ?>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <strong>Munich RE</strong>
+      <span>Hot drinks</span>
+    </div>
+    <span class="mode-label">Barista tally</span>
+  </header>
+
+  <main>
+    <section class="view tally-view">
+      <div class="tally-control-panel">
+        <div class="floor-row" id="floor-selector"></div>
+        <section class="today-panel" aria-live="polite">
+          <div class="total-tile"><span>Total today</span><strong id="today-total">0</strong></div>
+          <div id="drink-counts" class="drink-counts"></div>
+        </section>
+        <div class="status-strip">
+          <span id="sync-status">Ready</span>
+          <button id="undo-button" type="button">Undo last tap</button>
+        </div>
+      </div>
+      <section id="drink-buttons" class="drink-grid"></section>
+      <div id="error-panel" class="error-panel" hidden>
+        <span id="error-message"></span>
+        <button id="retry-button" type="button">Retry</button>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script>
+    window.APP_CONFIG = <?!= initialConfig ?>;
+  </script>
+  <?!= include_("JavaScript"); ?>
+</body>
+</html>
