@@ -51,6 +51,10 @@
       const svg = document.getElementById(svgId);
       const fallback = document.getElementById(fallbackId);
       fallback.textContent = fallbackText || alt || "";
+      image.hidden = true;
+      svg.hidden = true;
+      fallback.hidden = false;
+
       const cleanSvg = normaliseInlineSvg(svgMarkup);
       if (cleanSvg) {
         svg.innerHTML = cleanSvg;
@@ -62,10 +66,7 @@
         return;
       }
       svg.innerHTML = "";
-      svg.hidden = true;
       if (!url) {
-        image.hidden = true;
-        fallback.hidden = false;
         return;
       }
       image.alt = alt || fallbackText || "";
@@ -81,7 +82,11 @@
     }
 
     function normaliseInlineSvg(markup) {
-      const value = String(markup || "").trim();
+      const value = String(markup || "")
+        .trim()
+        .replace(/^<\?xml[^>]*>\s*/i, "")
+        .replace(/^<!--[\s\S]*?-->\s*/i, "")
+        .trim();
       if (!value || !/^<svg[\s>]/i.test(value) || !/<\/svg>$/i.test(value)) return "";
       if (/<script|on\w+\s*=|javascript:/i.test(value)) return "";
       return value;
