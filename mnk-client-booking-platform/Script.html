@@ -5,6 +5,7 @@
     const CONTACT_PROFILE_KEY = "fika-booking-contact-profile";
     const CONTACT_FIELDS = ["client.name", "client.email", "client.phone", "client.companyName"];
     let saveIndicatorTimer = null;
+    let hasRenderedOnce = false;
     const state = {
       step: 0,
       eventType: "",
@@ -37,18 +38,31 @@
       document.documentElement.style.setProperty("--ink", config.site.branding.ink);
       document.documentElement.style.setProperty("--paper", config.site.branding.paper);
       document.title = config.site.clientFacingName;
-      configureLogo("fika-logo", "fika-logo-fallback", config.site.branding.fikaLogoUrl, config.site.branding.fikaLogoAlt, config.site.branding.fikaFallbackText);
-      configureLogo("site-logo", "site-logo-fallback", config.site.branding.siteLogoUrl, config.site.branding.siteLogoAlt, config.site.branding.siteFallbackText);
+      configureLogo("fika-logo", "fika-logo-svg", "fika-logo-fallback", config.site.branding.fikaLogoSvg, config.site.branding.fikaLogoUrl, config.site.branding.fikaLogoAlt, config.site.branding.fikaFallbackText);
+      configureLogo("site-logo", "site-logo-svg", "site-logo-fallback", config.site.branding.siteLogoSvg, config.site.branding.siteLogoUrl, config.site.branding.siteLogoAlt, config.site.branding.siteFallbackText);
       $("#hero-eyebrow").textContent = config.site.branding.eyebrow;
       $("#hero-title").innerHTML = escapeHtml(config.site.branding.heroTitle).replace(",", ",<br>");
       $("#hero-body").textContent = config.site.branding.heroBody;
       $("#vat-note").textContent = config.site.copy.vatNote;
     }
 
-    function configureLogo(imageId, fallbackId, url, alt, fallbackText) {
+    function configureLogo(imageId, svgId, fallbackId, svgMarkup, url, alt, fallbackText) {
       const image = document.getElementById(imageId);
+      const svg = document.getElementById(svgId);
       const fallback = document.getElementById(fallbackId);
       fallback.textContent = fallbackText || alt || "";
+      const cleanSvg = normaliseInlineSvg(svgMarkup);
+      if (cleanSvg) {
+        svg.innerHTML = cleanSvg;
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", alt || fallbackText || "Logo");
+        svg.hidden = false;
+        image.hidden = true;
+        fallback.hidden = true;
+        return;
+      }
+      svg.innerHTML = "";
+      svg.hidden = true;
       if (!url) {
         image.hidden = true;
         fallback.hidden = false;
@@ -64,6 +78,13 @@
         fallback.hidden = false;
       };
       image.src = url;
+    }
+
+    function normaliseInlineSvg(markup) {
+      const value = String(markup || "").trim();
+      if (!value || !/^<svg[\s>]/i.test(value) || !/<\/svg>$/i.test(value)) return "";
+      if (/<script|on\w+\s*=|javascript:/i.test(value)) return "";
+      return value;
     }
 
     function renderEventTypes() {
@@ -136,7 +157,7 @@
       $("#forget-contact").addEventListener("click", forgetContactProfile);
     }
 
-    function render() {
+    function render(shouldScroll) {
       $$(".form-step").forEach(section => section.classList.toggle("active", Number(section.dataset.step) === state.step));
       $$(".step").forEach((button, index) => {
         button.classList.toggle("active", index === state.step);
@@ -150,7 +171,10 @@
       renderSummary();
       if (state.step === 5) renderReview();
       persist(false);
-      window.scrollTo({ top: document.querySelector(".app-shell").offsetTop - 18, behavior: "smooth" });
+      if (hasRenderedOnce && shouldScroll) {
+        window.scrollTo({ top: document.querySelector(".app-shell").offsetTop - 18, behavior: "smooth" });
+      }
+      hasRenderedOnce = true;
     }
 
     function next() {
@@ -163,7 +187,7 @@
 
     function goTo(step) {
       state.step = step;
-      render();
+      render(true);
     }
 
     function validateStep(step) {
@@ -513,7 +537,7 @@
       renderEventTypes();
       bindSavedFields();
       renderMenu();
-      render();
+      render(false);
 
       const firstChoice = $("[data-event-type]");
       if (firstChoice) firstChoice.focus({ preventScroll: true });

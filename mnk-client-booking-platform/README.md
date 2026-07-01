@@ -29,9 +29,11 @@ After both MNK Apps Script projects are linked and deployment IDs are filled in,
 `setupBookingPlatformSheets()` creates a `Platform Settings` sheet in the booking platform data spreadsheet. Branding can then be changed without editing the app:
 
 - `FIKA_LOGO_URL`
+- `FIKA_LOGO_SVG`
 - `FIKA_LOGO_ALT`
 - `FIKA_FALLBACK_TEXT`
 - `SITE_LOGO_URL`
+- `SITE_LOGO_SVG`
 - `SITE_LOGO_ALT`
 - `SITE_FALLBACK_TEXT`
 - hero copy and primary colours
