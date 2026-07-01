@@ -30,6 +30,12 @@ button {
   padding: 0 14px;
   font-weight: 800;
 }
+button[disabled] {
+  opacity: .65;
+}
+.primary-action {
+  background: #00538A;
+}
 .sidebar {
   position: sticky;
   top: 0;
@@ -78,6 +84,10 @@ main {
   align-items: end;
   justify-content: space-between;
   gap: 16px;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
 .page-header p {
   margin: 0 0 4px;

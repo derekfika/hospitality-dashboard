@@ -15,6 +15,7 @@
 - `Config.gs` contains sheet names, headers, floors, drinks and heatmap buckets.
 - `SheetService.gs` provides shared log access and audit helpers.
 - `Reporting.gs` builds dashboard summaries, heatmaps, trend data and CSV exports.
+- `PdfReport.html` renders the polished client-ready PDF report for the selected date range.
 - `Index.html`, `Styles.html`, and `JavaScript.html` contain the desktop reporting and admin UI.
 
 ## Deploy

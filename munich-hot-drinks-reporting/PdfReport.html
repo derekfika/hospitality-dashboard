@@ -1,0 +1,374 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4 landscape; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #05090B;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #ffffff;
+      font-size: 10.5px;
+    }
+    .cover {
+      min-height: 176mm;
+      border: 1px solid #d7e1e8;
+      position: relative;
+      overflow: hidden;
+      padding: 22mm 18mm 16mm;
+    }
+    .cover:before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #00538A 0%, #00538A 38%, #ffffff 38.2%, #ffffff 100%);
+      z-index: -2;
+    }
+    .cover:after {
+      content: "";
+      position: absolute;
+      right: -20mm;
+      bottom: -36mm;
+      width: 132mm;
+      height: 132mm;
+      border: 18mm solid rgba(0,83,138,.08);
+      border-radius: 50%;
+      z-index: -1;
+    }
+    .cover-logos {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20mm;
+    }
+    .munich-logo svg { width: 64mm; height: auto; }
+    .partner-logos {
+      display: flex;
+      align-items: center;
+      gap: 8mm;
+      background: rgba(255,255,255,.92);
+      padding: 5mm 6mm;
+      border-radius: 3mm;
+    }
+    .fika-logo svg { width: 32mm; height: auto; }
+    .bloom-logo svg { width: 27mm; height: auto; }
+    .cover-title {
+      margin-top: 28mm;
+      width: 55%;
+      color: #fff;
+    }
+    .cover-title .strapline {
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: 700;
+      opacity: .9;
+    }
+    h1 {
+      margin: 6mm 0 4mm;
+      font-size: 31px;
+      line-height: 1.05;
+      letter-spacing: -0.4px;
+    }
+    .period {
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .cover-meta {
+      position: absolute;
+      right: 18mm;
+      bottom: 16mm;
+      width: 78mm;
+      display: grid;
+      gap: 3mm;
+    }
+    .meta-card {
+      background: #fff;
+      border: 1px solid #d7e1e8;
+      padding: 4mm;
+      border-radius: 2mm;
+    }
+    .meta-card span {
+      display: block;
+      color: #5f6f7d;
+      font-size: 8.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .meta-card strong {
+      display: block;
+      margin-top: 1mm;
+      font-size: 13px;
+    }
+    .page {
+      page-break-before: always;
+      padding: 0;
+    }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 5mm;
+      border-bottom: 2px solid #00538A;
+      margin-bottom: 6mm;
+    }
+    .page-header h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.2px;
+    }
+    .page-header span {
+      color: #5f6f7d;
+      font-weight: 700;
+    }
+    .small-munich svg { width: 36mm; height: auto; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 3.5mm;
+      margin-bottom: 6mm;
+    }
+    .kpi {
+      border: 1px solid #d7e1e8;
+      border-top: 3px solid #00538A;
+      padding: 4mm;
+      min-height: 24mm;
+    }
+    .kpi span {
+      display: block;
+      color: #5f6f7d;
+      font-size: 8.3px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .kpi strong {
+      display: block;
+      margin-top: 2mm;
+      font-size: 21px;
+      color: #00538A;
+    }
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 5mm;
+    }
+    .panel {
+      border: 1px solid #d7e1e8;
+      padding: 4mm;
+      min-height: 50mm;
+    }
+    .panel.wide { grid-column: 1 / -1; }
+    .panel h3 {
+      margin: 0 0 4mm;
+      font-size: 14px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 3mm;
+      align-items: center;
+      margin-bottom: 3mm;
+      font-weight: 700;
+    }
+    .track {
+      grid-column: 1 / -1;
+      height: 3mm;
+      background: #e8eef2;
+    }
+    .fill {
+      height: 3mm;
+      background: #00538A;
+    }
+    .trend {
+      height: 46mm;
+      display: flex;
+      align-items: end;
+      gap: 2mm;
+      border-bottom: 1px solid #d7e1e8;
+      padding-top: 7mm;
+    }
+    .bar {
+      position: relative;
+      flex: 1;
+      min-width: 3mm;
+      background: #00538A;
+    }
+    .bar span {
+      position: absolute;
+      top: -5mm;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 7px;
+      font-weight: 700;
+    }
+    .bar small {
+      position: absolute;
+      bottom: -6mm;
+      left: 50%;
+      transform: translateX(-50%) rotate(-35deg);
+      transform-origin: center;
+      color: #5f6f7d;
+      font-size: 6.5px;
+      white-space: nowrap;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.3px;
+    }
+    th, td {
+      border: 1px solid #d7e1e8;
+      padding: 2.2mm;
+      text-align: center;
+    }
+    th {
+      background: #f0f5f8;
+      color: #00456f;
+      font-weight: 700;
+    }
+    .heat {
+      background: rgba(0,83,138,var(--heat));
+      font-weight: 700;
+    }
+    .notes {
+      margin-top: 5mm;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 3mm;
+    }
+    .note {
+      background: #f7fafc;
+      border-left: 3px solid #00538A;
+      padding: 3mm;
+    }
+    .note span {
+      display: block;
+      color: #5f6f7d;
+      text-transform: uppercase;
+      font-size: 7.5px;
+      font-weight: 700;
+    }
+    .note strong {
+      display: block;
+      margin-top: 1mm;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="cover-logos">
+      <div class="munich-logo"><?!= report.logos.munichRe ?></div>
+      <div class="partner-logos">
+        <span class="fika-logo"><?!= report.logos.fika ?></span>
+        <span class="bloom-logo"><?!= report.logos.bloom ?></span>
+      </div>
+    </div>
+    <div class="cover-title">
+      <div class="strapline"><?= report.strapline ?></div>
+      <h1><?= report.title ?></h1>
+      <div class="period"><?= report.period ?></div>
+    </div>
+    <div class="cover-meta">
+      <div class="meta-card"><span>Prepared</span><strong><?= report.generatedAt ?></strong></div>
+      <div class="meta-card"><span>Scope</span><strong><?= report.filters.floor ?> / <?= report.filters.drink ?></strong></div>
+      <div class="meta-card"><span>Data handling</span><strong>Bank holidays <?= report.filters.bankHolidays ?> · Closed periods <?= report.filters.closedPeriods ?></strong></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <header class="page-header">
+      <div>
+        <h2>Executive summary</h2>
+        <span><?= report.period ?></span>
+      </div>
+      <div class="small-munich"><?!= report.logos.munichRe ?></div>
+    </header>
+
+    <div class="kpi-grid">
+      <? for (var i = 0; i < report.kpis.length; i++) { ?>
+        <div class="kpi"><span><?= report.kpis[i].label ?></span><strong><?= report.kpis[i].value ?></strong></div>
+      <? } ?>
+    </div>
+
+    <div class="content-grid">
+      <article class="panel">
+        <h3>Drink mix</h3>
+        <? for (var d = 0; d < report.drinkRows.length; d++) { var drink = report.drinkRows[d]; ?>
+          <div class="row">
+            <span><?= drink.label ?></span><strong><?= drink.value ?> · <?= drink.percent ?>%</strong>
+            <div class="track"><div class="fill" style="width:<?= drink.width ?>%"></div></div>
+          </div>
+        <? } ?>
+      </article>
+      <article class="panel">
+        <h3>Floor comparison</h3>
+        <? for (var f = 0; f < report.floorRows.length; f++) { var floor = report.floorRows[f]; ?>
+          <div class="row">
+            <span><?= floor.label ?></span><strong><?= floor.value ?> · <?= floor.percent ?>%</strong>
+            <div class="track"><div class="fill" style="width:<?= floor.width ?>%"></div></div>
+          </div>
+        <? } ?>
+      </article>
+      <article class="panel">
+        <h3>Weekday profile</h3>
+        <? for (var w = 0; w < report.weekdayRows.length; w++) { var weekday = report.weekdayRows[w]; ?>
+          <div class="row">
+            <span><?= weekday.label ?></span><strong><?= weekday.value ?></strong>
+            <div class="track"><div class="fill" style="width:<?= weekday.width ?>%"></div></div>
+          </div>
+        <? } ?>
+      </article>
+      <article class="panel wide">
+        <h3>Trend over time</h3>
+        <div class="trend">
+          <? for (var t = 0; t < report.trendRows.length; t++) { var trend = report.trendRows[t]; ?>
+            <div class="bar" style="height:<?= trend.height ?>%"><span><?= trend.total ?></span><small><?= trend.date ?></small></div>
+          <? } ?>
+        </div>
+      </article>
+    </div>
+
+    <div class="notes">
+      <div class="note"><span>Active days</span><strong><?= report.activeDays ?></strong></div>
+      <div class="note"><span>Quietest hour</span><strong><?= report.quietestHour ?></strong></div>
+      <div class="note"><span>Floor filter</span><strong><?= report.filters.floor ?></strong></div>
+      <div class="note"><span>Drink filter</span><strong><?= report.filters.drink ?></strong></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <header class="page-header">
+      <div>
+        <h2>Hourly heatmap</h2>
+        <span>Service demand by weekday and time bucket</span>
+      </div>
+      <div class="small-munich"><?!= report.logos.munichRe ?></div>
+    </header>
+    <table>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <? for (var b = 0; b < report.heatmapBuckets.length; b++) { ?>
+            <th><?= report.heatmapBuckets[b] ?></th>
+          <? } ?>
+        </tr>
+      </thead>
+      <tbody>
+        <? for (var dayIndex = 0; dayIndex < report.heatmapDays.length; dayIndex++) { var day = report.heatmapDays[dayIndex]; ?>
+          <tr>
+            <th><?= day ?></th>
+            <? for (var bucketIndex = 0; bucketIndex < report.heatmapBuckets.length; bucketIndex++) {
+              var bucket = report.heatmapBuckets[bucketIndex];
+              var value = report.heatmap[day][bucket] || 0;
+            ?>
+              <td class="heat" style="--heat:<?= heatOpacity_(value, report.heatmapMax) ?>"><?= value ?></td>
+            <? } ?>
+          </tr>
+        <? } ?>
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>

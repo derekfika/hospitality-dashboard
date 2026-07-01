@@ -28,6 +28,7 @@
       runReport();
     });
     $("#export-csv").addEventListener("click", exportCsv);
+    $("#export-pdf").addEventListener("click", exportPdf);
     $("#setup-button").addEventListener("click", setupSheets);
     $("#load-settings").addEventListener("click", loadSettings);
     $("#clear-test-data").addEventListener("click", clearTestData);
@@ -111,6 +112,33 @@
       })
       .withFailureHandler(error => toast(error.message || String(error)))
       .exportFilteredCsv(readFilters());
+  }
+
+  function exportPdf() {
+    const button = $("#export-pdf");
+    button.disabled = true;
+    button.textContent = "Building PDF...";
+    google.script.run
+      .withSuccessHandler(result => {
+        button.disabled = false;
+        button.textContent = "Export PDF report";
+        const bytes = atob(result.base64);
+        const numbers = new Array(bytes.length);
+        for (let i = 0; i < bytes.length; i += 1) numbers[i] = bytes.charCodeAt(i);
+        const blob = new Blob([new Uint8Array(numbers)], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = result.filename;
+        link.click();
+        URL.revokeObjectURL(url);
+      })
+      .withFailureHandler(error => {
+        button.disabled = false;
+        button.textContent = "Export PDF report";
+        toast(error.message || String(error));
+      })
+      .exportPdfReport(readFilters());
   }
 
   function setupSheets() {
