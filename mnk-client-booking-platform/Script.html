@@ -321,14 +321,17 @@
     function changeQuantity(id, delta) {
       const item = menuItem(id);
       const line = ensureLine(id);
+      const wasSelected = line.quantity > 0;
       const next = Math.max(0, line.quantity + delta);
       line.quantity = next > 0 && line.quantity === 0 ? Math.max(next, item.minimumQuantity || 1) : next;
-      updateAfterItemChange(id);
+      updateAfterItemChange(id, wasSelected !== (line.quantity > 0));
     }
 
     function setQuantity(id, raw) {
-      ensureLine(id).quantity = Math.max(0, Math.floor(Number(raw || 0)));
-      updateAfterItemChange(id);
+      const line = ensureLine(id);
+      const wasSelected = line.quantity > 0;
+      line.quantity = Math.max(0, Math.floor(Number(raw || 0)));
+      updateAfterItemChange(id, wasSelected !== (line.quantity > 0));
     }
 
     function updateItemDetail(input) {
@@ -360,8 +363,24 @@
       }
     }
 
-    function updateAfterItemChange(id) {
-      updateMenuCard(id);
+    function updateMenuCardQuantity(id) {
+      const item = menuItem(id);
+      const line = ensureLine(id);
+      const current = $$(".menu-card", $("#menu-list")).find(card => card.dataset.menuCard === id);
+      if (!item || !current) return false;
+      const input = current.querySelector("[data-item-quantity]");
+      const total = current.querySelector(".line-total");
+      if (input && document.activeElement !== input) input.value = line.quantity;
+      if (total) {
+        total.textContent = line.quantity > 0
+          ? `${line.quantity} × ${money.format(item.unitPrice)} = ${money.format(line.quantity * item.unitPrice)}`
+          : "Not selected";
+      }
+      return true;
+    }
+
+    function updateAfterItemChange(id, redrawCard) {
+      if (redrawCard || !updateMenuCardQuantity(id)) updateMenuCard(id);
       renderSummary();
       persist(true);
     }
@@ -719,8 +738,10 @@
       const item = menuItem(itemId);
       const suggestion = suggestedQuantity(item);
       if (!suggestion) return;
-      ensureLine(itemId).quantity = suggestion.quantity;
-      updateAfterItemChange(itemId);
+      const line = ensureLine(itemId);
+      const wasSelected = line.quantity > 0;
+      line.quantity = suggestion.quantity;
+      updateAfterItemChange(itemId, wasSelected !== (line.quantity > 0));
     }
 
     function loadSavedContactProfile(includeEmptyFields) {
