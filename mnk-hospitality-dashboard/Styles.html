@@ -1288,13 +1288,21 @@
     z-index: 10000;
 
     max-width: 360px;
-    padding: 14px 18px;
+    padding: 15px 18px 15px 20px;
 
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-left: 5px solid var(--primary);
     color: var(--text);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-modal);
+    border-radius: 16px;
+    box-shadow:
+      0 22px 70px rgba(7, 80, 111, 0.22),
+      0 8px 24px rgba(7, 80, 111, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+    font-weight: 700;
+    line-height: 1.35;
   }
 
   .toast.hidden {
@@ -1302,20 +1310,23 @@
   }
 
   .toast.success {
-    border-color: rgb(78, 107, 87);
-    background: rgb(113, 204, 142);
+    border-color: rgba(255, 255, 255, 0.72);
+    border-left-color: #2F8068;
+    background: rgba(235, 255, 247, 0.96);
     color: #12321C;
   }
 
   .toast.error {
-    border-color: rgb(122, 79, 79);
-    background: rgb(192, 121, 121);
+    border-color: rgba(255, 255, 255, 0.72);
+    border-left-color: #9B4444;
+    background: rgba(255, 238, 238, 0.96);
     color: #3D1111;
   }
 
   .toast.loading {
-    border-color: rgba(79, 52, 199, 0.35);
-    background: rgba(79, 52, 199, 0.12);
+    border-color: rgba(255, 255, 255, 0.72);
+    border-left-color: var(--primary);
+    background: rgba(239, 249, 252, 0.96);
     color: var(--primary-dark);
   }
 
