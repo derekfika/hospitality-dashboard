@@ -63,7 +63,6 @@
         </h1>
       </div>
       <div class="header-actions">
-        <button class="button" onclick="openScanModal()">Scan Inbox</button>
         <button class="button" onclick="loadBookings()">Refresh</button>
         <button class="icon-btn header-settings-btn" title="Settings" aria-label="Settings"
           onclick="openSettingsModal()">
@@ -229,28 +228,6 @@
       </div>
     </div>
 
-    <div id="scanModal" class="modal hidden">
-      <div class="modal-card scan-modal-card">
-        <h2>Scan Inbox</h2>
-
-        <p id="scan-summary" class="muted">Preparing scan...</p>
-
-        <div class="scan-stats">
-          <div><strong id="scan-found">0 </strong><span>Found</span></div>
-          <div><strong id="scan-logged">0 </strong><span>Logged</span></div>
-          <div><strong id="scan-skipped">0 </strong><span>Skipped</span></div>
-          <div><strong id="scan-archived">0 </strong><span>Archived</span></div>
-          <div><strong id="scan-errors">0 </strong><span>Errors</span></div>
-        </div>
-
-        <div id="scan-ticker" class="scan-ticker">Checking settings...</div>
-
-        <div class="modal-actions">
-          <button id="scan-close-btn" class="button secondary" onclick="closeScanModal()">Close</button>
-          <button id="scan-start-btn" class="button" onclick="startInboxScan()" disabled>Start Scan</button>
-        </div>
-      </div>
-    </div>
     <script>
       window.DASHBOARD_SETTINGS_SCHEMA = <?!= JSON.stringify(getSettingSchema_()); ?>;
     </script>

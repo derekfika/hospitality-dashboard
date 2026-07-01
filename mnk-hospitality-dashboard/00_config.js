@@ -284,16 +284,6 @@ function getSettingSchema_() {
       ]
     },
     {
-      id: "admin-inbox",
-      title: "Admin: Inbox",
-      access: "admin",
-      fields: [
-        { key: "PROCESSED_LABEL_NAME", label: "Processed Gmail label", type: "text", fallback: "MNK_HOSPITALITY_PROCESSED", notes: "Legacy setting. Duplicate checking now uses Message ID + Attachment Name." },
-        { key: "EARLIEST_SCAN_DATE", label: "Earliest scan date", type: "date", fallback: "", notes: "Optional. Use YYYY-MM-DD to stop scans going further back." },
-        { key: "LAST_INBOX_SCAN_AT", label: "Last scan timestamp", type: "text", fallback: "", readonly: true, notes: "Updated automatically after a completed inbox scan." }
-      ]
-    },
-    {
       id: "admin-quotes",
       title: "Admin: Quotes",
       access: "admin",

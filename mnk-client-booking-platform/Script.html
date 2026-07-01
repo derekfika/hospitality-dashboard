@@ -323,12 +323,12 @@
       const line = ensureLine(id);
       const next = Math.max(0, line.quantity + delta);
       line.quantity = next > 0 && line.quantity === 0 ? Math.max(next, item.minimumQuantity || 1) : next;
-      updateAfterItemChange();
+      updateAfterItemChange(id);
     }
 
     function setQuantity(id, raw) {
       ensureLine(id).quantity = Math.max(0, Math.floor(Number(raw || 0)));
-      updateAfterItemChange();
+      updateAfterItemChange(id);
     }
 
     function updateItemDetail(input) {
@@ -341,8 +341,27 @@
       renderSummary();
     }
 
-    function updateAfterItemChange() {
-      renderMenuList();
+    function updateMenuCard(id) {
+      const item = menuItem(id);
+      const current = $$(".menu-card", $("#menu-list")).find(card => card.dataset.menuCard === id);
+      if (!item || !current) return;
+
+      const active = document.activeElement;
+      const restoreQuantityFocus = active?.dataset?.itemQuantity === id;
+      const template = document.createElement("template");
+      template.innerHTML = renderMenuCard(item).trim();
+      const next = template.content.firstElementChild;
+      next.style.animationDelay = "0ms";
+      current.replaceWith(next);
+
+      if (restoreQuantityFocus) {
+        const input = next.querySelector("[data-item-quantity]");
+        input?.focus({ preventScroll: true });
+      }
+    }
+
+    function updateAfterItemChange(id) {
+      updateMenuCard(id);
       renderSummary();
       persist(true);
     }
@@ -701,7 +720,7 @@
       const suggestion = suggestedQuantity(item);
       if (!suggestion) return;
       ensureLine(itemId).quantity = suggestion.quantity;
-      updateAfterItemChange();
+      updateAfterItemChange(itemId);
     }
 
     function loadSavedContactProfile(includeEmptyFields) {
