@@ -33,8 +33,12 @@ function archiveCompletedDrinkLogDays() {
   setupHotDrinkTally();
   const today = Utilities.formatDate(new Date(), HOT_DRINKS_CONFIG.timezone, "yyyy-MM-dd");
   const sheet = getSpreadsheet_().getSheetByName(HOT_DRINKS_CONFIG.sheets.drinkLog);
-  const liveRows = getSheetLogRows_().filter(function(row) {
+  const allSheetRows = getSheetLogRows_();
+  const liveRows = allSheetRows.filter(function(row) {
     return row.date && row.date < today;
+  });
+  const rowsToKeep = allSheetRows.filter(function(row) {
+    return !row.date || row.date >= today;
   });
   if (!liveRows.length) {
     logAudit_("ARCHIVE_NO_ROWS", "", "Combined", "", getUser_(), "No completed days before " + today + " were available to archive.");
@@ -51,37 +55,45 @@ function archiveCompletedDrinkLogDays() {
     writeArchiveForDate_(date, byDate[date]);
   });
 
-  deleteArchivedSheetRows_(sheet, liveRows);
+  rewriteDrinkLogRows_(sheet, rowsToKeep);
 
   const archivedRows = liveRows.length;
   logAudit_("ARCHIVE_COMPLETED_DAYS", "", "Combined", "", getUser_(), archivedRows + " rows archived across " + archivedDates.length + " day(s).");
   return { ok: true, archivedDates: archivedDates, archivedRows: archivedRows };
 }
 
-function deleteArchivedSheetRows_(sheet, rows) {
+function rewriteDrinkLogRows_(sheet, rowsToKeep) {
   const lastRow = sheet.getLastRow();
-  const rowNumbers = rows.map(function(row) {
-    return Number(row.rowNumber || 0);
-  }).filter(function(rowNumber) {
-    return rowNumber >= 2 && rowNumber <= lastRow;
-  }).sort(function(a, b) {
-    return b - a;
-  });
-
-  if (!rowNumbers.length) return;
-
-  let rangeEnd = rowNumbers[0];
-  let rangeStart = rowNumbers[0];
-  for (let i = 1; i < rowNumbers.length; i += 1) {
-    if (rowNumbers[i] === rangeStart - 1) {
-      rangeStart = rowNumbers[i];
-      continue;
-    }
-    sheet.deleteRows(rangeStart, rangeEnd - rangeStart + 1);
-    rangeStart = rowNumbers[i];
-    rangeEnd = rowNumbers[i];
+  const lastColumn = Math.max(sheet.getLastColumn(), DRINK_LOG_HEADERS.length);
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
   }
-  sheet.deleteRows(rangeStart, rangeEnd - rangeStart + 1);
+
+  if (rowsToKeep.length) {
+    sheet.getRange(2, 1, rowsToKeep.length, DRINK_LOG_HEADERS.length)
+      .setValues(rowsToKeep.map(logRowToSheetValues_));
+  }
+
+  const desiredRows = Math.max(2, rowsToKeep.length + 1);
+  const maxRows = sheet.getMaxRows();
+  if (maxRows > desiredRows) {
+    sheet.deleteRows(desiredRows + 1, maxRows - desiredRows);
+  }
+}
+
+function logRowToSheetValues_(row) {
+  return [
+    row.id || "",
+    row.timestamp || "",
+    row.date || "",
+    row.time || "",
+    row.floor || "",
+    row.drink || "",
+    row.device || "",
+    row.source || "",
+    row.status || "ACTIVE",
+    row.clientTapId || ""
+  ];
 }
 
 function writeArchiveForDate_(date, rows) {
