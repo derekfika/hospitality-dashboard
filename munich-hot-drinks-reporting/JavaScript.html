@@ -58,14 +58,14 @@
   function renderReport(result) {
     const summary = result.summary || {};
     $("#report-summary").innerHTML = [
-      metric("Total drinks", summary.total || 0),
-      metric("Average per day", summary.averagePerDay || 0),
-      metric("Peak hour", summary.peakHour || "-"),
-      metric("Quietest hour", summary.quietestHour || "-"),
-      metric("Busiest day", summary.busiestDay || "-"),
-      metric("Tue-Thu daily average", summary.tuesdayThursdayDailyAverage || 0),
-      metric("Mon-Thu daily average", summary.mondayThursdayDailyAverage || 0),
-      metric("Active reporting days", Object.keys(summary.byDate || {}).length)
+      metric("Total drinks", summary.total || 0, "volume"),
+      metric("Average per day", summary.averagePerDay || 0, "daily"),
+      metric("Peak hour", summary.peakHour || "-", "peak"),
+      metric("Quietest hour", summary.quietestHour || "-", "quiet"),
+      metric("Busiest day", summary.busiestDay || "-", "day"),
+      metric("Tue-Thu average", summary.tuesdayThursdayDailyAverage || 0, "midweek"),
+      metric("Mon-Thu average", summary.mondayThursdayDailyAverage || 0, "week"),
+      metric("Active days", Object.keys(summary.byDate || {}).length, "calendar")
     ].join("");
     renderHeatmap(summary.heatmap || {});
     renderTrend(summary.trend || []);
@@ -88,7 +88,7 @@
   function renderTrend(trend) {
     const max = Math.max(1, ...trend.map(item => item.total));
     $("#trend").innerHTML = trend.length ? trend.map(item =>
-      `<div class="bar" title="${escapeHtml(item.date)}: ${item.total}" style="height:${Math.max(5, item.total / max * 100)}%"><span>${item.total}</span></div>`
+      `<div class="bar" title="${escapeHtml(item.date)}: ${item.total}" style="height:${Math.max(5, item.total / max * 100)}%"><span>${item.total}</span><small>${escapeHtml(shortDate(item.date))}</small></div>`
     ).join("") : `<span class="empty-state">No data in this range</span>`;
   }
 
@@ -254,8 +254,14 @@
     };
   }
 
-  function metric(label, value) {
-    return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  function metric(label, value, tone) {
+    return `<div class="metric metric-${escapeHtml(tone || "default")}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  }
+
+  function shortDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return value || "";
+    const parts = value.split("-");
+    return `${parts[2]}/${parts[1]}`;
   }
 
   function toast(text) {
