@@ -18,6 +18,8 @@
     $('[name="endDate"]').value = today;
     if ($("#seed-date")) $("#seed-date").value = today;
     if ($("#seed-date-header")) $("#seed-date-header").value = today;
+    if ($("#bank-holiday-year")) $("#bank-holiday-year").value = today.slice(0, 4);
+    if ($("#closed-day-date")) $("#closed-day-date").value = today;
   }
 
   function bindEvents() {
@@ -38,11 +40,17 @@
     $("#seed-test-day-header").addEventListener("click", seedTestDay);
     $("#install-archive-trigger").addEventListener("click", installArchiveTrigger);
     $("#archive-now").addEventListener("click", archiveNow);
+    $("#import-bank-holidays").addEventListener("click", importBankHolidays);
+    $("#add-closed-day").addEventListener("click", addClosedDay);
   }
 
   function showView(view) {
     document.querySelectorAll(".view").forEach(section => section.hidden = section.id !== `${view}-view`);
-    document.querySelectorAll(".nav-button").forEach(button => button.classList.toggle("active", button.dataset.view === view));
+    document.querySelectorAll(".nav-button").forEach(button => {
+      const active = button.dataset.view === view;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
     if (view === "dashboard") runReport();
     if (view === "admin") loadSettings();
   }
@@ -195,7 +203,7 @@
   function renderSettings() {
     $("#settings-editor").innerHTML = state.settingsRows.map((row, index) => `
       <div class="settings-row" data-index="${index}">
-        <select>${["Floor","Drink","Opening Hours","Closed Period","Bank Holiday","Reporting Default"].map(type => `<option ${row[0] === type ? "selected" : ""}>${type}</option>`).join("")}</select>
+        <select>${["Floor","Drink","Opening Hours","Closed Period","Closed Day","Bank Holiday","Reporting Default"].map(type => `<option ${row[0] === type ? "selected" : ""}>${type}</option>`).join("")}</select>
         <input value="${escapeAttr(row[1])}" placeholder="Name">
         <input value="${escapeAttr(row[2])}" placeholder="Value">
         <select><option ${row[3] === true ? "selected" : ""}>true</option><option ${row[3] === false ? "selected" : ""}>false</option></select>
@@ -287,6 +295,40 @@
         toast(error.message || String(error), "error");
       })
       .seedMunichReCoffeeTestDay(dateValue);
+  }
+
+  function importBankHolidays() {
+    const button = $("#import-bank-holidays");
+    startAction(button, "Importing...");
+    google.script.run
+      .withSuccessHandler(result => {
+        finishAction(button, "Import bank holidays");
+        toast(`${result.imported} bank holidays imported for ${result.year}`);
+        loadSettings();
+      })
+      .withFailureHandler(error => {
+        finishAction(button, "Import bank holidays");
+        toast(error.message || String(error), "error");
+      })
+      .importUkBankHolidaysForYear($("#bank-holiday-year").value);
+  }
+
+  function addClosedDay() {
+    const button = $("#add-closed-day");
+    startAction(button, "Adding...");
+    google.script.run
+      .withSuccessHandler(result => {
+        finishAction(button, "Add closed day");
+        toast(result.added ? `Closed day added for ${result.date}` : `${result.date} is already listed`);
+        $("#closed-day-name").value = "";
+        loadSettings();
+        runReport();
+      })
+      .withFailureHandler(error => {
+        finishAction(button, "Add closed day");
+        toast(error.message || String(error), "error");
+      })
+      .addCustomClosedDay($("#closed-day-date").value, $("#closed-day-name").value);
   }
 
   function readFilters() {

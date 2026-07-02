@@ -126,11 +126,13 @@ function getSettings_() {
   const drinks = active.filter(function(row) { return row[0] === "Drink"; }).map(function(row) { return String(row[2] || row[1]); });
   const bankHolidays = active.filter(function(row) { return row[0] === "Bank Holiday" && row[2]; }).map(function(row) { return dateKey_(row[2]); });
   const closedPeriods = active.filter(function(row) { return row[0] === "Closed Period" && row[2]; }).map(function(row) { return String(row[2]); });
+  const closedDays = active.filter(function(row) { return row[0] === "Closed Day" && row[2]; }).map(function(row) { return dateKey_(row[2]); });
   return {
     floors: floors.length ? floors : HOT_DRINKS_CONFIG.floors.slice(),
     drinks: drinks.length ? drinks : HOT_DRINKS_CONFIG.drinks.slice(),
     bankHolidays: bankHolidays.filter(Boolean),
-    closedPeriods: closedPeriods
+    closedPeriods: closedPeriods,
+    closedDays: closedDays.filter(Boolean)
   };
 }
 
@@ -152,4 +154,61 @@ function saveSettingsRows(rows) {
   if (cleanRows.length) sheet.getRange(2, 1, cleanRows.length, SETTINGS_HEADERS.length).setValues(cleanRows);
   logAudit_("SETTINGS_SAVED", "", "", "", getUser_(), cleanRows.length + " setting rows saved.");
   return getPublicAppConfig();
+}
+
+function importUkBankHolidaysForYear(year) {
+  setupHotDrinkTally();
+  const targetYear = Number(year || Utilities.formatDate(new Date(), HOT_DRINKS_CONFIG.timezone, "yyyy"));
+  if (!targetYear || targetYear < 2020 || targetYear > 2100) throw new Error("Choose a valid year.");
+
+  const response = UrlFetchApp.fetch("https://www.gov.uk/bank-holidays.json", { muteHttpExceptions: true });
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Could not fetch GOV.UK bank holidays. Response code: " + response.getResponseCode());
+  }
+  const data = JSON.parse(response.getContentText());
+  const events = (((data || {})["england-and-wales"] || {}).events || []).filter(function(event) {
+    return String(event.date || "").indexOf(String(targetYear) + "-") === 0;
+  });
+  if (!events.length) throw new Error("No England and Wales bank holidays found for " + targetYear + ".");
+
+  const sheet = getOrCreateSheet_(getSpreadsheet_(), HOT_DRINKS_CONFIG.sheets.settings, SETTINGS_HEADERS);
+  const existingRows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, SETTINGS_HEADERS.length).getValues()
+    : [];
+  const existingKeys = {};
+  existingRows.forEach(function(row) {
+    if (row[0] === "Bank Holiday") existingKeys[String(row[2] || "")] = true;
+  });
+
+  const newRows = events.filter(function(event) {
+    return !existingKeys[String(event.date || "")];
+  }).map(function(event) {
+    return ["Bank Holiday", event.title, event.date, true, "Imported from GOV.UK England and Wales bank holidays."];
+  });
+
+  if (newRows.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, SETTINGS_HEADERS.length).setValues(newRows);
+  }
+  logAudit_("BANK_HOLIDAYS_IMPORTED", "", "", "", getUser_(), newRows.length + " bank holidays imported for " + targetYear + ".");
+  return { ok: true, year: targetYear, imported: newRows.length, totalForYear: events.length };
+}
+
+function addCustomClosedDay(date, name) {
+  setupHotDrinkTally();
+  const dateKey = dateKey_(date);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) throw new Error("Choose a valid closed date.");
+  const label = String(name || "").trim() || "Site closed";
+  const sheet = getOrCreateSheet_(getSpreadsheet_(), HOT_DRINKS_CONFIG.sheets.settings, SETTINGS_HEADERS);
+  const existingRows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, SETTINGS_HEADERS.length).getValues()
+    : [];
+  const alreadyExists = existingRows.some(function(row) {
+    return row[0] === "Closed Day" && dateKey_(row[2]) === dateKey;
+  });
+  if (!alreadyExists) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, SETTINGS_HEADERS.length)
+      .setValues([["Closed Day", label, dateKey, true, "Custom site closure day."]]);
+  }
+  logAudit_("CLOSED_DAY_ADDED", "", "", "", getUser_(), (alreadyExists ? "Existing" : "New") + " closed day: " + dateKey + ".");
+  return { ok: true, date: dateKey, name: label, added: !alreadyExists };
 }

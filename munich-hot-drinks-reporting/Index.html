@@ -22,8 +22,8 @@
       <span>Hot drink reporting</span>
     </div>
     <nav aria-label="Reporting sections">
-      <button class="nav-button active" data-view="dashboard" type="button">Dashboard</button>
-      <button class="nav-button" data-view="admin" type="button">Admin</button>
+      <button class="nav-button active" data-view="dashboard" type="button" aria-pressed="true">Dashboard</button>
+      <button class="nav-button" data-view="admin" type="button" aria-pressed="false">Admin tools</button>
     </nav>
   </aside>
 
@@ -61,7 +61,7 @@
         <label>Floor<select name="floor"></select></label>
         <label>Drink<select name="drink"></select></label>
         <label class="check"><input name="excludeBankHolidays" type="checkbox" checked> Exclude bank holidays</label>
-        <label class="check"><input name="excludeClosedPeriods" type="checkbox" checked> Exclude closed periods</label>
+        <label class="check"><input name="excludeClosedPeriods" type="checkbox" checked> Exclude closed periods/days</label>
         <button type="submit">Run report</button>
       </form>
 
@@ -108,6 +108,31 @@
         <label>Demo date<input id="seed-date" type="date"></label>
         <label class="header-seed-date">Dashboard demo date<input id="seed-date-header" type="date"></label>
         <button id="seed-test-day" type="button">Add coffee test data</button>
+      </section>
+      <section class="panel import-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Bank holidays</h2>
+            <p class="admin-note">Import England and Wales bank holidays from GOV.UK into Settings.</p>
+          </div>
+          <div class="inline-controls">
+            <input id="bank-holiday-year" type="number" min="2020" max="2100" step="1">
+            <button id="import-bank-holidays" type="button">Import bank holidays</button>
+          </div>
+        </div>
+      </section>
+      <section class="panel import-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Site closed days</h2>
+            <p class="admin-note">Add one-off dates where the site is closed, such as client closure days.</p>
+          </div>
+          <div class="inline-controls closed-day-controls">
+            <input id="closed-day-date" type="date">
+            <input id="closed-day-name" type="text" placeholder="Reason">
+            <button id="add-closed-day" type="button">Add closed day</button>
+          </div>
+        </div>
       </section>
       <section class="panel">
         <div class="panel-header">

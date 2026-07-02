@@ -15,6 +15,7 @@
   --shadow: 0 20px 50px rgba(0, 45, 76, .11);
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -443,6 +444,17 @@ input:focus, select:focus {
 .settings-actions, .danger-zone div {
   display: flex;
   gap: 10px;
+}
+.inline-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.inline-controls input {
+  width: 120px;
+}
+.closed-day-controls input[type="text"] {
+  width: 190px;
 }
 .seed-panel {
   display: grid;
