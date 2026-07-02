@@ -1,5 +1,19 @@
 # CPU Dashboard Changelog
 
+## 2026.06.21.5
+
+- Added proof-of-prep camera capture in the booking editor for tablet/mobile use.
+- Prep photos are compressed in-browser, uploaded to Drive, and linked back to the order.
+- Added `PrepPhotoFileId`, `PrepPhotoUrl` and `PrepPhotoAt` storage columns.
+- Bookings with proof photos now show a camera badge and an open-photo link.
+- Added a native upload/photo-picker fallback for tablets that block live camera preview.
+
+## 2026.06.21.4
+
+- Added chef attribution to prep tracking with a stored `PreppedBy` field.
+- Booking cards, run sheet rows and production drill-downs can now show `Prepped by <chef>`.
+- Quick prep remembers the last chef name on the current device to speed up tablet use.
+
 ## 2026.06.21.3
 
 - The booking editor now also hides update notes when `SHOW_UPDATED_FLAGS` is `FALSE`.

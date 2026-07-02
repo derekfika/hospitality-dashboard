@@ -97,6 +97,8 @@ function ensureCpuSettingsSheet_() {
         notes = "FALSE keeps scans fast by skipping unchanged bookings. TRUE reopens and reparses every quote in the scan range.";
       } else if (key === "SHOW_UPDATED_FLAGS") {
         notes = "TRUE displays Updated badges. FALSE hides them while retaining change history and filtering.";
+      } else if (key === "PREP_PHOTO_FOLDER_NAME") {
+        notes = "Drive folder used for proof-of-prep photos captured from tablets.";
       }
       const value = key === "PRODUCT_CATEGORIES_JSON"
         ? JSON.stringify(CPU_PRODUCT_CATEGORIES)

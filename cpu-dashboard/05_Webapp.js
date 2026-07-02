@@ -127,6 +127,71 @@ function saveCpuOrder(orderKey, patch) {
   return updateCpuOrder_(orderKey, patch || {});
 }
 
+function saveCpuPrepPhoto(orderKey, dataUrl, chefName) {
+  if (!orderKey) throw new Error("Order is missing.");
+  const match = String(dataUrl || "").match(/^data:image\/(jpeg|jpg|png);base64,(.+)$/i);
+  if (!match) throw new Error("No camera photo was received.");
+
+  const orders = getCpuOrders_("0000-01-01", "9999-12-31");
+  const order = orders.filter(function(item) { return item.id === orderKey; })[0];
+  if (!order) throw new Error("Order not found.");
+
+  const extension = match[1].toLowerCase() === "png" ? "png" : "jpg";
+  const contentType = extension === "png" ? "image/png" : "image/jpeg";
+  const bytes = Utilities.base64Decode(match[2]);
+  const safeParts = [
+    order.eventDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"),
+    order.siteCode || "SITE",
+    order.clientCompany || "booking",
+    "prep-proof"
+  ].map(function(part) {
+    return String(part || "")
+      .replace(/[^a-z0-9 _.-]+/gi, "")
+      .replace(/\s+/g, "-")
+      .slice(0, 48);
+  }).filter(Boolean);
+  const fileName = safeParts.join("_") + "." + extension;
+  const folder = getCpuPrepPhotoFolder_();
+  const file = folder.createFile(Utilities.newBlob(bytes, contentType, fileName));
+
+  try {
+    file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (ignore) {
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (ignoreAgain) {}
+  }
+
+  const now = new Date().toISOString();
+  const preppedBy = String(chefName || order.preppedBy || "").trim();
+  const patch = {
+    prepped: true,
+    preppedBy: preppedBy,
+    prepPhotoFileId: file.getId(),
+    prepPhotoUrl: file.getUrl(),
+    prepPhotoAt: now
+  };
+  updateCpuOrder_(orderKey, patch);
+  return {
+    ok: true,
+    orderKey: orderKey,
+    prepped: true,
+    preppedBy: preppedBy,
+    prepPhotoFileId: file.getId(),
+    prepPhotoUrl: file.getUrl(),
+    prepPhotoAt: now
+  };
+}
+
+function getCpuPrepPhotoFolder_() {
+  const folderName = String(
+    getCpuSetting_("PREP_PHOTO_FOLDER_NAME", CPU_CONFIG.PREP_PHOTO_FOLDER_NAME)
+  ).trim() || CPU_CONFIG.PREP_PHOTO_FOLDER_NAME;
+  const folders = DriveApp.getFoldersByName(folderName);
+  if (folders.hasNext()) return folders.next();
+  return DriveApp.createFolder(folderName);
+}
+
 function reparseCpuOrderQuote(orderKey) {
   const orders = getCpuOrders_();
   const order = orders.filter(function(item) { return item.id === orderKey; })[0];

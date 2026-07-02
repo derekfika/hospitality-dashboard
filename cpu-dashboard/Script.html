@@ -1,5 +1,6 @@
 <script>
-  const CLIENT_BUILD = "2026.06.21.3";
+  const CLIENT_BUILD = "2026.06.21.5";
+  const PREP_CHEF_KEY = "cpu-dashboard-last-prep-chef";
   const PREFS_KEY = "cpu-dashboard-preferences-v1";
   const state = {
     weekStart: startOfWeek(new Date()),
@@ -18,6 +19,7 @@
     autoRefreshTimer: null,
     preferencesRestored: false,
     editingOrderId: "",
+    prepCameraStream: null,
     scanJobId: "",
     scanRunning: false,
     view: "calendar",
@@ -392,8 +394,9 @@
     return '<article class="order-card ' + (order.prepped ? "prepped " : "") + (isUrgent(order) ? "urgent" : "") + '" style="--site:' + escapeHtml(order.siteColour) + '" onclick="openOrderDrawer(\'' + escapeJs(order.id) + '\')">' +
       '<div class="order-card-top"><span class="order-site">' + escapeHtml(order.siteCode) + ' / ' +
       escapeHtml(order.siteName) + '</span>' +
-      (order.prepped ? '<span class="done-badge">Prepped</span>' :
+      (order.prepped ? '<span class="done-badge">' + escapeHtml(prepDoneLabel_(order, true)) + '</span>' :
         (showUpdatedFlag_(order) ? '<span class="updated-badge" title="' + escapeHtml((order.changes || []).join(" / ")) + '">Updated</span>' : "")) +
+      (order.prepPhotoUrl ? '<span class="photo-badge" title="Prep photo attached">📷</span>' : '') +
       '</div><div class="order-time">' + escapeHtml(order.deliveryTime || formatTime(order.startAt)) +
       (hasWarnings(order) ? '<span class="warning-dot" title="Needs attention"></span>' : "") + '</div>' +
       '<div class="order-company">' + escapeHtml(order.clientCompany) + '</div>' +
@@ -418,7 +421,7 @@
           '<span><strong>' + escapeHtml(order.clientCompany) + '</strong><br><span class="muted">' + escapeHtml(order.serviceType) + '</span></span>' +
           '<span class="pax-pill">' + (state.selectedProductCategories.size ? selectedQuantity + ' × selected' : Number(order.pax || 0) + ' pax') + '</span>' +
           '<span class="muted">' + escapeHtml([order.location, order.floor].filter(Boolean).join(" · ")) + '</span>' +
-          '<span>' + (order.prepped ? '<span class="done-badge">Done</span>' :
+          '<span>' + (order.prepped ? '<span class="done-badge">' + escapeHtml(prepDoneLabel_(order, false)) + '</span>' :
             (showUpdatedFlag_(order) ? '<span class="updated-badge">Updated</span>' : (hasWarnings(order) ? "●" : "›"))) + '</span></div>';
       }).join("") + '</section>';
     }
@@ -460,7 +463,8 @@
           siteColour: order.siteColour,
           time: order.deliveryTime || formatTime(order.startAt),
           quantity: quantity,
-          prepped: order.prepped === true
+          prepped: order.prepped === true,
+          preppedBy: order.preppedBy || ""
         });
       });
     });
@@ -506,6 +510,7 @@
                 escapeJs(booking.id) + '\')"><span>' + escapeHtml(booking.time) +
                 '</span><i style="--site:' + escapeHtml(booking.siteColour) + '"></i><b>' +
                 escapeHtml(booking.siteCode) + '</b><span>' + escapeHtml(booking.client) +
+                (booking.prepped && booking.preppedBy ? '<small>' + escapeHtml("Prepped by " + booking.preppedBy) + '</small>' : '') +
                 '</span><strong>' + booking.quantity + '×</strong><button type="button" onclick="event.stopPropagation();quickTogglePrepped(\'' +
                 escapeJs(booking.id) + '\')">' + (booking.prepped ? "Undo" : "Prep") + '</button></div>';
             }).join("");
@@ -704,9 +709,25 @@
         editorTextarea("Dietary & allergens", "editDietary", order.dietary, "wide") +
         editorTextarea("Chef notes", "editNotes", order.notes, "wide") +
       '</div>' +
-      '<label class="prep-toggle"><input id="editPrepped" type="checkbox" ' +
+      '<section class="prep-panel"><label class="prep-toggle"><input id="editPrepped" type="checkbox" ' +
         (order.prepped ? "checked" : "") +
-        '><span class="prep-toggle-box">✓</span><span><strong>Prepped / done</strong><small>Marks this booking purple across the CPU dashboard.</small></span></label>' +
+        '><span class="prep-toggle-box">✓</span><span><strong>Prepped / done</strong><small>' +
+        escapeHtml(prepStatusText_(order)) + '</small></span></label>' +
+        '<label class="editor-field prep-chef-field"><span>Chef name</span><input id="editPreppedBy" type="text" value="' +
+        escapeHtml(order.preppedBy || getLastPrepChef_()) +
+        '" placeholder="e.g. Francesco" autocomplete="name"></label>' +
+        '<div class="prep-photo-panel">' +
+          '<div class="prep-photo-actions">' +
+            '<button id="startPrepCameraButton" class="button secondary" type="button" onclick="startPrepCamera()">Take prep photo</button>' +
+            '<button id="capturePrepPhotoButton" class="button hidden" type="button" onclick="capturePrepPhoto()">Capture & save</button>' +
+            '<button id="stopPrepCameraButton" class="button secondary hidden" type="button" onclick="stopPrepCamera()">Cancel camera</button>' +
+            '<label class="button secondary prep-file-button">Upload photo<input type="file" accept="image/*" capture="environment" onchange="handlePrepPhotoFile(this.files && this.files[0]); this.value = \'\';"></label>' +
+            (order.prepPhotoUrl ? '<a class="button secondary" href="' + escapeHtml(order.prepPhotoUrl) + '" target="_blank">Open prep photo ↗</a>' : '') +
+          '</div>' +
+          '<div id="prepPhotoStatus" class="prep-photo-status">' + escapeHtml(prepPhotoStatusText_(order)) + '</div>' +
+          '<video id="prepCameraPreview" class="prep-camera-preview hidden" autoplay playsinline muted></video>' +
+          '<canvas id="prepPhotoCanvas" class="hidden"></canvas>' +
+        '</div></section>' +
       '<section class="editor-section"><div class="editor-section-heading"><div><p class="eyebrow">Production detail</p><h3>Line items</h3></div>' +
         '<button class="button secondary" type="button" onclick="addEditorLine()">Add line</button></div>' +
         '<div id="lineItemsEditor" class="line-items-editor">' +
@@ -720,6 +741,7 @@
   }
 
   function closeOrderEditor() {
+    stopPrepCamera();
     state.editingOrderId = "";
     document.getElementById("orderEditor").classList.add("hidden");
   }
@@ -765,6 +787,175 @@
     button.closest(".line-item-edit").remove();
   }
 
+  function startPrepCamera() {
+    if (!state.editingOrderId) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast("Camera is not available in this browser");
+      return;
+    }
+    const preview = document.getElementById("prepCameraPreview");
+    const status = document.getElementById("prepPhotoStatus");
+    const startButton = document.getElementById("startPrepCameraButton");
+    startButton.disabled = true;
+    status.textContent = "Requesting camera access…";
+    navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    }).then(function(stream) {
+      stopPrepCamera();
+      state.prepCameraStream = stream;
+      preview.srcObject = stream;
+      preview.classList.remove("hidden");
+      document.getElementById("capturePrepPhotoButton").classList.remove("hidden");
+      document.getElementById("stopPrepCameraButton").classList.remove("hidden");
+      startButton.classList.add("hidden");
+      startButton.disabled = false;
+      status.textContent = "Camera ready. Frame the finished order, then capture and save.";
+    }).catch(function(error) {
+      startButton.disabled = false;
+      status.textContent = "Camera permission was not granted.";
+      showToast((error && error.message) || "Camera could not be opened");
+    });
+  }
+
+  function stopPrepCamera() {
+    if (state.prepCameraStream) {
+      state.prepCameraStream.getTracks().forEach(function(track) { track.stop(); });
+      state.prepCameraStream = null;
+    }
+    const preview = document.getElementById("prepCameraPreview");
+    if (preview) {
+      preview.srcObject = null;
+      preview.classList.add("hidden");
+    }
+    const startButton = document.getElementById("startPrepCameraButton");
+    const captureButton = document.getElementById("capturePrepPhotoButton");
+    const stopButton = document.getElementById("stopPrepCameraButton");
+    if (startButton) startButton.classList.remove("hidden");
+    if (captureButton) captureButton.classList.add("hidden");
+    if (stopButton) stopButton.classList.add("hidden");
+  }
+
+  function capturePrepPhoto() {
+    if (!state.editingOrderId) return;
+    const preview = document.getElementById("prepCameraPreview");
+    const canvas = document.getElementById("prepPhotoCanvas");
+    const status = document.getElementById("prepPhotoStatus");
+    const button = document.getElementById("capturePrepPhotoButton");
+    if (!preview || !preview.videoWidth) {
+      showToast("Camera preview is not ready yet");
+      return;
+    }
+    const maxWidth = 1280;
+    const scale = Math.min(1, maxWidth / preview.videoWidth);
+    canvas.width = Math.round(preview.videoWidth * scale);
+    canvas.height = Math.round(preview.videoHeight * scale);
+    canvas.getContext("2d").drawImage(preview, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
+    uploadPrepPhotoDataUrl_(dataUrl, button, status, true);
+  }
+
+  function handlePrepPhotoFile(file) {
+    if (!state.editingOrderId || !file) return;
+    const status = document.getElementById("prepPhotoStatus");
+    if (!/^image\//i.test(file.type || "")) {
+      showToast("Please choose a photo");
+      return;
+    }
+    status.textContent = "Preparing proof photo…";
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      resizePrepPhotoDataUrl_(event.target.result, function(dataUrl) {
+        uploadPrepPhotoDataUrl_(dataUrl, null, status, false);
+      });
+    };
+    reader.onerror = function() {
+      status.textContent = "Photo could not be read.";
+      showToast("Photo could not be read");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resizePrepPhotoDataUrl_(sourceDataUrl, callback) {
+    const image = new Image();
+    image.onload = function() {
+      const canvas = document.getElementById("prepPhotoCanvas") || document.createElement("canvas");
+      const maxWidth = 1280;
+      const scale = Math.min(1, maxWidth / image.width);
+      canvas.width = Math.round(image.width * scale);
+      canvas.height = Math.round(image.height * scale);
+      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      callback(canvas.toDataURL("image/jpeg", 0.78));
+    };
+    image.onerror = function() {
+      showToast("Photo could not be prepared");
+    };
+    image.src = sourceDataUrl;
+  }
+
+  function uploadPrepPhotoDataUrl_(dataUrl, button, status, stopCameraAfterUpload) {
+    const chefName = document.getElementById("editPreppedBy").value.trim();
+    if (chefName) setLastPrepChef_(chefName);
+    document.getElementById("editPrepped").checked = true;
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Saving…";
+    }
+    status.textContent = "Uploading proof photo…";
+
+    if (!(window.google && google.script && google.script.run)) {
+      applyPrepPhotoResult_(state.editingOrderId, {
+        prepped: true,
+        preppedBy: chefName,
+        prepPhotoUrl: "#",
+        prepPhotoAt: new Date().toISOString()
+      });
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Capture & save";
+      }
+      if (stopCameraAfterUpload) stopPrepCamera();
+      showToast("Preview prep photo saved");
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Capture & save";
+        }
+        if (stopCameraAfterUpload) stopPrepCamera();
+        applyPrepPhotoResult_(state.editingOrderId, result);
+        showToast("Prep photo saved");
+      })
+      .withFailureHandler(function(error) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Capture & save";
+        }
+        status.textContent = "Photo upload failed.";
+        handleFailure(error);
+      })
+      .saveCpuPrepPhoto(state.editingOrderId, dataUrl, chefName);
+  }
+
+  function applyPrepPhotoResult_(id, result) {
+    const order = state.orders.find(function(item) { return item.id === id; });
+    if (!order) return;
+    order.prepped = true;
+    order.preppedBy = result.preppedBy || order.preppedBy || "";
+    order.prepPhotoFileId = result.prepPhotoFileId || order.prepPhotoFileId || "";
+    order.prepPhotoUrl = result.prepPhotoUrl || order.prepPhotoUrl || "";
+    order.prepPhotoAt = result.prepPhotoAt || new Date().toISOString();
+    renderAll();
+    openOrderEditor(id);
+  }
+
   function saveOrderEditor() {
     if (!state.editingOrderId) return;
     const button = document.getElementById("saveOrderButton");
@@ -778,6 +969,7 @@
       dietary: document.getElementById("editDietary").value.trim(),
       notes: document.getElementById("editNotes").value.trim(),
       prepped: document.getElementById("editPrepped").checked,
+      preppedBy: document.getElementById("editPreppedBy").value.trim(),
       items: Array.from(document.querySelectorAll("#lineItemsEditor .line-item-edit"))
         .map(function(row) {
           return {
@@ -788,6 +980,8 @@
         })
         .filter(function(item) { return item.name; })
     };
+    if (!patch.prepped) patch.preppedBy = "";
+    if (patch.prepped && patch.preppedBy) setLastPrepChef_(patch.preppedBy);
 
     if (!(window.google && google.script && google.script.run)) {
       applyLocalOrderPatch_(state.editingOrderId, patch);
@@ -861,7 +1055,15 @@
     const order = state.orders.find(function(item) { return item.id === id; });
     if (!order) return;
     const next = !order.prepped;
+    const previousPreppedBy = order.preppedBy || "";
+    let preppedBy = next ? String(order.preppedBy || getLastPrepChef_() || "").trim() : "";
+    if (next && !preppedBy) {
+      preppedBy = window.prompt("Who prepped this order?", "") || "";
+      preppedBy = preppedBy.trim();
+    }
+    if (next && preppedBy) setLastPrepChef_(preppedBy);
     order.prepped = next;
+    order.preppedBy = preppedBy;
     renderAll();
     if (!(window.google && google.script && google.script.run)) {
       showToast(next ? "Marked prepped" : "Prep status cleared");
@@ -873,10 +1075,11 @@
       })
       .withFailureHandler(function(error) {
         order.prepped = !next;
+        order.preppedBy = previousPreppedBy;
         renderAll();
         handleFailure(error);
       })
-      .saveCpuOrder(id, { prepped: next });
+      .saveCpuOrder(id, { prepped: next, preppedBy: preppedBy });
   }
 
   function setView(view) {
@@ -1385,6 +1588,10 @@
     copy.warnings = Array.isArray(copy.warnings) ? copy.warnings : [];
     copy.changes = Array.isArray(copy.changes) ? copy.changes : [];
     copy.prepped = copy.prepped === true || String(copy.prepped).toLowerCase() === "true";
+    copy.preppedBy = String(copy.preppedBy || "").trim();
+    copy.prepPhotoFileId = String(copy.prepPhotoFileId || "").trim();
+    copy.prepPhotoUrl = String(copy.prepPhotoUrl || "").trim();
+    copy.prepPhotoAt = String(copy.prepPhotoAt || "").trim();
     return copy;
   }
   function isRecentlyChanged(order) {
@@ -1394,6 +1601,29 @@
   }
   function showUpdatedFlag_(order) {
     return state.showUpdatedFlags && isRecentlyChanged(order);
+  }
+  function prepDoneLabel_(order, short) {
+    if (!order || !order.prepped) return "";
+    return order.preppedBy
+      ? (short ? "By " + order.preppedBy : "Prepped by " + order.preppedBy)
+      : (short ? "Prepped" : "Done");
+  }
+  function prepStatusText_(order) {
+    if (order && order.prepped && order.preppedBy) return "Prepped by " + order.preppedBy + ".";
+    if (order && order.prepped) return "Marked prepped. Add the chef name here.";
+    return "Marks this booking purple across the CPU dashboard.";
+  }
+  function prepPhotoStatusText_(order) {
+    if (order && order.prepPhotoUrl) {
+      return "Prep proof photo attached" + (order.prepPhotoAt ? " · " + formatTime(order.prepPhotoAt) : "") + ".";
+    }
+    return "No prep photo attached yet.";
+  }
+  function getLastPrepChef_() {
+    try { return localStorage.getItem(PREP_CHEF_KEY) || ""; } catch (ignore) { return ""; }
+  }
+  function setLastPrepChef_(name) {
+    try { localStorage.setItem(PREP_CHEF_KEY, String(name || "").trim()); } catch (ignore) {}
   }
   function isUrgent(order) {
     if (order.prepped || !order.eventDate) return false;

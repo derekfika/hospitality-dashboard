@@ -27,6 +27,10 @@ function upsertCpuOrders_(orders) {
           : cpuSheetIso_(existing.values[headers.indexOf("ChangedAt")]);
         order.prepped = cpuSheetBoolean_(existing.values[headers.indexOf("Prepped")]);
         order.preppedAt = cpuSheetIso_(existing.values[headers.indexOf("PreppedAt")]);
+        order.preppedBy = String(existing.values[headers.indexOf("PreppedBy")] || "").trim();
+        order.prepPhotoFileId = String(existing.values[headers.indexOf("PrepPhotoFileId")] || "").trim();
+        order.prepPhotoUrl = String(existing.values[headers.indexOf("PrepPhotoUrl")] || "").trim();
+        order.prepPhotoAt = cpuSheetIso_(existing.values[headers.indexOf("PrepPhotoAt")]);
       }
       const values = cpuOrderToRow_(order);
       if (existing) {
@@ -84,7 +88,11 @@ function cpuOrderToRow_(order) {
     ChangesJSON: JSON.stringify(order.changes || []),
     ChangedAt: order.changedAt || "",
     Prepped: order.prepped === true,
-    PreppedAt: order.preppedAt || ""
+    PreppedAt: order.preppedAt || "",
+    PreppedBy: order.preppedBy || "",
+    PrepPhotoFileId: order.prepPhotoFileId || "",
+    PrepPhotoUrl: order.prepPhotoUrl || "",
+    PrepPhotoAt: order.prepPhotoAt || ""
   };
   return CPU_CONFIG.ORDER_HEADERS.map(function(header) { return valueByHeader[header] || ""; });
 }
@@ -259,6 +267,10 @@ function getCpuOrders_(rangeStart, rangeEnd) {
         changedAt: map.ChangedAt ? cpuSheetIso_(row[map.ChangedAt]) : "",
         prepped: map.Prepped ? cpuSheetBoolean_(row[map.Prepped]) : false,
         preppedAt: map.PreppedAt ? cpuSheetIso_(row[map.PreppedAt]) : "",
+        preppedBy: map.PreppedBy ? String(row[map.PreppedBy] || "") : "",
+        prepPhotoFileId: map.PrepPhotoFileId ? String(row[map.PrepPhotoFileId] || "") : "",
+        prepPhotoUrl: map.PrepPhotoUrl ? String(row[map.PrepPhotoUrl] || "") : "",
+        prepPhotoAt: map.PrepPhotoAt ? cpuSheetIso_(row[map.PrepPhotoAt]) : "",
         scannedAt: cpuSheetIso_(row[map.ScannedAt])
       });
     });
@@ -392,6 +404,21 @@ function updateCpuOrder_(orderKey, patch) {
     if (map.PreppedAt) {
       sheet.getRange(rowNumber, map.PreppedAt).setValue(prepped ? new Date() : "");
     }
+    if (map.PreppedBy) {
+      sheet.getRange(rowNumber, map.PreppedBy).setValue(prepped ? String(patch.preppedBy || "").trim() : "");
+    }
+  } else if (Object.prototype.hasOwnProperty.call(patch, "preppedBy") && map.PreppedBy) {
+    sheet.getRange(rowNumber, map.PreppedBy).setValue(String(patch.preppedBy || "").trim());
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, "prepPhotoFileId") && map.PrepPhotoFileId) {
+    sheet.getRange(rowNumber, map.PrepPhotoFileId).setValue(String(patch.prepPhotoFileId || "").trim());
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "prepPhotoUrl") && map.PrepPhotoUrl) {
+    sheet.getRange(rowNumber, map.PrepPhotoUrl).setValue(String(patch.prepPhotoUrl || "").trim());
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "prepPhotoAt") && map.PrepPhotoAt) {
+    sheet.getRange(rowNumber, map.PrepPhotoAt).setValue(patch.prepPhotoAt ? new Date(patch.prepPhotoAt) : "");
   }
 
   if (map.ScannedAt) sheet.getRange(rowNumber, map.ScannedAt).setValue(new Date());
