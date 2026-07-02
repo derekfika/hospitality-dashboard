@@ -36,6 +36,10 @@ function archiveCompletedDrinkLogDays() {
   const liveRows = getSheetLogRows_().filter(function(row) {
     return row.date && row.date < today;
   });
+  if (!liveRows.length) {
+    logAudit_("ARCHIVE_NO_ROWS", "", "Combined", "", getUser_(), "No completed days before " + today + " were available to archive.");
+    return { ok: true, archivedDates: [], archivedRows: 0 };
+  }
   const byDate = {};
   liveRows.forEach(function(row) {
     if (!byDate[row.date]) byDate[row.date] = [];
@@ -47,13 +51,37 @@ function archiveCompletedDrinkLogDays() {
     writeArchiveForDate_(date, byDate[date]);
   });
 
-  liveRows.sort(function(a, b) { return b.rowNumber - a.rowNumber; }).forEach(function(row) {
-    sheet.deleteRow(row.rowNumber);
-  });
+  deleteArchivedSheetRows_(sheet, liveRows);
 
   const archivedRows = liveRows.length;
   logAudit_("ARCHIVE_COMPLETED_DAYS", "", "Combined", "", getUser_(), archivedRows + " rows archived across " + archivedDates.length + " day(s).");
   return { ok: true, archivedDates: archivedDates, archivedRows: archivedRows };
+}
+
+function deleteArchivedSheetRows_(sheet, rows) {
+  const lastRow = sheet.getLastRow();
+  const rowNumbers = rows.map(function(row) {
+    return Number(row.rowNumber || 0);
+  }).filter(function(rowNumber) {
+    return rowNumber >= 2 && rowNumber <= lastRow;
+  }).sort(function(a, b) {
+    return b - a;
+  });
+
+  if (!rowNumbers.length) return;
+
+  let rangeEnd = rowNumbers[0];
+  let rangeStart = rowNumbers[0];
+  for (let i = 1; i < rowNumbers.length; i += 1) {
+    if (rowNumbers[i] === rangeStart - 1) {
+      rangeStart = rowNumbers[i];
+      continue;
+    }
+    sheet.deleteRows(rangeStart, rangeEnd - rangeStart + 1);
+    rangeStart = rowNumbers[i];
+    rangeEnd = rowNumbers[i];
+  }
+  sheet.deleteRows(rangeStart, rangeEnd - rangeStart + 1);
 }
 
 function writeArchiveForDate_(date, rows) {
