@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <style>
-    @page { size: A4 landscape; margin: 14mm; }
+    @page { size: A4 landscape; margin: 12mm; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -13,94 +13,107 @@
       font-size: 10.5px;
     }
     .cover {
-      min-height: 176mm;
-      border: 1px solid #d7e1e8;
+      min-height: 183mm;
       position: relative;
       overflow: hidden;
-      padding: 22mm 18mm 16mm;
-    }
-    .cover:before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, #00538A 0%, #00538A 38%, #ffffff 38.2%, #ffffff 100%);
-      z-index: -2;
+      padding: 18mm;
+      color: #fff;
+      background: linear-gradient(122deg, #00538A 0%, #08689f 58%, #ffffff 58.2%, #ffffff 100%);
+      border: 1px solid #d9e4eb;
     }
     .cover:after {
       content: "";
       position: absolute;
-      right: -20mm;
-      bottom: -36mm;
-      width: 132mm;
-      height: 132mm;
-      border: 18mm solid rgba(0,83,138,.08);
+      right: 74mm;
+      bottom: -34mm;
+      width: 118mm;
+      height: 118mm;
+      border: 17mm solid rgba(255,255,255,.14);
       border-radius: 50%;
-      z-index: -1;
     }
     .cover-logos {
+      position: relative;
+      z-index: 1;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 20mm;
+      gap: 14mm;
     }
-    .munich-logo svg { width: 64mm; height: auto; }
+    .munich-logo {
+      background: rgba(255,255,255,.96);
+      padding: 5mm 6mm;
+      border-radius: 3mm;
+      border: 1px solid rgba(255,255,255,.65);
+    }
+    .munich-logo svg { width: 58mm; height: auto; }
     .partner-logos {
       display: flex;
       align-items: center;
-      gap: 7mm;
-      background: rgba(255,255,255,.92);
+      gap: 6mm;
+      background: rgba(255,255,255,.94);
       padding: 5mm 6mm;
       border-radius: 3mm;
+      border: 1px solid #d9e4eb;
     }
-    .fika-logo svg { width: 28mm; height: auto; }
-    .bloom-logo svg { width: 24mm; height: auto; }
-    .just-eat-logo svg { width: 30mm; height: auto; }
+    .fika-logo svg { width: 27mm; height: auto; }
+    .bloom-logo svg { width: 23mm; height: auto; }
+    .just-eat-logo svg { width: 29mm; height: auto; }
     .cover-title {
-      margin-top: 28mm;
-      width: 55%;
-      color: #fff;
+      position: relative;
+      z-index: 1;
+      margin-top: 25mm;
+      width: 54%;
     }
-    .cover-title .strapline {
+    .strapline {
+      display: inline-block;
+      padding: 2mm 3mm;
+      background: rgba(255,255,255,.13);
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 99mm;
       text-transform: uppercase;
-      letter-spacing: 1.2px;
+      letter-spacing: 1.1px;
+      font-size: 8.5px;
       font-weight: 700;
-      opacity: .9;
     }
     h1 {
       margin: 6mm 0 4mm;
-      font-size: 31px;
-      line-height: 1.05;
-      letter-spacing: -0.4px;
+      font-size: 34px;
+      line-height: 1.02;
+      letter-spacing: -.4px;
     }
     .period {
       font-size: 17px;
       font-weight: 700;
+      color: rgba(255,255,255,.86);
     }
     .cover-meta {
       position: absolute;
+      z-index: 2;
       right: 18mm;
       bottom: 16mm;
-      width: 78mm;
+      width: 86mm;
       display: grid;
       gap: 3mm;
     }
     .meta-card {
       background: #fff;
-      border: 1px solid #d7e1e8;
+      border: 1px solid #d9e4eb;
+      border-left: 4px solid #00538A;
       padding: 4mm;
-      border-radius: 2mm;
+      border-radius: 3mm;
+      color: #05090B;
     }
     .meta-card span {
       display: block;
-      color: #5f6f7d;
-      font-size: 8.5px;
+      color: #667481;
+      font-size: 8px;
       text-transform: uppercase;
       font-weight: 700;
     }
     .meta-card strong {
       display: block;
       margin-top: 1mm;
-      font-size: 13px;
+      font-size: 12.5px;
     }
     .page {
       page-break-before: always;
@@ -110,54 +123,72 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 5mm;
-      border-bottom: 2px solid #00538A;
-      margin-bottom: 6mm;
+      padding: 5mm 6mm;
+      margin-bottom: 5mm;
+      color: #fff;
+      background: linear-gradient(120deg, #00538A, #08689f);
+      border-radius: 3mm;
     }
     .page-header h2 {
       margin: 0;
       font-size: 20px;
-      letter-spacing: -0.2px;
+      letter-spacing: -.2px;
     }
     .page-header span {
-      color: #5f6f7d;
+      display: block;
+      margin-top: 1mm;
+      color: rgba(255,255,255,.78);
       font-weight: 700;
     }
-    .small-munich svg { width: 36mm; height: auto; }
+    .small-munich {
+      background: #fff;
+      border-radius: 2mm;
+      padding: 3mm 4mm;
+    }
+    .small-munich svg { width: 34mm; height: auto; }
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
-      gap: 3.5mm;
-      margin-bottom: 6mm;
+      gap: 3mm;
+      margin-bottom: 5mm;
     }
     .kpi {
-      border: 1px solid #d7e1e8;
-      border-top: 3px solid #00538A;
+      min-height: 25mm;
+      border: 1px solid #d9e4eb;
+      border-top: 4px solid #00538A;
+      border-radius: 3mm;
       padding: 4mm;
-      min-height: 24mm;
+      background: linear-gradient(180deg, #fff, #f7fbfd);
     }
+    .kpi:nth-child(3),
+    .kpi:nth-child(4) { border-top-color: #ff8000; }
+    .kpi:nth-child(5),
+    .kpi:nth-child(6) { border-top-color: #167a62; }
     .kpi span {
       display: block;
-      color: #5f6f7d;
-      font-size: 8.3px;
+      color: #667481;
+      font-size: 7.8px;
       text-transform: uppercase;
       font-weight: 700;
     }
     .kpi strong {
       display: block;
-      margin-top: 2mm;
-      font-size: 21px;
+      margin-top: 2.4mm;
+      font-size: 20px;
       color: #00538A;
+      line-height: 1;
     }
     .content-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 5mm;
+      gap: 4mm;
     }
     .panel {
-      border: 1px solid #d7e1e8;
+      border: 1px solid #d9e4eb;
+      border-radius: 3mm;
       padding: 4mm;
       min-height: 50mm;
+      background: #fff;
     }
     .panel.wide { grid-column: 1 / -1; }
     .panel h3 {
@@ -172,32 +203,37 @@
       margin-bottom: 3mm;
       font-weight: 700;
     }
+    .row strong { color: #00538A; }
     .track {
       grid-column: 1 / -1;
-      height: 3mm;
-      background: #e8eef2;
+      height: 3.2mm;
+      background: #eaf3f8;
+      border-radius: 99mm;
+      overflow: hidden;
     }
     .fill {
-      height: 3mm;
-      background: #00538A;
+      height: 3.2mm;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #00538A, #52a4cd);
     }
     .trend {
-      height: 46mm;
+      height: 49mm;
       display: flex;
       align-items: end;
       gap: 2mm;
-      border-bottom: 1px solid #d7e1e8;
-      padding-top: 7mm;
+      border-bottom: 1px solid #d9e4eb;
+      padding: 8mm 1mm 8mm;
     }
     .bar {
       position: relative;
       flex: 1;
       min-width: 3mm;
-      background: #00538A;
+      background: linear-gradient(180deg, #0b70a8, #00538A);
+      border-radius: 1.6mm 1.6mm 0 0;
     }
     .bar span {
       position: absolute;
-      top: -5mm;
+      top: -5.5mm;
       left: 50%;
       transform: translateX(-50%);
       font-size: 7px;
@@ -207,53 +243,59 @@
       position: absolute;
       bottom: -6mm;
       left: 50%;
-      transform: translateX(-50%) rotate(-35deg);
-      transform-origin: center;
-      color: #5f6f7d;
-      font-size: 6.5px;
+      transform: translateX(-50%);
+      color: #667481;
+      font-size: 6.4px;
       white-space: nowrap;
+      font-weight: 700;
     }
     table {
       width: 100%;
-      border-collapse: collapse;
-      font-size: 8.3px;
+      border-collapse: separate;
+      border-spacing: 1.4mm;
+      font-size: 8px;
     }
     th, td {
-      border: 1px solid #d7e1e8;
-      padding: 2.2mm;
+      border: 0;
+      border-radius: 2mm;
+      padding: 2.4mm;
       text-align: center;
     }
     th {
-      background: #f0f5f8;
-      color: #00456f;
+      background: #eaf3f8;
+      color: #003a61;
       font-weight: 700;
     }
     .heat {
       background: rgba(0,83,138,var(--heat));
-      font-weight: 700;
+      color: #03283d;
+      font-weight: 800;
     }
     .notes {
-      margin-top: 5mm;
+      margin-top: 4mm;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 3mm;
     }
     .note {
-      background: #f7fafc;
-      border-left: 3px solid #00538A;
+      background: #f7fbfd;
+      border: 1px solid #d9e4eb;
+      border-left: 4px solid #00538A;
+      border-radius: 2.5mm;
       padding: 3mm;
     }
     .note span {
       display: block;
-      color: #5f6f7d;
+      color: #667481;
       text-transform: uppercase;
-      font-size: 7.5px;
+      font-size: 7.2px;
       font-weight: 700;
     }
     .note strong {
       display: block;
       margin-top: 1mm;
       font-size: 11px;
+      color: #00538A;
     }
   </style>
 </head>
@@ -275,7 +317,7 @@
     <div class="cover-meta">
       <div class="meta-card"><span>Prepared</span><strong><?= report.generatedAt ?></strong></div>
       <div class="meta-card"><span>Scope</span><strong><?= report.filters.floor ?> / <?= report.filters.drink ?></strong></div>
-      <div class="meta-card"><span>Data handling</span><strong>Bank holidays <?= report.filters.bankHolidays ?> · Closed periods <?= report.filters.closedPeriods ?></strong></div>
+      <div class="meta-card"><span>Data handling</span><strong>Bank holidays <?= report.filters.bankHolidays ?> &middot; Closed periods <?= report.filters.closedPeriods ?></strong></div>
     </div>
   </section>
 
@@ -299,7 +341,7 @@
         <h3>Drink mix</h3>
         <? for (var d = 0; d < report.drinkRows.length; d++) { var drink = report.drinkRows[d]; ?>
           <div class="row">
-            <span><?= drink.label ?></span><strong><?= drink.value ?> · <?= drink.percent ?>%</strong>
+            <span><?= drink.label ?></span><strong><?= drink.value ?> &middot; <?= drink.percent ?>%</strong>
             <div class="track"><div class="fill" style="width:<?= drink.width ?>%"></div></div>
           </div>
         <? } ?>
@@ -308,7 +350,7 @@
         <h3>Floor comparison</h3>
         <? for (var f = 0; f < report.floorRows.length; f++) { var floor = report.floorRows[f]; ?>
           <div class="row">
-            <span><?= floor.label ?></span><strong><?= floor.value ?> · <?= floor.percent ?>%</strong>
+            <span><?= floor.label ?></span><strong><?= floor.value ?> &middot; <?= floor.percent ?>%</strong>
             <div class="track"><div class="fill" style="width:<?= floor.width ?>%"></div></div>
           </div>
         <? } ?>
