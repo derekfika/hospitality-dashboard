@@ -40,6 +40,60 @@ function recordDrinkTap(payload) {
   }
 }
 
+function recordDrinkTapBatch(payloads) {
+  setupHotDrinkTally();
+  const taps = Array.isArray(payloads) ? payloads : [];
+  if (!taps.length) return { ok: true, saved: 0, counts: getTodayCounts() };
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(2500)) {
+    throw new Error("Sync is busy. The tablet will retry shortly.");
+  }
+  try {
+    const settings = getSettings_();
+    const sheet = getSpreadsheet_().getSheetByName(HOT_DRINKS_CONFIG.sheets.drinkLog);
+    const now = new Date();
+    const rows = [];
+    const seen = getExistingClientTapIds_(sheet);
+
+    taps.forEach(function(payload) {
+      const floor = String(payload && payload.floor || "");
+      const drink = String(payload && payload.drink || "");
+      const clientTapId = String(payload && payload.clientTapId || "");
+      const device = String(payload && payload.device || getUser_() || "Unknown device");
+      const tappedAt = payload && payload.tappedAt ? new Date(payload.tappedAt) : now;
+
+      if (settings.floors.indexOf(floor) === -1) throw new Error("Unknown floor: " + floor);
+      if (settings.drinks.indexOf(drink) === -1) throw new Error("Unknown drink: " + drink);
+      if (clientTapId && seen[clientTapId]) return;
+      if (clientTapId) seen[clientTapId] = true;
+
+      rows.push([
+        Utilities.getUuid(),
+        isNaN(tappedAt.getTime()) ? now : tappedAt,
+        Utilities.formatDate(isNaN(tappedAt.getTime()) ? now : tappedAt, HOT_DRINKS_CONFIG.timezone, "yyyy-MM-dd"),
+        Utilities.formatDate(isNaN(tappedAt.getTime()) ? now : tappedAt, HOT_DRINKS_CONFIG.timezone, "HH:mm:ss"),
+        floor,
+        drink,
+        device,
+        HOT_DRINKS_CONFIG.source,
+        "ACTIVE",
+        clientTapId
+      ]);
+    });
+
+    if (rows.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, DRINK_LOG_HEADERS.length).setValues(rows);
+    }
+    return { ok: true, saved: rows.length, counts: getTodayCounts() };
+  } catch (error) {
+    logAudit_("ERROR", "", "", "", getUser_(), "Batch sync failed: " + (error.message || String(error)));
+    throw error;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function undoLastTap(payload) {
   setupHotDrinkTally();
   const floor = String(payload && payload.floor || "");
@@ -82,6 +136,17 @@ function clientTapIdExists_(clientTapId) {
   const map = getHeaderMap_(sheet);
   const values = sheet.getRange(2, map["Client Tap ID"], sheet.getLastRow() - 1, 1).getDisplayValues();
   return values.some(function(row) { return row[0] === clientTapId; });
+}
+
+function getExistingClientTapIds_(sheet) {
+  const seen = {};
+  if (sheet.getLastRow() < 2) return seen;
+  const map = getHeaderMap_(sheet);
+  const values = sheet.getRange(2, map["Client Tap ID"], sheet.getLastRow() - 1, 1).getDisplayValues();
+  values.forEach(function(row) {
+    if (row[0]) seen[row[0]] = true;
+  });
+  return seen;
 }
 
 function getLogRows_() {

@@ -4,8 +4,13 @@
   const state = {
     floor: config.defaultFloor,
     counts: null,
-    pendingPayload: null
+    queue: [],
+    syncing: false,
+    lastTap: null
   };
+  const queueKey = "munichHotDrinkTapQueue";
+  const syncIntervalMs = 60000;
+  const maxBatchSize = 80;
   const colors = ["#6f4b33", "#167a62", "#8f3d2f", "#4F34C7"];
   const drinkMeta = {
     "Coffee": { code: "CO", accent: "#6f4b33", tone: "#f5ebe2" },
@@ -16,9 +21,16 @@
   const $ = selector => document.querySelector(selector);
 
   function init() {
+    state.queue = loadQueue();
     renderSelectors();
     bindEvents();
     refreshCounts();
+    updateQueueStatus();
+    setInterval(syncQueue, syncIntervalMs);
+    window.addEventListener("online", syncQueue);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") syncQueue();
+    });
   }
 
   function renderSelectors() {
@@ -44,7 +56,7 @@
       if (drinkButton) return tapDrink(drinkButton.dataset.drink, drinkButton);
     });
     $("#undo-button").addEventListener("click", undoLast);
-    $("#retry-button").addEventListener("click", retryPending);
+    $("#retry-button").addEventListener("click", syncQueue);
   }
 
   function setFloor(floor) {
@@ -58,56 +70,72 @@
       floor: state.floor,
       drink,
       device: deviceName(),
-      clientTapId: `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      clientTapId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      tappedAt: new Date().toISOString()
     };
-    state.pendingPayload = payload;
+    state.lastTap = payload;
+    state.queue.push(payload);
+    saveQueue();
     applyOptimisticCount(drink, 1);
     flashButton(button);
-    setStatus("Saving...");
+    updateQueueStatus();
     $("#error-panel").hidden = true;
-    button.disabled = true;
-    setTimeout(() => { button.disabled = false; }, 650);
-    google.script.run
-      .withSuccessHandler(result => {
-        state.pendingPayload = null;
-        if (result && result.counts) setCounts(result.counts);
-        setStatus("Saved");
-      })
-      .withFailureHandler(error => {
-        applyOptimisticCount(drink, -1);
-        showError(error.message || String(error));
-      })
-      .recordDrinkTap(payload);
+    if (state.queue.length >= maxBatchSize) syncQueue();
   }
 
   function undoLast() {
-    setStatus("Undoing...");
+    if (state.queue.length) {
+      const removed = state.queue.pop();
+      saveQueue();
+      if (removed && removed.drink) applyOptimisticCount(removed.drink, -1);
+      state.lastTap = state.queue[state.queue.length - 1] || null;
+      updateQueueStatus();
+      toast("Last unsynced tap removed");
+      return;
+    }
+
+    setStatus("Undoing synced tap...");
     google.script.run
       .withSuccessHandler(result => {
-        if (result && result.counts) setCounts(result.counts);
+        if (result && result.counts) setCounts(applyQueueCounts(result.counts));
         toast(result && result.ok ? "Last tap undone" : (result.message || "Nothing to undo"));
-        setStatus("Ready");
+        updateQueueStatus();
       })
       .withFailureHandler(error => showError(error.message || String(error)))
       .undoLastTap({ floor: state.floor, device: deviceName() });
   }
 
-  function retryPending() {
-    if (!state.pendingPayload) return;
-    const payload = state.pendingPayload;
+  function syncQueue() {
+    if (state.syncing || !state.queue.length || !navigator.onLine) {
+      updateQueueStatus();
+      return;
+    }
+    const batch = state.queue.slice(0, maxBatchSize);
+    state.syncing = true;
+    setStatus(`Syncing ${batch.length}...`);
     google.script.run
       .withSuccessHandler(result => {
-        state.pendingPayload = null;
+        state.queue.splice(0, batch.length);
+        saveQueue();
+        state.syncing = false;
         if (result && result.counts) setCounts(result.counts);
         $("#error-panel").hidden = true;
-        setStatus("Saved");
+        updateQueueStatus();
+        if (state.queue.length) setTimeout(syncQueue, 400);
       })
-      .withFailureHandler(error => showError(error.message || String(error)))
-      .recordDrinkTap(payload);
+      .withFailureHandler(error => {
+        state.syncing = false;
+        showError(error.message || String(error));
+        setTimeout(syncQueue, 10000);
+      })
+      .recordDrinkTapBatch(batch);
   }
 
   function refreshCounts() {
-    google.script.run.withSuccessHandler(setCounts).getTodayCounts();
+    google.script.run.withSuccessHandler(counts => {
+      setCounts(applyQueueCounts(counts));
+      updateQueueStatus();
+    }).getTodayCounts();
   }
 
   function setCounts(counts) {
@@ -129,10 +157,9 @@
   }
 
   function showError(message) {
-    state.pendingPayload = state.pendingPayload || null;
     $("#error-message").textContent = message;
     $("#error-panel").hidden = false;
-    setStatus("Save failed");
+    updateQueueStatus("Sync paused");
   }
 
   function flashButton(button) {
@@ -141,6 +168,39 @@
 
   function setStatus(text) {
     $("#sync-status").textContent = text;
+  }
+
+  function updateQueueStatus(prefix) {
+    const queued = state.queue.length;
+    if (prefix) return setStatus(`${prefix} · ${queued} queued`);
+    if (!navigator.onLine) return setStatus(`${queued} queued · offline`);
+    if (state.syncing) return;
+    setStatus(queued ? `${queued} queued · autosync every minute` : "Synced");
+  }
+
+  function loadQueue() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(queueKey) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveQueue() {
+    localStorage.setItem(queueKey, JSON.stringify(state.queue));
+  }
+
+  function applyQueueCounts(counts) {
+    const output = JSON.parse(JSON.stringify(counts || { total: 0, byDrink: {}, byFloor: {} }));
+    const today = config.serverDate || new Date().toISOString().slice(0, 10);
+    state.queue.forEach(tap => {
+      if (!String(tap.tappedAt || "").startsWith(today)) return;
+      output.total = (output.total || 0) + 1;
+      output.byDrink[tap.drink] = (output.byDrink[tap.drink] || 0) + 1;
+      output.byFloor[tap.floor] = (output.byFloor[tap.floor] || 0) + 1;
+    });
+    return output;
   }
 
   function toast(text) {
