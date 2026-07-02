@@ -27,6 +27,7 @@
           <h1>Hot drink usage</h1>
         </div>
         <div class="header-actions">
+          <button id="seed-test-day-header" class="secondary-action" type="button">Add demo data</button>
           <button id="export-pdf" class="primary-action" type="button">Export PDF report</button>
           <button id="export-csv" type="button">Export CSV</button>
         </div>
@@ -84,6 +85,16 @@
         </div>
         <button id="setup-button" type="button">Set up sheets</button>
       </header>
+      <section class="seed-panel">
+        <div>
+          <p>Demo data</p>
+          <h2>Seed one day of coffee activity</h2>
+          <span>Creates 500 Coffee rows for 3rd Floor and 150 Coffee rows for 5th Floor within opening hours.</span>
+        </div>
+        <label>Demo date<input id="seed-date" type="date"></label>
+        <label class="header-seed-date">Dashboard demo date<input id="seed-date-header" type="date"></label>
+        <button id="seed-test-day" type="button">Add coffee test data</button>
+      </section>
       <section class="panel">
         <div class="panel-header">
           <h2>Settings</h2>

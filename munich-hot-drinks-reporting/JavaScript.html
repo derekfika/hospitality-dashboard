@@ -16,6 +16,8 @@
     const today = config.serverDate || new Date().toISOString().slice(0, 10);
     $('[name="startDate"]').value = today;
     $('[name="endDate"]').value = today;
+    if ($("#seed-date")) $("#seed-date").value = today;
+    if ($("#seed-date-header")) $("#seed-date-header").value = today;
   }
 
   function bindEvents() {
@@ -32,6 +34,8 @@
     $("#setup-button").addEventListener("click", setupSheets);
     $("#load-settings").addEventListener("click", loadSettings);
     $("#clear-test-data").addEventListener("click", clearTestData);
+    $("#seed-test-day").addEventListener("click", seedTestDay);
+    $("#seed-test-day-header").addEventListener("click", seedTestDay);
   }
 
   function showView(view) {
@@ -195,6 +199,27 @@
       .withSuccessHandler(result => toast(`${result.cleared} test rows cleared`))
       .withFailureHandler(error => toast(error.message || String(error)))
       .clearTestData($("#clear-confirm").value);
+  }
+
+  function seedTestDay(event) {
+    const button = event && event.currentTarget ? event.currentTarget : $("#seed-test-day");
+    const dateInput = $("#seed-date") || $("#seed-date-header");
+    const dateValue = dateInput ? dateInput.value : "";
+    button.disabled = true;
+    button.textContent = "Adding data...";
+    google.script.run
+      .withSuccessHandler(result => {
+        button.disabled = false;
+        button.textContent = button.id === "seed-test-day-header" ? "Add demo data" : "Add coffee test data";
+        toast(`${result.rowsAdded} coffee test rows added for ${result.date}`);
+        showView("dashboard");
+      })
+      .withFailureHandler(error => {
+        button.disabled = false;
+        button.textContent = button.id === "seed-test-day-header" ? "Add demo data" : "Add coffee test data";
+        toast(error.message || String(error));
+      })
+      .seedMunichReCoffeeTestDay(dateValue);
   }
 
   function readFilters() {

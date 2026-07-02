@@ -36,6 +36,9 @@ button[disabled] {
 .primary-action {
   background: #00538A;
 }
+.secondary-action {
+  background: #167a62;
+}
 .sidebar {
   position: sticky;
   top: 0;
@@ -246,6 +249,45 @@ input, select {
 .settings-actions, .danger-zone div {
   display: flex;
   gap: 10px;
+}
+.seed-panel {
+  display: grid;
+  grid-template-columns: 1fr 220px auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 8px;
+  background: #eef6fb;
+  border: 1px solid #b9d4e5;
+  border-left: 6px solid #00538A;
+}
+.seed-panel p {
+  margin: 0 0 4px;
+  color: #00538A;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.seed-panel h2 {
+  margin: 0 0 5px;
+  font-size: 20px;
+}
+.seed-panel span {
+  color: var(--muted);
+}
+.seed-panel label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+.seed-panel button {
+  background: #00538A;
+  min-height: 46px;
+}
+.header-seed-date {
+  display: none !important;
 }
 .danger-zone {
   border-color: #f0b8ae;
