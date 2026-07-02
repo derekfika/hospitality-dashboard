@@ -48,10 +48,18 @@
   }
 
   function runReport() {
-    $("#report-summary").innerHTML = metric("Loading", "...");
+    startAction($("#dashboard-filters button[type='submit']"), "Running...");
+    showReportLoading();
     google.script.run
-      .withSuccessHandler(renderReport)
-      .withFailureHandler(error => toast(error.message || String(error)))
+      .withSuccessHandler(result => {
+        finishAction($("#dashboard-filters button[type='submit']"), "Run report");
+        renderReport(result);
+        toast("Report updated");
+      })
+      .withFailureHandler(error => {
+        finishAction($("#dashboard-filters button[type='submit']"), "Run report");
+        toast(error.message || String(error), "error");
+      })
       .getDashboardReport(readFilters());
   }
 
@@ -106,8 +114,11 @@
   }
 
   function exportCsv() {
+    const button = $("#export-csv");
+    startAction(button, "Exporting...");
     google.script.run
       .withSuccessHandler(result => {
+        finishAction(button, "Export CSV");
         const blob = new Blob([result.csv], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -115,19 +126,21 @@
         link.download = result.filename;
         link.click();
         URL.revokeObjectURL(url);
+        toast("CSV exported");
       })
-      .withFailureHandler(error => toast(error.message || String(error)))
+      .withFailureHandler(error => {
+        finishAction(button, "Export CSV");
+        toast(error.message || String(error), "error");
+      })
       .exportFilteredCsv(readFilters());
   }
 
   function exportPdf() {
     const button = $("#export-pdf");
-    button.disabled = true;
-    button.textContent = "Building PDF...";
+    startAction(button, "Building PDF...");
     google.script.run
       .withSuccessHandler(result => {
-        button.disabled = false;
-        button.textContent = "Export PDF report";
+        finishAction(button, "Export PDF report");
         const bytes = atob(result.base64);
         const numbers = new Array(bytes.length);
         for (let i = 0; i < bytes.length; i += 1) numbers[i] = bytes.charCodeAt(i);
@@ -138,29 +151,44 @@
         link.download = result.filename;
         link.click();
         URL.revokeObjectURL(url);
+        toast("PDF report exported");
       })
       .withFailureHandler(error => {
-        button.disabled = false;
-        button.textContent = "Export PDF report";
-        toast(error.message || String(error));
+        finishAction(button, "Export PDF report");
+        toast(error.message || String(error), "error");
       })
       .exportPdfReport(readFilters());
   }
 
   function setupSheets() {
+    const button = $("#setup-button");
+    startAction(button, "Setting up...");
     google.script.run
-      .withSuccessHandler(result => toast(`Sheets ready: ${result.sheets.join(", ")}`))
-      .withFailureHandler(error => toast(error.message || String(error)))
+      .withSuccessHandler(result => {
+        finishAction(button, "Set up sheets");
+        toast(`Sheets ready: ${result.sheets.join(", ")}`);
+      })
+      .withFailureHandler(error => {
+        finishAction(button, "Set up sheets");
+        toast(error.message || String(error), "error");
+      })
       .setupHotDrinkTally();
   }
 
   function loadSettings() {
+    const button = $("#load-settings");
+    startAction(button, "Loading...");
+    $("#settings-editor").innerHTML = `<div class="settings-loading"><span class="spinner"></span>Loading settings...</div>`;
     google.script.run
       .withSuccessHandler(result => {
+        finishAction(button, "Reload");
         state.settingsRows = result.rows || [];
         renderSettings();
       })
-      .withFailureHandler(error => toast(error.message || String(error)))
+      .withFailureHandler(error => {
+        finishAction(button, "Reload");
+        toast(error.message || String(error), "error");
+      })
       .getSettingsForAdmin();
   }
 
@@ -197,46 +225,66 @@
   }
 
   function clearTestData() {
+    const button = $("#clear-test-data");
+    startAction(button, "Clearing...");
     google.script.run
-      .withSuccessHandler(result => toast(`${result.cleared} test rows cleared`))
-      .withFailureHandler(error => toast(error.message || String(error)))
+      .withSuccessHandler(result => {
+        finishAction(button, "Clear test data");
+        toast(`${result.cleared} test rows cleared`);
+      })
+      .withFailureHandler(error => {
+        finishAction(button, "Clear test data");
+        toast(error.message || String(error), "error");
+      })
       .clearTestData($("#clear-confirm").value);
   }
 
   function installArchiveTrigger() {
+    const button = $("#install-archive-trigger");
+    startAction(button, "Installing...");
     google.script.run
-      .withSuccessHandler(result => toast(result.message || "Nightly archive installed"))
-      .withFailureHandler(error => toast(error.message || String(error)))
+      .withSuccessHandler(result => {
+        finishAction(button, "Install nightly archive");
+        toast(result.message || "Nightly archive installed");
+      })
+      .withFailureHandler(error => {
+        finishAction(button, "Install nightly archive");
+        toast(error.message || String(error), "error");
+      })
       .installNightlyArchiveTrigger();
   }
 
   function archiveNow() {
+    const button = $("#archive-now");
+    startAction(button, "Archiving...");
     google.script.run
       .withSuccessHandler(result => {
+        finishAction(button, "Archive now");
         toast(`${result.archivedRows} rows archived across ${result.archivedDates.length} day(s)`);
         runReport();
       })
-      .withFailureHandler(error => toast(error.message || String(error)))
+      .withFailureHandler(error => {
+        finishAction(button, "Archive now");
+        toast(error.message || String(error), "error");
+      })
       .archiveCompletedDrinkLogDays();
   }
 
   function seedTestDay(event) {
     const button = event && event.currentTarget ? event.currentTarget : $("#seed-test-day");
+    const originalText = button.id === "seed-test-day-header" ? "Add demo data" : "Add coffee test data";
     const dateInput = $("#seed-date") || $("#seed-date-header");
     const dateValue = dateInput ? dateInput.value : "";
-    button.disabled = true;
-    button.textContent = "Adding data...";
+    startAction(button, "Adding data...");
     google.script.run
       .withSuccessHandler(result => {
-        button.disabled = false;
-        button.textContent = button.id === "seed-test-day-header" ? "Add demo data" : "Add coffee test data";
+        finishAction(button, originalText);
         toast(`${result.rowsAdded} coffee test rows added for ${result.date}`);
         showView("dashboard");
       })
       .withFailureHandler(error => {
-        button.disabled = false;
-        button.textContent = button.id === "seed-test-day-header" ? "Add demo data" : "Add coffee test data";
-        toast(error.message || String(error));
+        finishAction(button, originalText);
+        toast(error.message || String(error), "error");
       })
       .seedMunichReCoffeeTestDay(dateValue);
   }
@@ -264,12 +312,47 @@
     return `${parts[2]}/${parts[1]}`;
   }
 
-  function toast(text) {
+  function startAction(button, label) {
+    if (button) {
+      button.disabled = true;
+      button.dataset.originalText = button.dataset.originalText || button.textContent;
+      button.innerHTML = `<span class="button-spinner"></span>${escapeHtml(label)}`;
+      button.classList.add("is-busy");
+    }
+    setActivity(true);
+  }
+
+  function finishAction(button, fallbackText) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || fallbackText;
+      delete button.dataset.originalText;
+      button.classList.remove("is-busy");
+    }
+    setActivity(false);
+  }
+
+  function setActivity(active) {
+    const bar = $("#activity-bar");
+    if (!bar) return;
+    bar.hidden = !active;
+  }
+
+  function showReportLoading() {
+    $("#report-summary").innerHTML = Array.from({ length: 8 }, () => `<div class="metric skeleton-card"><span></span><strong></strong></div>`).join("");
+    $("#heatmap").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading heatmap...</div>`;
+    $("#trend").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading trend...</div>`;
+    $("#drink-mix").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading drink mix...</div>`;
+    $("#floor-comparison").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading floors...</div>`;
+  }
+
+  function toast(text, tone) {
     const toastEl = $("#toast");
     toastEl.textContent = text;
+    toastEl.classList.toggle("toast-error", tone === "error");
     toastEl.hidden = false;
     clearTimeout(toastEl.timer);
-    toastEl.timer = setTimeout(() => { toastEl.hidden = true; }, 2600);
+    toastEl.timer = setTimeout(() => { toastEl.hidden = true; }, tone === "error" ? 5200 : 2600);
   }
 
   function escapeHtml(value) {
