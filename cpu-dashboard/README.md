@@ -5,7 +5,7 @@ It scans hospitality and delivery events from configured Google Calendars,
 reads attached Google Docs and Microsoft Office quotes, caches the resulting
 production data in Google Sheets, and presents a multi-site operational view.
 
-Current build: `2026.06.21.5`
+Current build: `2026.06.21.8`
 
 ## Core capabilities
 
@@ -13,8 +13,9 @@ Current build: `2026.06.21.5`
 - Multi-site, service, day, category, updated-only and completion filters
 - Categorised production board with totals, site splits and booking drill-down
 - Run sheet, Dietary, Deliveries and full-screen Kitchen views
+- Simplified landscape tablet layout for kitchen prep/photo workflows
 - Prep progress tracking with persistent Prepped/Done flags and chef attribution
-- Tablet/mobile proof-of-prep photo capture saved back to Drive
+- Tablet/mobile proof-of-prep and allergen sheet photo uploads saved back to Drive
 - Quick-prep controls on calendar and production records
 - Changed-booking alerts showing pax, time, location, product and dietary changes
 - Needs Attention panel for missing or unreadable production information
@@ -97,7 +98,8 @@ Sites should share source files with the CPU scanner account or its Google Group
 
 ## Operational notes
 
-- Prepped status, `Prepped by` chef names and proof-photo links are stored separately and survive calendar rescans.
+- Prepped status, `Prepped by` chef names, proof-photo links and allergen-sheet photo links are stored separately and survive calendar rescans.
+- Multiple prep/allergen photos can be attached to each booking for multi-page sheets.
 - Prep photos are resized in the browser before upload to keep tablet capture quick.
 - Manual quote re-reading updates the editor and dashboard immediately.
 - Changed-booking alerts remain visible for seven days.

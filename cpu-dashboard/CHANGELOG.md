@@ -1,5 +1,23 @@
 # CPU Dashboard Changelog
 
+## 2026.06.21.8
+
+- Added a simplified tablet layout for landscape kitchen/tablet use.
+- Tablet view now uses larger touch targets, swipeable day columns and a cleaner editor/prep-photo workflow.
+- Reduced tablet header/stat clutter while leaving the desktop layout unchanged.
+
+## 2026.06.21.7
+
+- Prep proof and allergen sheet uploads now support multiple photos per booking.
+- Added `PrepPhotosJSON` and `AllergenPhotosJSON` list storage while retaining latest-photo shortcut columns.
+- Photo uploads now run as a queue with progress text for multi-page allergen sheets.
+
+## 2026.06.21.6
+
+- Removed the blocked live-camera button and standardised on the native tablet photo picker.
+- Renamed prep capture to `Upload prep photo`.
+- Added separate allergen sheet photo upload and storage.
+
 ## 2026.06.21.5
 
 - Added proof-of-prep camera capture in the booking editor for tablet/mobile use.

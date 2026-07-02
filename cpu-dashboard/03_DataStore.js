@@ -31,6 +31,11 @@ function upsertCpuOrders_(orders) {
         order.prepPhotoFileId = String(existing.values[headers.indexOf("PrepPhotoFileId")] || "").trim();
         order.prepPhotoUrl = String(existing.values[headers.indexOf("PrepPhotoUrl")] || "").trim();
         order.prepPhotoAt = cpuSheetIso_(existing.values[headers.indexOf("PrepPhotoAt")]);
+        order.allergenPhotoFileId = String(existing.values[headers.indexOf("AllergenPhotoFileId")] || "").trim();
+        order.allergenPhotoUrl = String(existing.values[headers.indexOf("AllergenPhotoUrl")] || "").trim();
+        order.allergenPhotoAt = cpuSheetIso_(existing.values[headers.indexOf("AllergenPhotoAt")]);
+        order.prepPhotos = cpuJson_(existing.values[headers.indexOf("PrepPhotosJSON")], []);
+        order.allergenPhotos = cpuJson_(existing.values[headers.indexOf("AllergenPhotosJSON")], []);
       }
       const values = cpuOrderToRow_(order);
       if (existing) {
@@ -92,7 +97,12 @@ function cpuOrderToRow_(order) {
     PreppedBy: order.preppedBy || "",
     PrepPhotoFileId: order.prepPhotoFileId || "",
     PrepPhotoUrl: order.prepPhotoUrl || "",
-    PrepPhotoAt: order.prepPhotoAt || ""
+    PrepPhotoAt: order.prepPhotoAt || "",
+    AllergenPhotoFileId: order.allergenPhotoFileId || "",
+    AllergenPhotoUrl: order.allergenPhotoUrl || "",
+    AllergenPhotoAt: order.allergenPhotoAt || "",
+    PrepPhotosJSON: JSON.stringify(order.prepPhotos || []),
+    AllergenPhotosJSON: JSON.stringify(order.allergenPhotos || [])
   };
   return CPU_CONFIG.ORDER_HEADERS.map(function(header) { return valueByHeader[header] || ""; });
 }
@@ -271,6 +281,11 @@ function getCpuOrders_(rangeStart, rangeEnd) {
         prepPhotoFileId: map.PrepPhotoFileId ? String(row[map.PrepPhotoFileId] || "") : "",
         prepPhotoUrl: map.PrepPhotoUrl ? String(row[map.PrepPhotoUrl] || "") : "",
         prepPhotoAt: map.PrepPhotoAt ? cpuSheetIso_(row[map.PrepPhotoAt]) : "",
+        allergenPhotoFileId: map.AllergenPhotoFileId ? String(row[map.AllergenPhotoFileId] || "") : "",
+        allergenPhotoUrl: map.AllergenPhotoUrl ? String(row[map.AllergenPhotoUrl] || "") : "",
+        allergenPhotoAt: map.AllergenPhotoAt ? cpuSheetIso_(row[map.AllergenPhotoAt]) : "",
+        prepPhotos: map.PrepPhotosJSON ? cpuJson_(row[map.PrepPhotosJSON], []) : [],
+        allergenPhotos: map.AllergenPhotosJSON ? cpuJson_(row[map.AllergenPhotosJSON], []) : [],
         scannedAt: cpuSheetIso_(row[map.ScannedAt])
       });
     });
@@ -419,6 +434,21 @@ function updateCpuOrder_(orderKey, patch) {
   }
   if (Object.prototype.hasOwnProperty.call(patch, "prepPhotoAt") && map.PrepPhotoAt) {
     sheet.getRange(rowNumber, map.PrepPhotoAt).setValue(patch.prepPhotoAt ? new Date(patch.prepPhotoAt) : "");
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "allergenPhotoFileId") && map.AllergenPhotoFileId) {
+    sheet.getRange(rowNumber, map.AllergenPhotoFileId).setValue(String(patch.allergenPhotoFileId || "").trim());
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "allergenPhotoUrl") && map.AllergenPhotoUrl) {
+    sheet.getRange(rowNumber, map.AllergenPhotoUrl).setValue(String(patch.allergenPhotoUrl || "").trim());
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "allergenPhotoAt") && map.AllergenPhotoAt) {
+    sheet.getRange(rowNumber, map.AllergenPhotoAt).setValue(patch.allergenPhotoAt ? new Date(patch.allergenPhotoAt) : "");
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "prepPhotos") && map.PrepPhotosJSON) {
+    sheet.getRange(rowNumber, map.PrepPhotosJSON).setValue(JSON.stringify(Array.isArray(patch.prepPhotos) ? patch.prepPhotos : []));
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "allergenPhotos") && map.AllergenPhotosJSON) {
+    sheet.getRange(rowNumber, map.AllergenPhotosJSON).setValue(JSON.stringify(Array.isArray(patch.allergenPhotos) ? patch.allergenPhotos : []));
   }
 
   if (map.ScannedAt) sheet.getRange(rowNumber, map.ScannedAt).setValue(new Date());

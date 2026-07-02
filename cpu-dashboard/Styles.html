@@ -301,6 +301,8 @@
   .prep-file-button { position: relative; overflow: hidden; }
   .prep-file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   .prep-photo-status { color: var(--muted); font-size: 11px; line-height: 1.4; }
+  .photo-link-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .photo-link-list a { padding: 6px 8px; border: 1px solid var(--border); border-radius: 9px; background: white; color: var(--purple); font-size: 11px; font-weight: 700; text-decoration: none; }
   .prep-camera-preview { width: 100%; max-height: 220px; border: 1px solid var(--border); border-radius: 13px; background: #1d1828; object-fit: cover; }
   .editor-section { margin-top: 24px; }
   .editor-section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -376,6 +378,99 @@
     .content-layout { grid-template-columns: 1fr; }
     .attention-panel { position: static; }
   }
+
+  @media (min-width: 761px) and (max-width: 1180px), (min-width: 761px) and (max-width: 1368px) and (pointer: coarse) {
+    .app-shell { padding: 12px; }
+    .topbar { grid-template-columns: auto 1fr; gap: 14px; padding: 14px 16px; border-radius: 20px; }
+    .brand-mark { width: 110px; height: 44px; }
+    .brand-mark svg { max-height: 44px; }
+    .topbar-title { text-align: left; }
+    .topbar-title .eyebrow { display: none; }
+    h1 { font-size: 36px; }
+    .topbar-build { display: none; }
+
+    .hero-row { align-items: center; gap: 12px; padding: 18px 2px 12px; }
+    .hero-row .eyebrow { display: none; }
+    h2 { font-size: 34px; }
+    .week-nav { gap: 8px; justify-content: flex-end; }
+    .week-nav .button, .week-nav .icon-button { min-height: 48px; border-radius: 15px; font-size: 13px; }
+    #reloadButton, #refreshButton { display: none; }
+
+    .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .stat-card { min-height: 94px; padding: 14px; border-radius: 16px; }
+    .stat-card:nth-child(n+4) { display: none; }
+    .stat-value { margin-top: 8px; font-size: 34px; }
+    .stat-delta { font-size: 11px; }
+    .prep-progress { margin-top: 8px; }
+
+    .toolbar { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 12px 0; padding: 12px; border-radius: 18px; }
+    .filter-groups { gap: 12px; }
+    .filter-groups > div { min-width: 0; }
+    .filter-heading { margin-bottom: 6px; }
+    .filter-action { font-size: 11px; }
+    .site-chip { min-height: 42px; padding: 10px 13px; font-size: 14px; }
+    .period-icon { width: 22px; height: 22px; }
+    .toolbar-group { display: grid; grid-template-columns: 150px 1fr 1fr; gap: 9px; align-items: stretch; }
+    .compact-select select, .toggle-chip, .search-field, .product-filter summary { height: 48px; border-radius: 14px; font-size: 14px; }
+    .toggle-chip { justify-content: center; }
+    .product-filter { grid-column: span 1; }
+    .product-filter details, .product-filter summary { min-width: 0; width: 100%; }
+    .search-field { grid-column: span 2; min-width: 0; }
+    .view-switch { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; border-radius: 16px; }
+    .view-switch button { min-height: 48px; padding: 10px 6px; font-size: 13px; }
+
+    .content-layout { grid-template-columns: 1fr; gap: 12px; }
+    .attention-panel { order: -1; padding: 14px; border-radius: 18px; }
+    .attention-panel #attentionList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+    .attention-copy { font-size: 11px; }
+    .primary-panel { border-radius: 20px; }
+
+    .calendar-board { display: flex; min-height: 62vh; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+    .day-column { flex: 0 0 330px; min-width: 330px; scroll-snap-align: start; }
+    .day-header { padding: 13px; }
+    .day-number { font-size: 34px; }
+    .day-summary { font-size: 12px; }
+    .day-orders { padding: 10px; }
+    .order-card { margin-bottom: 11px; padding: 13px 12px 12px 16px; border-radius: 16px; box-shadow: 0 7px 18px rgba(36,31,51,.07); }
+    .order-card::before { inset: 12px auto 12px 0; width: 5px; }
+    .order-site { padding: 6px 9px; font-size: 10px; }
+    .order-time { font-size: 13px; }
+    .order-company { font-size: 15px; }
+    .order-meta, .order-card .muted { font-size: 12px !important; }
+    .quick-prep { min-height: 42px; margin-top: 10px; font-size: 13px; border-radius: 12px; }
+    .done-badge, .updated-badge { font-size: 10px; padding: 5px 8px; }
+
+    .run-sheet, .production-view, .delivery-view, .dietary-view { padding: 16px; }
+    .run-row { grid-template-columns: 70px 78px minmax(180px, 1fr) 70px 32px; min-height: 58px; font-size: 14px; }
+    .run-row > :nth-child(5) { display: none; }
+    .production-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .production-card-head h3 { font-size: 18px; }
+    .production-booking { grid-template-columns: 46px 8px 48px 1fr auto; min-height: 52px; font-size: 12px; }
+    .production-booking button { min-height: 34px; min-width: 48px; font-size: 11px; }
+    .delivery-row { grid-template-columns: 70px 70px 92px minmax(220px,1fr); }
+    .delivery-row > :nth-child(4) { display: none; }
+    .dietary-row { grid-template-columns: 70px 150px 1fr; }
+    .dietary-row > :nth-child(4) { grid-column: 1 / -1; }
+
+    .order-editor { margin-top: 12px; padding: 16px; border-radius: 20px; }
+    .editor-header { display: grid; grid-template-columns: 1fr; gap: 12px; padding-bottom: 14px; }
+    .editor-actions { justify-content: start; }
+    .editor-actions .button { min-height: 44px; }
+    .editor-title { font-size: 34px; }
+    .editor-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+    .editor-field input, .editor-field textarea { min-height: 44px; font-size: 15px; }
+    .editor-field.wide { grid-column: span 3; }
+    .prep-panel { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+    .prep-toggle { min-height: 58px; }
+    .prep-toggle-box { width: 34px; height: 34px; flex-basis: 34px; }
+    .prep-photo-row { padding: 10px; border: 1px solid var(--border); border-radius: 14px; background: white; }
+    .prep-photo-actions .button, .photo-link-list a { min-height: 42px; display: inline-flex; align-items: center; }
+    .line-item-edit { grid-template-columns: 76px 1fr 42px; }
+    .line-item-edit .line-notes { grid-column: 1 / -1; }
+    .line-item-edit input { min-height: 42px; font-size: 14px; }
+    .remove-line { width: 40px; height: 40px; }
+  }
+
   @media (max-width: 760px) {
     .app-shell { padding: 10px; }
     .topbar { grid-template-columns: 1fr; text-align: center; }

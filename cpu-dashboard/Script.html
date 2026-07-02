@@ -1,5 +1,5 @@
 <script>
-  const CLIENT_BUILD = "2026.06.21.5";
+  const CLIENT_BUILD = "2026.06.21.8";
   const PREP_CHEF_KEY = "cpu-dashboard-last-prep-chef";
   const PREFS_KEY = "cpu-dashboard-preferences-v1";
   const state = {
@@ -397,6 +397,7 @@
       (order.prepped ? '<span class="done-badge">' + escapeHtml(prepDoneLabel_(order, true)) + '</span>' :
         (showUpdatedFlag_(order) ? '<span class="updated-badge" title="' + escapeHtml((order.changes || []).join(" / ")) + '">Updated</span>' : "")) +
       (order.prepPhotoUrl ? '<span class="photo-badge" title="Prep photo attached">📷</span>' : '') +
+      (order.allergenPhotoUrl ? '<span class="photo-badge" title="Allergen sheet photo attached">🧾</span>' : '') +
       '</div><div class="order-time">' + escapeHtml(order.deliveryTime || formatTime(order.startAt)) +
       (hasWarnings(order) ? '<span class="warning-dot" title="Needs attention"></span>' : "") + '</div>' +
       '<div class="order-company">' + escapeHtml(order.clientCompany) + '</div>' +
@@ -717,15 +718,14 @@
         escapeHtml(order.preppedBy || getLastPrepChef_()) +
         '" placeholder="e.g. Francesco" autocomplete="name"></label>' +
         '<div class="prep-photo-panel">' +
-          '<div class="prep-photo-actions">' +
-            '<button id="startPrepCameraButton" class="button secondary" type="button" onclick="startPrepCamera()">Take prep photo</button>' +
-            '<button id="capturePrepPhotoButton" class="button hidden" type="button" onclick="capturePrepPhoto()">Capture & save</button>' +
-            '<button id="stopPrepCameraButton" class="button secondary hidden" type="button" onclick="stopPrepCamera()">Cancel camera</button>' +
-            '<label class="button secondary prep-file-button">Upload photo<input type="file" accept="image/*" capture="environment" onchange="handlePrepPhotoFile(this.files && this.files[0]); this.value = \'\';"></label>' +
-            (order.prepPhotoUrl ? '<a class="button secondary" href="' + escapeHtml(order.prepPhotoUrl) + '" target="_blank">Open prep photo ↗</a>' : '') +
-          '</div>' +
-          '<div id="prepPhotoStatus" class="prep-photo-status">' + escapeHtml(prepPhotoStatusText_(order)) + '</div>' +
-          '<video id="prepCameraPreview" class="prep-camera-preview hidden" autoplay playsinline muted></video>' +
+          '<div class="prep-photo-row"><strong>Prep proof</strong><div class="prep-photo-actions">' +
+            '<label class="button secondary prep-file-button">Upload prep photo<input type="file" accept="image/*" capture="environment" multiple onchange="handleOrderPhotoFiles(this.files, \'prep\'); this.value = \'\';"></label>' +
+          '</div><div id="prepPhotoStatus" class="prep-photo-status">' + escapeHtml(prepPhotoStatusText_(order)) + '</div>' +
+          photoLinksHtml_(order.prepPhotos, order.prepPhotoUrl, "prep photo") + '</div>' +
+          '<div class="prep-photo-row"><strong>Allergen sheet</strong><div class="prep-photo-actions">' +
+            '<label class="button secondary prep-file-button">Upload allergen photo<input type="file" accept="image/*" capture="environment" multiple onchange="handleOrderPhotoFiles(this.files, \'allergen\'); this.value = \'\';"></label>' +
+          '</div><div id="allergenPhotoStatus" class="prep-photo-status">' + escapeHtml(allergenPhotoStatusText_(order)) + '</div>' +
+          photoLinksHtml_(order.allergenPhotos, order.allergenPhotoUrl, "allergen photo") + '</div>' +
           '<canvas id="prepPhotoCanvas" class="hidden"></canvas>' +
         '</div></section>' +
       '<section class="editor-section"><div class="editor-section-heading"><div><p class="eyebrow">Production detail</p><h3>Line items</h3></div>' +
@@ -860,17 +860,38 @@
   }
 
   function handlePrepPhotoFile(file) {
+    handleOrderPhotoFile(file, "prep");
+  }
+
+  function handleOrderPhotoFiles(fileList, photoType) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    uploadOrderPhotoQueue_(files, photoType === "allergen" ? "allergen" : "prep", 0);
+  }
+
+  function uploadOrderPhotoQueue_(files, photoType, index) {
+    if (index >= files.length) {
+      showToast(files.length + (files.length === 1 ? " photo uploaded" : " photos uploaded"));
+      return;
+    }
+    handleOrderPhotoFile(files[index], photoType, function() {
+      uploadOrderPhotoQueue_(files, photoType, index + 1);
+    }, index + 1, files.length);
+  }
+
+  function handleOrderPhotoFile(file, photoType, callback, index, total) {
     if (!state.editingOrderId || !file) return;
-    const status = document.getElementById("prepPhotoStatus");
+    photoType = photoType === "allergen" ? "allergen" : "prep";
+    const status = document.getElementById(photoType === "allergen" ? "allergenPhotoStatus" : "prepPhotoStatus");
     if (!/^image\//i.test(file.type || "")) {
       showToast("Please choose a photo");
       return;
     }
-    status.textContent = "Preparing proof photo…";
+    status.textContent = "Preparing " + (total ? index + " of " + total : "proof photo") + "…";
     const reader = new FileReader();
     reader.onload = function(event) {
       resizePrepPhotoDataUrl_(event.target.result, function(dataUrl) {
-        uploadPrepPhotoDataUrl_(dataUrl, null, status, false);
+        uploadOrderPhotoDataUrl_(dataUrl, null, status, false, photoType, callback, index, total);
       });
     };
     reader.onerror = function() {
@@ -898,21 +919,31 @@
   }
 
   function uploadPrepPhotoDataUrl_(dataUrl, button, status, stopCameraAfterUpload) {
+    uploadOrderPhotoDataUrl_(dataUrl, button, status, stopCameraAfterUpload, "prep");
+  }
+
+  function uploadOrderPhotoDataUrl_(dataUrl, button, status, stopCameraAfterUpload, photoType, callback, index, total) {
+    photoType = photoType === "allergen" ? "allergen" : "prep";
     const chefName = document.getElementById("editPreppedBy").value.trim();
-    if (chefName) setLastPrepChef_(chefName);
-    document.getElementById("editPrepped").checked = true;
+    if (photoType === "prep") {
+      if (chefName) setLastPrepChef_(chefName);
+      document.getElementById("editPrepped").checked = true;
+    }
     if (button) {
       button.disabled = true;
       button.textContent = "Saving…";
     }
-    status.textContent = "Uploading proof photo…";
+    status.textContent = "Uploading " + (total ? index + " of " + total : "proof photo") + "…";
 
     if (!(window.google && google.script && google.script.run)) {
       applyPrepPhotoResult_(state.editingOrderId, {
-        prepped: true,
+        photoType: photoType,
+        prepped: photoType === "prep",
         preppedBy: chefName,
-        prepPhotoUrl: "#",
-        prepPhotoAt: new Date().toISOString()
+        prepPhotoUrl: photoType === "prep" ? "#" : "",
+        prepPhotoAt: photoType === "prep" ? new Date().toISOString() : "",
+        allergenPhotoUrl: photoType === "allergen" ? "#" : "",
+        allergenPhotoAt: photoType === "allergen" ? new Date().toISOString() : ""
       });
       if (button) {
         button.disabled = false;
@@ -920,6 +951,7 @@
       }
       if (stopCameraAfterUpload) stopPrepCamera();
       showToast("Preview prep photo saved");
+      if (callback) callback();
       return;
     }
 
@@ -931,7 +963,8 @@
         }
         if (stopCameraAfterUpload) stopPrepCamera();
         applyPrepPhotoResult_(state.editingOrderId, result);
-        showToast("Prep photo saved");
+        if (!callback) showToast(photoType === "allergen" ? "Allergen photo saved" : "Prep photo saved");
+        if (callback) callback();
       })
       .withFailureHandler(function(error) {
         if (button) {
@@ -941,17 +974,25 @@
         status.textContent = "Photo upload failed.";
         handleFailure(error);
       })
-      .saveCpuPrepPhoto(state.editingOrderId, dataUrl, chefName);
+      [photoType === "allergen" ? "saveCpuAllergenPhoto" : "saveCpuPrepPhoto"](state.editingOrderId, dataUrl, chefName);
   }
 
   function applyPrepPhotoResult_(id, result) {
     const order = state.orders.find(function(item) { return item.id === id; });
     if (!order) return;
-    order.prepped = true;
-    order.preppedBy = result.preppedBy || order.preppedBy || "";
-    order.prepPhotoFileId = result.prepPhotoFileId || order.prepPhotoFileId || "";
-    order.prepPhotoUrl = result.prepPhotoUrl || order.prepPhotoUrl || "";
-    order.prepPhotoAt = result.prepPhotoAt || new Date().toISOString();
+    if (result.photoType === "allergen") {
+      order.allergenPhotoFileId = result.allergenPhotoFileId || order.allergenPhotoFileId || "";
+      order.allergenPhotoUrl = result.allergenPhotoUrl || order.allergenPhotoUrl || "";
+      order.allergenPhotoAt = result.allergenPhotoAt || new Date().toISOString();
+      order.allergenPhotos = Array.isArray(result.allergenPhotos) ? result.allergenPhotos : order.allergenPhotos || [];
+    } else {
+      order.prepped = true;
+      order.preppedBy = result.preppedBy || order.preppedBy || "";
+      order.prepPhotoFileId = result.prepPhotoFileId || order.prepPhotoFileId || "";
+      order.prepPhotoUrl = result.prepPhotoUrl || order.prepPhotoUrl || "";
+      order.prepPhotoAt = result.prepPhotoAt || new Date().toISOString();
+      order.prepPhotos = Array.isArray(result.prepPhotos) ? result.prepPhotos : order.prepPhotos || [];
+    }
     renderAll();
     openOrderEditor(id);
   }
@@ -1592,6 +1633,11 @@
     copy.prepPhotoFileId = String(copy.prepPhotoFileId || "").trim();
     copy.prepPhotoUrl = String(copy.prepPhotoUrl || "").trim();
     copy.prepPhotoAt = String(copy.prepPhotoAt || "").trim();
+    copy.allergenPhotoFileId = String(copy.allergenPhotoFileId || "").trim();
+    copy.allergenPhotoUrl = String(copy.allergenPhotoUrl || "").trim();
+    copy.allergenPhotoAt = String(copy.allergenPhotoAt || "").trim();
+    copy.prepPhotos = normalisePhotoList_(copy.prepPhotos, copy.prepPhotoUrl, copy.prepPhotoAt, "Prep proof");
+    copy.allergenPhotos = normalisePhotoList_(copy.allergenPhotos, copy.allergenPhotoUrl, copy.allergenPhotoAt, "Allergen sheet");
     return copy;
   }
   function isRecentlyChanged(order) {
@@ -1614,10 +1660,33 @@
     return "Marks this booking purple across the CPU dashboard.";
   }
   function prepPhotoStatusText_(order) {
-    if (order && order.prepPhotoUrl) {
-      return "Prep proof photo attached" + (order.prepPhotoAt ? " · " + formatTime(order.prepPhotoAt) : "") + ".";
+    const count = order && order.prepPhotos ? order.prepPhotos.length : 0;
+    if (count) {
+      return count + (count === 1 ? " prep proof photo attached." : " prep proof photos attached.");
     }
     return "No prep photo attached yet.";
+  }
+  function allergenPhotoStatusText_(order) {
+    const count = order && order.allergenPhotos ? order.allergenPhotos.length : 0;
+    if (count) {
+      return count + (count === 1 ? " allergen sheet photo attached." : " allergen sheet photos attached.");
+    }
+    return "No allergen sheet photo attached yet.";
+  }
+  function normalisePhotoList_(photos, fallbackUrl, fallbackAt, label) {
+    const list = Array.isArray(photos) ? photos.slice() : [];
+    if (!list.length && fallbackUrl) {
+      list.push({ url: fallbackUrl, uploadedAt: fallbackAt || "", label: label });
+    }
+    return list.filter(function(photo) { return photo && photo.url; });
+  }
+  function photoLinksHtml_(photos, fallbackUrl, label) {
+    const list = normalisePhotoList_(photos, fallbackUrl, "", label);
+    if (!list.length) return "";
+    return '<div class="photo-link-list">' + list.map(function(photo, index) {
+      return '<a href="' + escapeHtml(photo.url) + '" target="_blank">' +
+        escapeHtml((photo.label || label) + " " + (index + 1)) + ' ↗</a>';
+    }).join("") + '</div>';
   }
   function getLastPrepChef_() {
     try { return localStorage.getItem(PREP_CHEF_KEY) || ""; } catch (ignore) { return ""; }

@@ -128,13 +128,22 @@ function saveCpuOrder(orderKey, patch) {
 }
 
 function saveCpuPrepPhoto(orderKey, dataUrl, chefName) {
+  return saveCpuOrderPhoto_(orderKey, dataUrl, chefName, "prep");
+}
+
+function saveCpuAllergenPhoto(orderKey, dataUrl) {
+  return saveCpuOrderPhoto_(orderKey, dataUrl, "", "allergen");
+}
+
+function saveCpuOrderPhoto_(orderKey, dataUrl, chefName, photoType) {
   if (!orderKey) throw new Error("Order is missing.");
   const match = String(dataUrl || "").match(/^data:image\/(jpeg|jpg|png);base64,(.+)$/i);
-  if (!match) throw new Error("No camera photo was received.");
+  if (!match) throw new Error("No photo was received.");
 
   const orders = getCpuOrders_("0000-01-01", "9999-12-31");
   const order = orders.filter(function(item) { return item.id === orderKey; })[0];
   if (!order) throw new Error("Order not found.");
+  const isAllergen = String(photoType || "").toLowerCase() === "allergen";
 
   const extension = match[1].toLowerCase() === "png" ? "png" : "jpg";
   const contentType = extension === "png" ? "image/png" : "image/jpeg";
@@ -143,7 +152,7 @@ function saveCpuPrepPhoto(orderKey, dataUrl, chefName) {
     order.eventDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"),
     order.siteCode || "SITE",
     order.clientCompany || "booking",
-    "prep-proof"
+    isAllergen ? "allergen-sheet" : "prep-proof"
   ].map(function(part) {
     return String(part || "")
       .replace(/[^a-z0-9 _.-]+/gi, "")
@@ -164,23 +173,38 @@ function saveCpuPrepPhoto(orderKey, dataUrl, chefName) {
 
   const now = new Date().toISOString();
   const preppedBy = String(chefName || order.preppedBy || "").trim();
-  const patch = {
-    prepped: true,
-    preppedBy: preppedBy,
-    prepPhotoFileId: file.getId(),
-    prepPhotoUrl: file.getUrl(),
-    prepPhotoAt: now
+  const photoRecord = {
+    fileId: file.getId(),
+    url: file.getUrl(),
+    uploadedAt: now,
+    label: isAllergen ? "Allergen sheet" : "Prep proof"
   };
+  const existingPhotos = isAllergen
+    ? (Array.isArray(order.allergenPhotos) ? order.allergenPhotos : [])
+    : (Array.isArray(order.prepPhotos) ? order.prepPhotos : []);
+  const photos = existingPhotos.concat([photoRecord]);
+  const patch = isAllergen
+    ? {
+        allergenPhotoFileId: file.getId(),
+        allergenPhotoUrl: file.getUrl(),
+        allergenPhotoAt: now,
+        allergenPhotos: photos
+      }
+    : {
+        prepped: true,
+        preppedBy: preppedBy,
+        prepPhotoFileId: file.getId(),
+        prepPhotoUrl: file.getUrl(),
+        prepPhotoAt: now,
+        prepPhotos: photos
+      };
   updateCpuOrder_(orderKey, patch);
-  return {
+  const result = {
     ok: true,
     orderKey: orderKey,
-    prepped: true,
-    preppedBy: preppedBy,
-    prepPhotoFileId: file.getId(),
-    prepPhotoUrl: file.getUrl(),
-    prepPhotoAt: now
+    photoType: isAllergen ? "allergen" : "prep"
   };
+  return Object.assign(result, patch);
 }
 
 function getCpuPrepPhotoFolder_() {
