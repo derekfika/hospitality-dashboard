@@ -45,7 +45,7 @@ function undoLastTap(payload) {
   const floor = String(payload && payload.floor || "");
   const device = String(payload && payload.device || getUser_() || "Unknown device");
   const sheet = getSpreadsheet_().getSheetByName(HOT_DRINKS_CONFIG.sheets.drinkLog);
-  const values = getLogRows_();
+  const values = getSheetLogRows_();
   for (let i = values.length - 1; i >= 0; i--) {
     const row = values[i];
     if (row.status !== "ACTIVE") continue;
@@ -85,6 +85,10 @@ function clientTapIdExists_(clientTapId) {
 }
 
 function getLogRows_() {
+  return getSheetLogRows_().concat(readArchivedLogRows_());
+}
+
+function getSheetLogRows_() {
   const sheet = getOrCreateSheet_(getSpreadsheet_(), HOT_DRINKS_CONFIG.sheets.drinkLog, DRINK_LOG_HEADERS);
   const map = getHeaderMap_(sheet);
   if (sheet.getLastRow() < 2) return [];
@@ -101,7 +105,9 @@ function getLogRows_() {
       drink: String(row[map.Drink - 1] || ""),
       device: String(row[map["Device/User"] - 1] || ""),
       source: String(row[map.Source - 1] || ""),
-      status: String(row[map.Status - 1] || "ACTIVE")
+      status: String(row[map.Status - 1] || "ACTIVE"),
+      clientTapId: String(row[map["Client Tap ID"] - 1] || ""),
+      archived: false
     };
   });
 }

@@ -83,7 +83,10 @@
           <p>Admin</p>
           <h1>Settings and maintenance</h1>
         </div>
-        <button id="setup-button" type="button">Set up sheets</button>
+        <div class="header-actions">
+          <button id="install-archive-trigger" class="primary-action" type="button">Install nightly archive</button>
+          <button id="setup-button" type="button">Set up sheets</button>
+        </div>
       </header>
       <section class="seed-panel">
         <div>
@@ -108,6 +111,13 @@
           <input id="clear-confirm" placeholder="Type CLEAR TEST DATA">
           <button id="clear-test-data" type="button">Clear test data</button>
         </div>
+      </section>
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Archive completed days</h2>
+          <button id="archive-now" type="button">Archive now</button>
+        </div>
+        <p class="admin-note">Moves completed days before today from the Sheet into Drive JSON files. Reporting still includes archived days.</p>
       </section>
     </section>
   </main>

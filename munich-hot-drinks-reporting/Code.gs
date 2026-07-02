@@ -16,6 +16,8 @@ function onOpen() {
     .createMenu("Hot Drink Reporting")
     .addItem("Set up sheets", "setupHotDrinkTally")
     .addItem("Rebuild dashboard cache", "refreshDashboardData")
+    .addItem("Install nightly archive", "installNightlyArchiveTrigger")
+    .addItem("Archive completed days now", "archiveCompletedDrinkLogDays")
     .addToUi();
 }
 

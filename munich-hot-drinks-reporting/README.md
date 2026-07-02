@@ -16,6 +16,7 @@
 - `SheetService.gs` provides shared log access and audit helpers.
 - `Reporting.gs` builds dashboard summaries, heatmaps, trend data and CSV exports.
 - `PdfReport.html` renders the polished client-ready PDF report for the selected date range.
+- `ArchiveService.gs` archives completed days to Drive JSON and lets reporting read archived rows.
 - `Index.html`, `Styles.html`, and `JavaScript.html` contain the desktop reporting and admin UI.
 
 ## Deploy
@@ -24,10 +25,11 @@
 2. Add these files to the reporting Apps Script project.
 3. Run `setHotDrinkSpreadsheetId("SHEET_URL_OR_ID")` to connect it to the same Sheet as the tally app, unless it is bound to that Sheet.
 4. Run `setupHotDrinkTally` once and approve permissions.
-5. Deploy > New deployment > Web app.
-6. Set “Execute as” to “Me”.
-7. Set access to the reporting/admin audience.
-8. Share this reporting URL with desktop users only.
+5. Run `installNightlyArchiveTrigger` once, or use Admin > Install nightly archive after deployment.
+6. Deploy > New deployment > Web app.
+7. Set “Execute as” to “Me”.
+8. Set access to the reporting/admin audience.
+9. Share this reporting URL with desktop users only.
 
 ## Sheet Tabs
 
@@ -39,3 +41,7 @@ The setup function creates:
 - `Audit_Log`
 
 The tally screen is deployed separately from `../munich-hot-drinks`; this app is for reporting, CSV export and settings maintenance.
+
+Completed days are archived from `Drink_Log` into Drive JSON files. Dashboard, CSV and PDF reporting include both current Sheet rows and archived JSON rows.
+
+If archive files are created by the tally app, run `getHotDrinkArchiveFolderId()` there and then `setHotDrinkArchiveFolderId("FOLDER_ID")` in this reporting app so reporting can read the same Drive folder.

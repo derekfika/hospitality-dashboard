@@ -36,6 +36,8 @@
     $("#clear-test-data").addEventListener("click", clearTestData);
     $("#seed-test-day").addEventListener("click", seedTestDay);
     $("#seed-test-day-header").addEventListener("click", seedTestDay);
+    $("#install-archive-trigger").addEventListener("click", installArchiveTrigger);
+    $("#archive-now").addEventListener("click", archiveNow);
   }
 
   function showView(view) {
@@ -199,6 +201,23 @@
       .withSuccessHandler(result => toast(`${result.cleared} test rows cleared`))
       .withFailureHandler(error => toast(error.message || String(error)))
       .clearTestData($("#clear-confirm").value);
+  }
+
+  function installArchiveTrigger() {
+    google.script.run
+      .withSuccessHandler(result => toast(result.message || "Nightly archive installed"))
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .installNightlyArchiveTrigger();
+  }
+
+  function archiveNow() {
+    google.script.run
+      .withSuccessHandler(result => {
+        toast(`${result.archivedRows} rows archived across ${result.archivedDates.length} day(s)`);
+        runReport();
+      })
+      .withFailureHandler(error => toast(error.message || String(error)))
+      .archiveCompletedDrinkLogDays();
   }
 
   function seedTestDay(event) {

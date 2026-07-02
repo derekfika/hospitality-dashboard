@@ -15,6 +15,8 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Hot Drink Tally")
     .addItem("Set up sheets", "setupHotDrinkTally")
+    .addItem("Install nightly archive", "installNightlyArchiveTrigger")
+    .addItem("Archive completed days now", "archiveCompletedDrinkLogDays")
     .addToUi();
 }
 
