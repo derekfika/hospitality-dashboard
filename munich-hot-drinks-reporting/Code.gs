@@ -229,3 +229,41 @@ function addCustomClosedDay(date, name) {
   logAudit_("CLOSED_DAY_ADDED", "", "", "", getUser_(), (alreadyExists ? "Existing" : "New") + " closed day: " + dateKey + ".");
   return { ok: true, date: dateKey, name: label, added: !alreadyExists };
 }
+
+function getReportingDataHealth() {
+  setupHotDrinkTally();
+  const spreadsheet = getSpreadsheet_();
+  const settings = getSettings_();
+  const sheetRows = getSheetLogRows_();
+  const archiveRows = readArchivedLogRows_();
+  const today = Utilities.formatDate(new Date(), HOT_DRINKS_CONFIG.timezone, "yyyy-MM-dd");
+  const activeSheetRows = sheetRows.filter(function(row) { return row.status === "ACTIVE"; });
+  const activeTodayRows = activeSheetRows.filter(function(row) { return row.date === today; });
+  const drinksToday = {};
+  activeTodayRows.forEach(function(row) {
+    drinksToday[row.drink] = (drinksToday[row.drink] || 0) + 1;
+  });
+  return {
+    ok: true,
+    spreadsheetId: spreadsheet.getId(),
+    spreadsheetName: spreadsheet.getName(),
+    timezone: HOT_DRINKS_CONFIG.timezone,
+    today: today,
+    settingsDrinks: settings.drinks,
+    liveRows: sheetRows.length,
+    liveActiveRows: activeSheetRows.length,
+    liveActiveRowsToday: activeTodayRows.length,
+    archivedRows: archiveRows.length,
+    drinksToday: drinksToday,
+    latestLiveRows: sheetRows.slice(-10).reverse().map(function(row) {
+      return {
+        date: row.date,
+        time: row.time,
+        floor: row.floor,
+        drink: row.drink,
+        status: row.status,
+        archived: row.archived
+      };
+    })
+  };
+}
