@@ -34,6 +34,7 @@ function exportFilteredCsv(filters) {
     if (normalized.drink !== "All" && row.drink !== normalized.drink) return false;
     if (normalized.excludeBankHolidays && settings.bankHolidays.indexOf(row.date) !== -1) return false;
     if (normalized.excludeClosedPeriods && settings.closedDays.indexOf(row.date) !== -1) return false;
+    if (normalized.weekdays.length && normalized.weekdays.indexOf(weekdayName_(row.date)) === -1) return false;
     return true;
   });
   const header = ["ID", "Date", "Time", "Floor", "Drink", "Device/User", "Status"];

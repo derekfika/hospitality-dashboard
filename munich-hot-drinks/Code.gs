@@ -125,11 +125,13 @@ function getSettings_() {
   const drinks = active.filter(function(row) { return row[0] === "Drink"; }).map(function(row) { return String(row[2] || row[1]); });
   const bankHolidays = active.filter(function(row) { return row[0] === "Bank Holiday" && row[2]; }).map(function(row) { return dateKey_(row[2]); });
   const closedPeriods = active.filter(function(row) { return row[0] === "Closed Period" && row[2]; }).map(function(row) { return String(row[2]); });
+  const closedDays = active.filter(function(row) { return row[0] === "Closed Day" && row[2]; }).map(function(row) { return dateKey_(row[2]); });
   return {
     floors: orderedSettingsValues_(floors, HOT_DRINKS_CONFIG.floors),
     drinks: orderedSettingsValues_(drinks, HOT_DRINKS_CONFIG.drinks),
     bankHolidays: bankHolidays.filter(Boolean),
-    closedPeriods: closedPeriods
+    closedPeriods: closedPeriods,
+    closedDays: closedDays.filter(Boolean)
   };
 }
 

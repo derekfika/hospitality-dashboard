@@ -8,6 +8,7 @@ function getDashboardReport(filters) {
     if (normalized.floor !== "Combined" && row.floor !== normalized.floor) return false;
     if (normalized.drink !== "All" && row.drink !== normalized.drink) return false;
     if (normalized.excludeBankHolidays && settings.bankHolidays.indexOf(row.date) !== -1) return false;
+    if (normalized.excludeClosedPeriods && settings.closedDays.indexOf(row.date) !== -1) return false;
     const weekday = weekdayName_(row.date);
     if (normalized.weekdays.length && normalized.weekdays.indexOf(weekday) === -1) return false;
     return true;
@@ -25,11 +26,16 @@ function refreshDashboardData() {
 function exportFilteredCsv(filters) {
   const report = getDashboardReport(filters);
   const normalized = report.filters;
+  const settings = report.settings;
   const rows = getLogRows_().filter(function(row) {
     return row.status === "ACTIVE" && row.date >= normalized.startDate && row.date <= normalized.endDate;
   }).filter(function(row) {
-    return (normalized.floor === "Combined" || row.floor === normalized.floor) &&
-      (normalized.drink === "All" || row.drink === normalized.drink);
+    if (normalized.floor !== "Combined" && row.floor !== normalized.floor) return false;
+    if (normalized.drink !== "All" && row.drink !== normalized.drink) return false;
+    if (normalized.excludeBankHolidays && settings.bankHolidays.indexOf(row.date) !== -1) return false;
+    if (normalized.excludeClosedPeriods && settings.closedDays.indexOf(row.date) !== -1) return false;
+    if (normalized.weekdays.length && normalized.weekdays.indexOf(weekdayName_(row.date)) === -1) return false;
+    return true;
   });
   const header = ["ID", "Date", "Time", "Floor", "Drink", "Device/User", "Status"];
   const csvRows = [header].concat(rows.map(function(row) {

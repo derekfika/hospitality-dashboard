@@ -163,7 +163,7 @@
         state.queue.splice(0, batch.length);
         saveQueue();
         state.syncing = false;
-        if (result && result.counts) setCounts(result.counts);
+        if (result && result.counts) setCounts(applyQueueCounts(result.counts));
         $("#error-panel").hidden = true;
         updateQueueStatus();
         if (state.queue.length) setTimeout(syncQueue, 400);
@@ -177,10 +177,13 @@
   }
 
   function refreshCounts() {
-    google.script.run.withSuccessHandler(counts => {
-      setCounts(applyQueueCounts(counts));
-      updateQueueStatus();
-    }).getTodayCounts();
+    google.script.run
+      .withSuccessHandler(counts => {
+        setCounts(applyQueueCounts(counts));
+        updateQueueStatus();
+      })
+      .withFailureHandler(error => showError(error.message || String(error)))
+      .getTodayCounts();
   }
 
   function setCounts(counts) {
@@ -277,7 +280,7 @@
     output.byDrink = output.byDrink || {};
     output.byFloor = output.byFloor || {};
     output.byFloorDrink = output.byFloorDrink || {};
-    const today = config.serverDate || new Date().toISOString().slice(0, 10);
+    const today = output.date || config.serverDate || todayKey();
     state.queue.forEach(tap => {
       if (!String(tap.tappedAt || "").startsWith(today)) return;
       output.total = (output.total || 0) + 1;
@@ -301,7 +304,7 @@
     const byDrink = (state.counts && state.counts.byDrink) || {};
     document.querySelectorAll("[data-drink-count]").forEach(item => {
       const drink = item.dataset.drinkCount;
-      item.textContent = byFloorDrink[drink] || byDrink[drink] || 0;
+      item.textContent = Object.prototype.hasOwnProperty.call(byFloorDrink, drink) ? byFloorDrink[drink] : (byDrink[drink] || 0);
     });
   }
 
@@ -315,6 +318,13 @@
 
   function deviceName() {
     return `${navigator.platform || "Device"} ${navigator.userAgent.match(/(Android|iPad|iPhone|Windows|Macintosh)/)?.[0] || ""}`.trim();
+  }
+
+  function todayKey() {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${today.getFullYear()}-${month}-${day}`;
   }
 
   function initials(value) {
