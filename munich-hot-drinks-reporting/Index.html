@@ -28,13 +28,13 @@
     <section id="dashboard-view" class="view">
       <header class="page-header hero-header">
         <div>
-          <p>Reporting dashboard</p>
+          <p><span class="status-dot"></span>Live reporting</p>
           <h1>Hot drink usage</h1>
           <span class="page-subtitle">Live service data, archive-backed reporting and client-ready monthly exports.</span>
         </div>
         <div class="header-actions">
-          <button id="export-pdf" class="primary-action" type="button">Export PDF report</button>
-          <button id="export-csv" type="button">Export CSV</button>
+          <button id="export-pdf" class="primary-action" type="button"><span class="button-icon">PDF</span>Export report</button>
+          <button id="export-csv" type="button"><span class="button-icon">CSV</span>Export data</button>
         </div>
       </header>
 
@@ -60,23 +60,36 @@
         <button type="submit">Run report</button>
       </form>
 
+      <div id="report-context" class="report-context"></div>
       <div id="report-summary" class="summary-grid"></div>
 
       <section class="dashboard-grid">
         <article class="panel wide">
-          <h2>Hourly heatmap</h2>
+          <div class="panel-heading">
+            <div>
+              <span>Service pattern</span>
+              <h2>Hourly heatmap</h2>
+            </div>
+            <div class="heat-legend"><i></i><span>Low</span><strong>High</strong></div>
+          </div>
           <div id="heatmap" class="heatmap"></div>
         </article>
         <article class="panel">
-          <h2>Drink mix</h2>
+          <div class="panel-heading">
+            <div><span>Product split</span><h2>Drink mix</h2></div>
+          </div>
           <div id="drink-mix" class="list-chart"></div>
         </article>
         <article class="panel">
-          <h2>Floor comparison</h2>
+          <div class="panel-heading">
+            <div><span>Location split</span><h2>Floor comparison</h2></div>
+          </div>
           <div id="floor-comparison" class="list-chart"></div>
         </article>
         <article class="panel wide">
-          <h2>Trend over time</h2>
+          <div class="panel-heading">
+            <div><span>Daily movement</span><h2>Trend over time</h2></div>
+          </div>
           <div id="trend" class="trend"></div>
         </article>
       </section>

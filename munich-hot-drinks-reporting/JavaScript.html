@@ -49,32 +49,46 @@
 
   function renderReport(result) {
     const summary = result.summary || {};
+    renderReportContext(result.filters || readFilters(), summary);
     $("#report-summary").innerHTML = [
-      metric("Total drinks", summary.total || 0, "volume"),
-      metric("Average per day", summary.averagePerDay || 0, "daily"),
-      metric("Peak hour", summary.peakHour || "-", "peak"),
-      metric("Quietest hour", summary.quietestHour || "-", "quiet"),
-      metric("Busiest day", summary.busiestDay || "-", "day"),
-      metric("Tue-Thu average", summary.tuesdayThursdayDailyAverage || 0, "midweek"),
-      metric("Mon-Thu average", summary.mondayThursdayDailyAverage || 0, "week"),
-      metric("Active days", Object.keys(summary.byDate || {}).length, "calendar")
+      metric("Total drinks", summary.total || 0, "selected range", "volume"),
+      metric("Average per day", summary.averagePerDay || 0, "per active day", "daily"),
+      metric("Peak hour", summary.peakHour || "-", "busiest hour", "peak"),
+      metric("Quietest hour", summary.quietestHour || "-", "lowest active hour", "quiet"),
+      metric("Busiest day", shortDate(summary.busiestDay) || "-", "highest volume day", "day"),
+      metric("Tue-Thu average", summary.tuesdayThursdayDailyAverage || 0, "midweek benchmark", "midweek"),
+      metric("Mon-Thu average", summary.mondayThursdayDailyAverage || 0, "core week benchmark", "week"),
+      metric("Active days", Object.keys(summary.byDate || {}).length, "days with activity", "calendar")
     ].join("");
-    renderHeatmap(summary.heatmap || {});
+    animateMetricNumbers();
+    renderHeatmap(summary.heatmap || {}, result.filters || readFilters());
     renderTrend(summary.trend || []);
     renderListChart("#drink-mix", summary.byDrink || {}, summary.drinkMix || {});
     renderListChart("#floor-comparison", summary.byFloor || {});
   }
 
-  function renderHeatmap(heatmap) {
-    const buckets = (config.timeBuckets || []).map(bucket => bucket.label);
-    const max = Math.max(1, ...Object.values(heatmap).flatMap(row => Object.values(row)));
-    $("#heatmap").innerHTML = `<table>
-      <thead><tr><th>Day</th>${buckets.map(bucket => `<th>${escapeHtml(bucket)}</th>`).join("")}</tr></thead>
-      <tbody>${Object.keys(heatmap).map(day => `<tr><th>${escapeHtml(day)}</th>${buckets.map(bucket => {
-        const value = heatmap[day][bucket] || 0;
-        return `<td class="heat-cell" style="--heat:${Math.max(.06, value / max)}">${value}</td>`;
-      }).join("")}</tr>`).join("")}</tbody>
-    </table>`;
+  function renderHeatmap(heatmap, filters) {
+    filters = filters || {};
+    const bucketConfig = config.timeBuckets || [];
+    const buckets = bucketConfig.map(bucket => bucket.label);
+    const days = Object.keys(heatmap);
+    const values = Object.values(heatmap).flatMap(row => Object.values(row || {}));
+    const max = Math.max(1, ...values);
+    const total = values.reduce((sum, value) => sum + Number(value || 0), 0);
+    if (!days.length || !total) {
+      $("#heatmap").innerHTML = `<div class="empty-state">No heatmap activity in this range</div>`;
+      return;
+    }
+    $("#heatmap").innerHTML = `<div class="heatmap-grid" style="--cols:${buckets.length}">
+      <div class="heat-head">Day</div>${bucketConfig.map(bucket => `<div class="heat-head${bucket.closed && filters.excludeClosedPeriods ? " is-closed" : ""}">${escapeHtml(bucket.label)}</div>`).join("")}
+      ${days.map(day => `<div class="heat-day">${escapeHtml(day)}</div>${bucketConfig.map(bucket => {
+        const value = heatmap[day][bucket.label] || 0;
+        const intensity = Math.max(.05, value / max);
+        const closed = bucket.closed && filters.excludeClosedPeriods;
+        const title = closed ? `${day} ${bucket.label}: closed period` : `${day} ${bucket.label}: ${value}`;
+        return `<div class="heat-cell${closed ? " is-closed" : ""}" title="${escapeAttr(title)}" style="--heat:${intensity}"><span>${closed ? "Closed" : value || ""}</span></div>`;
+      }).join("")}`).join("")}
+    </div>`;
   }
 
   function renderTrend(trend) {
@@ -86,7 +100,8 @@
 
   function renderListChart(selector, values, percentages) {
     const max = Math.max(1, ...Object.values(values));
-    $(selector).innerHTML = Object.keys(values).map(key => {
+    const keys = Object.keys(values);
+    $(selector).innerHTML = keys.length ? keys.map(key => {
       const value = values[key] || 0;
       const suffix = percentages && percentages[key] != null ? ` (${percentages[key]}%)` : "";
       return `<div class="list-row">
@@ -94,7 +109,7 @@
         <strong>${value}${suffix}</strong>
         <i style="width:${Math.max(2, value / max * 100)}%"></i>
       </div>`;
-    }).join("");
+    }).join("") : `<span class="empty-state">No data in this range</span>`;
   }
 
   function exportCsv() {
@@ -157,8 +172,42 @@
     };
   }
 
-  function metric(label, value, tone) {
-    return `<div class="metric metric-${escapeHtml(tone || "default")}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  function metric(label, value, helper, tone) {
+    const numeric = typeof value === "number" && isFinite(value);
+    return `<div class="metric metric-${escapeHtml(tone || "default")}">
+      <span>${escapeHtml(label)}</span>
+      <strong ${numeric ? `data-count="${value}"` : ""}>${escapeHtml(value)}</strong>
+      <small>${escapeHtml(helper || "")}</small>
+    </div>`;
+  }
+
+  function renderReportContext(filters, summary) {
+    const floor = filters.floor || "Combined";
+    const drink = filters.drink || "All";
+    const activeDays = Object.keys((summary && summary.byDate) || {}).length;
+    $("#report-context").textContent = `Showing ${floor.toLowerCase()} results for ${formatDate(filters.startDate)} to ${formatDate(filters.endDate)}, ${drink === "All" ? "all drinks" : drink}, ${filters.excludeBankHolidays ? "excluding" : "including"} bank holidays and ${filters.excludeClosedPeriods ? "excluding" : "including"} closed periods. ${activeDays} active day${activeDays === 1 ? "" : "s"}.`;
+  }
+
+  function animateMetricNumbers() {
+    document.querySelectorAll("[data-count]").forEach(node => {
+      const target = Number(node.dataset.count || 0);
+      const start = performance.now();
+      const duration = 520;
+      const decimals = Number.isInteger(target) ? 0 : 1;
+      const tick = now => {
+        const progress = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        node.textContent = (target * eased).toFixed(decimals).replace(/\.0$/, "");
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function formatDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return value || "";
+    const parts = value.split("-");
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
 
   function shortDate(value) {
@@ -170,7 +219,7 @@
   function startAction(button, label) {
     if (button) {
       button.disabled = true;
-      button.dataset.originalText = button.dataset.originalText || button.textContent;
+      button.dataset.originalHtml = button.dataset.originalHtml || button.innerHTML;
       button.innerHTML = `<span class="button-spinner"></span>${escapeHtml(label)}`;
       button.classList.add("is-busy");
     }
@@ -180,8 +229,8 @@
   function finishAction(button, fallbackText) {
     if (button) {
       button.disabled = false;
-      button.textContent = button.dataset.originalText || fallbackText;
-      delete button.dataset.originalText;
+      button.innerHTML = button.dataset.originalHtml || escapeHtml(fallbackText);
+      delete button.dataset.originalHtml;
       button.classList.remove("is-busy");
     }
     setActivity(false);
@@ -194,6 +243,7 @@
   }
 
   function showReportLoading() {
+    $("#report-context").textContent = "Refreshing report...";
     $("#report-summary").innerHTML = Array.from({ length: 8 }, () => `<div class="metric skeleton-card"><span></span><strong></strong></div>`).join("");
     $("#heatmap").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading heatmap...</div>`;
     $("#trend").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading trend...</div>`;
