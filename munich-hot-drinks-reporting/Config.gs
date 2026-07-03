@@ -7,6 +7,7 @@ const HOT_DRINKS_CONFIG = {
     dashboardData: "Dashboard_Data",
     auditLog: "Audit_Log"
   },
+  tillSpreadsheetId: "1Nle09GpzRjEHUTK7j0c3t3nXjUQYdHrMf0W6pLFWGyk",
   floors: ["3rd Floor", "5th Floor"],
   drinks: ["Coffee", "Cappuccino", "Latte", "Flat White", "Tea", "Hot Chocolate", "Chai", "Drink Special"],
   source: "HOT_DRINK_TALLY_WEB_APP",

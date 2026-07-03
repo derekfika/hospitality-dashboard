@@ -56,10 +56,11 @@ function setupHotDrinkTally() {
 
 function getSpreadsheet_() {
   const propertyId = PropertiesService.getScriptProperties().getProperty("HOT_DRINK_SPREADSHEET_ID");
-  if (propertyId) return SpreadsheetApp.openById(propertyId);
-  const active = SpreadsheetApp.getActiveSpreadsheet();
-  if (active) return active;
-  throw new Error("No spreadsheet is bound. Create this Apps Script from a Google Sheet or set HOT_DRINK_SPREADSHEET_ID.");
+  const targetId = HOT_DRINKS_CONFIG.tillSpreadsheetId;
+  if (propertyId !== targetId) {
+    PropertiesService.getScriptProperties().setProperty("HOT_DRINK_SPREADSHEET_ID", targetId);
+  }
+  return SpreadsheetApp.openById(targetId);
 }
 
 function setHotDrinkSpreadsheetId(value) {
@@ -70,6 +71,10 @@ function setHotDrinkSpreadsheetId(value) {
   SpreadsheetApp.openById(id);
   PropertiesService.getScriptProperties().setProperty("HOT_DRINK_SPREADSHEET_ID", id);
   return setupHotDrinkTally();
+}
+
+function pointReportingAtTillSpreadsheet() {
+  return setHotDrinkSpreadsheetId(HOT_DRINKS_CONFIG.tillSpreadsheetId);
 }
 
 function getOrCreateSheet_(spreadsheet, name, headers) {
