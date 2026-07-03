@@ -8,7 +8,7 @@ const HOT_DRINKS_CONFIG = {
     auditLog: "Audit_Log"
   },
   floors: ["3rd Floor", "5th Floor"],
-  drinks: ["Coffee", "Tea", "Hot Chocolate", "Drink Special"],
+  drinks: ["Coffee", "Cappuccino", "Latte", "Flat White", "Tea", "Hot Chocolate", "Chai", "Drink Special"],
   source: "HOT_DRINK_TALLY_WEB_APP",
   duplicateWindowMs: 750,
   openingHours: [

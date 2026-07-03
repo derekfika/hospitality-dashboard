@@ -6,16 +6,21 @@
     counts: null,
     queue: [],
     syncing: false,
-    lastTap: null
+    lastTap: null,
+    pendingFloor: null
   };
   const queueKey = "munichHotDrinkTapQueue";
   const syncIntervalMs = 60000;
   const maxBatchSize = 80;
-  const colors = ["#6f4b33", "#167a62", "#8f3d2f", "#4F34C7"];
+  const colors = ["#6f4b33", "#b8794a", "#c88d5c", "#8d6a4c", "#167a62", "#8f3d2f", "#d39a22", "#4F34C7"];
   const drinkMeta = {
     "Coffee": { code: "CO", accent: "#6f4b33", tone: "#f5ebe2" },
+    "Cappuccino": { code: "CP", accent: "#b8794a", tone: "#f8eee5" },
+    "Latte": { code: "LA", accent: "#c88d5c", tone: "#fbf0e6" },
+    "Flat White": { code: "FW", accent: "#8d6a4c", tone: "#f3ece4" },
     "Tea": { code: "TE", accent: "#167a62", tone: "#e8f4ef" },
     "Hot Chocolate": { code: "HC", accent: "#8f3d2f", tone: "#fae9e6" },
+    "Chai": { code: "CH", accent: "#d39a22", tone: "#fff4d9" },
     "Drink Special": { code: "DS", accent: "#4F34C7", tone: "#eeeafd" }
   };
   const $ = selector => document.querySelector(selector);
@@ -51,12 +56,36 @@
   function bindEvents() {
     document.addEventListener("click", event => {
       const floorButton = event.target.closest("[data-floor]");
-      if (floorButton) return setFloor(floorButton.dataset.floor);
+      if (floorButton) return requestFloorChange(floorButton.dataset.floor);
       const drinkButton = event.target.closest("[data-drink]");
       if (drinkButton) return tapDrink(drinkButton.dataset.drink, drinkButton);
     });
     $("#undo-button").addEventListener("click", undoLast);
     $("#retry-button").addEventListener("click", syncQueue);
+    $("#cancel-floor-change").addEventListener("click", closeFloorModal);
+    $("#confirm-floor-change").addEventListener("click", confirmFloorChange);
+    $("#floor-modal").addEventListener("click", event => {
+      if (event.target.id === "floor-modal") closeFloorModal();
+    });
+  }
+
+  function requestFloorChange(floor) {
+    if (!floor || floor === state.floor) return;
+    state.pendingFloor = floor;
+    $("#floor-modal-current").textContent = state.floor || "Not set";
+    $("#floor-modal-target").textContent = floor;
+    $("#floor-modal").hidden = false;
+  }
+
+  function confirmFloorChange() {
+    if (!state.pendingFloor) return closeFloorModal();
+    setFloor(state.pendingFloor);
+    closeFloorModal();
+  }
+
+  function closeFloorModal() {
+    state.pendingFloor = null;
+    $("#floor-modal").hidden = true;
   }
 
   function setFloor(floor) {

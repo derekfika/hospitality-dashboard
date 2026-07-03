@@ -83,6 +83,22 @@
 
   </main>
 
+  <div id="floor-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="floor-modal-title">
+    <div class="floor-modal">
+      <span class="modal-kicker">Confirm floor change</span>
+      <h2 id="floor-modal-title">Switch tally floor?</h2>
+      <p>New drink taps will be recorded against <strong id="floor-modal-target"></strong>.</p>
+      <div class="floor-modal-current">
+        <span>Current floor</span>
+        <strong id="floor-modal-current"></strong>
+      </div>
+      <div class="modal-actions">
+        <button id="cancel-floor-change" class="modal-secondary" type="button">Stay here</button>
+        <button id="confirm-floor-change" class="modal-primary" type="button">Switch floor</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
   <script>
     window.APP_CONFIG = <?!= initialConfig ?>;

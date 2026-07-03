@@ -1,7 +1,6 @@
 <script>
 (() => {
   const config = window.APP_CONFIG || {};
-  const state = { settingsRows: [] };
   const $ = selector => document.querySelector(selector);
 
   function init() {
@@ -16,43 +15,20 @@
     const today = config.serverDate || new Date().toISOString().slice(0, 10);
     $('[name="startDate"]').value = today;
     $('[name="endDate"]').value = today;
-    if ($("#seed-date")) $("#seed-date").value = today;
-    if ($("#seed-date-header")) $("#seed-date-header").value = today;
-    if ($("#bank-holiday-year")) $("#bank-holiday-year").value = today.slice(0, 4);
-    if ($("#closed-day-date")) $("#closed-day-date").value = today;
   }
 
   function bindEvents() {
-    document.addEventListener("click", event => {
-      const viewButton = event.target.closest("[data-view]");
-      if (viewButton) showView(viewButton.dataset.view);
-    });
     $("#dashboard-filters").addEventListener("submit", event => {
       event.preventDefault();
       runReport();
     });
-    $("#export-csv").addEventListener("click", exportCsv);
-    $("#export-pdf").addEventListener("click", exportPdf);
-    $("#setup-button").addEventListener("click", setupSheets);
-    $("#load-settings").addEventListener("click", loadSettings);
-    $("#clear-test-data").addEventListener("click", clearTestData);
-    $("#seed-test-day").addEventListener("click", seedTestDay);
-    $("#seed-test-day-header").addEventListener("click", seedTestDay);
-    $("#install-archive-trigger").addEventListener("click", installArchiveTrigger);
-    $("#archive-now").addEventListener("click", archiveNow);
-    $("#import-bank-holidays").addEventListener("click", importBankHolidays);
-    $("#add-closed-day").addEventListener("click", addClosedDay);
+    bindClick("#export-csv", exportCsv);
+    bindClick("#export-pdf", exportPdf);
   }
 
-  function showView(view) {
-    document.querySelectorAll(".view").forEach(section => section.hidden = section.id !== `${view}-view`);
-    document.querySelectorAll(".nav-button").forEach(button => {
-      const active = button.dataset.view === view;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
-    });
-    if (view === "dashboard") runReport();
-    if (view === "admin") loadSettings();
+  function bindClick(selector, handler) {
+    const element = $(selector);
+    if (element) element.addEventListener("click", handler);
   }
 
   function runReport() {
@@ -166,169 +142,6 @@
         toast(error.message || String(error), "error");
       })
       .exportPdfReport(readFilters());
-  }
-
-  function setupSheets() {
-    const button = $("#setup-button");
-    startAction(button, "Setting up...");
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, "Set up sheets");
-        toast(`Sheets ready: ${result.sheets.join(", ")}`);
-      })
-      .withFailureHandler(error => {
-        finishAction(button, "Set up sheets");
-        toast(error.message || String(error), "error");
-      })
-      .setupHotDrinkTally();
-  }
-
-  function loadSettings() {
-    const button = $("#load-settings");
-    startAction(button, "Loading...");
-    $("#settings-editor").innerHTML = `<div class="settings-loading"><span class="spinner"></span>Loading settings...</div>`;
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, "Reload");
-        state.settingsRows = result.rows || [];
-        renderSettings();
-      })
-      .withFailureHandler(error => {
-        finishAction(button, "Reload");
-        toast(error.message || String(error), "error");
-      })
-      .getSettingsForAdmin();
-  }
-
-  function renderSettings() {
-    $("#settings-editor").innerHTML = state.settingsRows.map((row, index) => `
-      <div class="settings-row" data-index="${index}">
-        <select>${["Floor","Drink","Opening Hours","Closed Period","Closed Day","Bank Holiday","Reporting Default"].map(type => `<option ${row[0] === type ? "selected" : ""}>${type}</option>`).join("")}</select>
-        <input value="${escapeAttr(row[1])}" placeholder="Name">
-        <input value="${escapeAttr(row[2])}" placeholder="Value">
-        <select><option ${row[3] === true ? "selected" : ""}>true</option><option ${row[3] === false ? "selected" : ""}>false</option></select>
-        <input value="${escapeAttr(row[4])}" placeholder="Notes">
-      </div>
-    `).join("") + `<div class="settings-actions"><button id="add-setting" type="button">Add setting</button><button id="save-settings" type="button">Save settings</button></div>`;
-    $("#add-setting").addEventListener("click", () => {
-      state.settingsRows.push(["Drink", "", "", true, ""]);
-      renderSettings();
-    });
-    $("#save-settings").addEventListener("click", saveSettings);
-  }
-
-  function saveSettings() {
-    const rows = Array.from(document.querySelectorAll(".settings-row")).map(row => {
-      const fields = row.querySelectorAll("select,input");
-      return [fields[0].value, fields[1].value, fields[2].value, fields[3].value, fields[4].value];
-    });
-    google.script.run
-      .withSuccessHandler(newConfig => {
-        Object.assign(config, newConfig);
-        renderFilterOptions();
-        toast("Settings saved");
-      })
-      .withFailureHandler(error => toast(error.message || String(error)))
-      .saveSettingsRows(rows);
-  }
-
-  function clearTestData() {
-    const button = $("#clear-test-data");
-    startAction(button, "Clearing...");
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, "Clear test data");
-        toast(`${result.cleared} test rows cleared`);
-      })
-      .withFailureHandler(error => {
-        finishAction(button, "Clear test data");
-        toast(error.message || String(error), "error");
-      })
-      .clearTestData($("#clear-confirm").value);
-  }
-
-  function installArchiveTrigger() {
-    const button = $("#install-archive-trigger");
-    startAction(button, "Installing...");
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, "Install nightly archive");
-        toast(result.message || "Nightly archive installed");
-      })
-      .withFailureHandler(error => {
-        finishAction(button, "Install nightly archive");
-        toast(error.message || String(error), "error");
-      })
-      .installNightlyArchiveTrigger();
-  }
-
-  function archiveNow() {
-    const button = $("#archive-now");
-    startAction(button, "Archiving...");
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, "Archive now");
-        toast(`${result.archivedRows} rows archived across ${result.archivedDates.length} day(s)`);
-        runReport();
-      })
-      .withFailureHandler(error => {
-        finishAction(button, "Archive now");
-        toast(error.message || String(error), "error");
-      })
-      .archiveCompletedDrinkLogDays();
-  }
-
-  function seedTestDay(event) {
-    const button = event && event.currentTarget ? event.currentTarget : $("#seed-test-day");
-    const originalText = button.id === "seed-test-day-header" ? "Add demo data" : "Add coffee test data";
-    const dateInput = $("#seed-date") || $("#seed-date-header");
-    const dateValue = dateInput ? dateInput.value : "";
-    startAction(button, "Adding data...");
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, originalText);
-        toast(`${result.rowsAdded} coffee test rows added for ${result.date}`);
-        showView("dashboard");
-      })
-      .withFailureHandler(error => {
-        finishAction(button, originalText);
-        toast(error.message || String(error), "error");
-      })
-      .seedMunichReCoffeeTestDay(dateValue);
-  }
-
-  function importBankHolidays() {
-    const button = $("#import-bank-holidays");
-    startAction(button, "Importing...");
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, "Import bank holidays");
-        toast(`${result.imported} bank holidays imported for ${result.year}`);
-        loadSettings();
-      })
-      .withFailureHandler(error => {
-        finishAction(button, "Import bank holidays");
-        toast(error.message || String(error), "error");
-      })
-      .importUkBankHolidaysForYear($("#bank-holiday-year").value);
-  }
-
-  function addClosedDay() {
-    const button = $("#add-closed-day");
-    startAction(button, "Adding...");
-    google.script.run
-      .withSuccessHandler(result => {
-        finishAction(button, "Add closed day");
-        toast(result.added ? `Closed day added for ${result.date}` : `${result.date} is already listed`);
-        $("#closed-day-name").value = "";
-        loadSettings();
-        runReport();
-      })
-      .withFailureHandler(error => {
-        finishAction(button, "Add closed day");
-        toast(error.message || String(error), "error");
-      })
-      .addCustomClosedDay($("#closed-day-date").value, $("#closed-day-name").value);
   }
 
   function readFilters() {

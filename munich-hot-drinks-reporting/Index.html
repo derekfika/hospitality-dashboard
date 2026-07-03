@@ -21,10 +21,6 @@
       </span>
       <span>Hot drink reporting</span>
     </div>
-    <nav aria-label="Reporting sections">
-      <button class="nav-button active" data-view="dashboard" type="button" aria-pressed="true">Dashboard</button>
-      <button class="nav-button" data-view="admin" type="button" aria-pressed="false">Admin tools</button>
-    </nav>
   </aside>
 
   <main>
@@ -37,7 +33,6 @@
           <span class="page-subtitle">Live service data, archive-backed reporting and client-ready monthly exports.</span>
         </div>
         <div class="header-actions">
-          <button id="seed-test-day-header" class="secondary-action" type="button">Add demo data</button>
           <button id="export-pdf" class="primary-action" type="button">Export PDF report</button>
           <button id="export-csv" type="button">Export CSV</button>
         </div>
@@ -87,75 +82,6 @@
       </section>
     </section>
 
-    <section id="admin-view" class="view" hidden>
-      <header class="page-header hero-header">
-        <div>
-          <p>Admin</p>
-          <h1>Settings and maintenance</h1>
-          <span class="page-subtitle">Manage configuration, demo data and long-term archive housekeeping.</span>
-        </div>
-        <div class="header-actions">
-          <button id="install-archive-trigger" class="primary-action" type="button">Install nightly archive</button>
-          <button id="setup-button" type="button">Set up sheets</button>
-        </div>
-      </header>
-      <section class="seed-panel">
-        <div>
-          <p>Demo data</p>
-          <h2>Seed one day of coffee activity</h2>
-          <span>Creates 500 Coffee rows for 3rd Floor and 150 Coffee rows for 5th Floor within opening hours.</span>
-        </div>
-        <label>Demo date<input id="seed-date" type="date"></label>
-        <label class="header-seed-date">Dashboard demo date<input id="seed-date-header" type="date"></label>
-        <button id="seed-test-day" type="button">Add coffee test data</button>
-      </section>
-      <section class="panel import-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Bank holidays</h2>
-            <p class="admin-note">Import England and Wales bank holidays from GOV.UK into Settings.</p>
-          </div>
-          <div class="inline-controls">
-            <input id="bank-holiday-year" type="number" min="2020" max="2100" step="1">
-            <button id="import-bank-holidays" type="button">Import bank holidays</button>
-          </div>
-        </div>
-      </section>
-      <section class="panel import-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Site closed days</h2>
-            <p class="admin-note">Add one-off dates where the site is closed, such as client closure days.</p>
-          </div>
-          <div class="inline-controls closed-day-controls">
-            <input id="closed-day-date" type="date">
-            <input id="closed-day-name" type="text" placeholder="Reason">
-            <button id="add-closed-day" type="button">Add closed day</button>
-          </div>
-        </div>
-      </section>
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Settings</h2>
-          <button id="load-settings" type="button">Reload</button>
-        </div>
-        <div id="settings-editor" class="settings-editor"></div>
-      </section>
-      <section class="danger-zone">
-        <h2>Clear test data</h2>
-        <div>
-          <input id="clear-confirm" placeholder="Type CLEAR TEST DATA">
-          <button id="clear-test-data" type="button">Clear test data</button>
-        </div>
-      </section>
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Archive completed days</h2>
-          <button id="archive-now" type="button">Archive now</button>
-        </div>
-        <p class="admin-note">Moves completed days before today from the Sheet into Drive JSON files. Reporting still includes archived days.</p>
-      </section>
-    </section>
   </main>
 
   <div id="toast" class="toast" hidden></div>

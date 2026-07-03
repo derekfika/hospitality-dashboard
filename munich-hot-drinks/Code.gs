@@ -126,11 +126,28 @@ function getSettings_() {
   const bankHolidays = active.filter(function(row) { return row[0] === "Bank Holiday" && row[2]; }).map(function(row) { return dateKey_(row[2]); });
   const closedPeriods = active.filter(function(row) { return row[0] === "Closed Period" && row[2]; }).map(function(row) { return String(row[2]); });
   return {
-    floors: floors.length ? floors : HOT_DRINKS_CONFIG.floors.slice(),
-    drinks: drinks.length ? drinks : HOT_DRINKS_CONFIG.drinks.slice(),
+    floors: orderedSettingsValues_(floors, HOT_DRINKS_CONFIG.floors),
+    drinks: orderedSettingsValues_(drinks, HOT_DRINKS_CONFIG.drinks),
     bankHolidays: bankHolidays.filter(Boolean),
     closedPeriods: closedPeriods
   };
+}
+
+function orderedSettingsValues_(values, preferredOrder) {
+  const seen = {};
+  const cleaned = (values || []).map(function(value) { return String(value || "").trim(); }).filter(Boolean);
+  const ordered = (preferredOrder || []).filter(function(value) {
+    if (cleaned.indexOf(value) === -1 || seen[value]) return false;
+    seen[value] = true;
+    return true;
+  });
+  cleaned.forEach(function(value) {
+    if (!seen[value]) {
+      ordered.push(value);
+      seen[value] = true;
+    }
+  });
+  return ordered.length ? ordered : (preferredOrder || []).slice();
 }
 
 function getSettingsForAdmin() {
