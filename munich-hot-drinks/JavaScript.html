@@ -44,10 +44,12 @@
     ).join("");
     $("#drink-buttons").innerHTML = (config.drinks || []).map((drink, index) => {
       const meta = drinkMeta[drink] || { code: initials(drink), accent: colors[index % colors.length], tone: "#f3f0ea" };
-      const photo = (window.DRINK_IMAGES || {})[drink];
       return `
       <button class="drink-button" data-drink="${escapeHtml(drink)}" style="--drink:${meta.accent}; --drink-soft:${meta.tone}" type="button">
-        ${photo ? `<span class="drink-photo" style="background-image:url('${photo}')"></span>` : `<span class="drink-icon">${escapeHtml(meta.code)}</span>`}
+        <span class="drink-art" aria-hidden="true">
+          <span class="drink-orbit"></span>
+          <span class="drink-icon">${escapeHtml(meta.code)}</span>
+        </span>
         <span class="drink-label">${escapeHtml(drink)}</span>
       </button>
     `;
