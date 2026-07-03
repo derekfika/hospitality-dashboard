@@ -2,9 +2,11 @@
 :root {
   --ink: #05090b;
   --muted: #62605d;
-  --paper: #f6f0e6;
+  --paper: #f4f7f9;
   --panel: #ffffff;
-  --line: #e1d8ca;
+  --line: #dce5ea;
+  --munich: #00538A;
+  --munich-dark: #003a61;
   --coffee: #6f4b33;
   --tea: #167a62;
   --choc: #8f3d2f;
@@ -22,8 +24,8 @@ body {
   min-height: 100svh;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(79,52,199,.09), transparent 34%),
-    linear-gradient(160deg, #fffaf2 0%, var(--paper) 48%, #ece8dc 100%);
+    linear-gradient(135deg, rgba(0,83,138,.09), transparent 34%),
+    linear-gradient(160deg, #fbfdfe 0%, var(--paper) 52%, #e9eff3 100%);
   color: var(--ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -155,7 +157,7 @@ main {
   min-height: 0;
   height: clamp(50px, 9svh, 70px);
   border: 1px solid rgba(5,9,11,.12);
-  background: rgba(255,255,255,.72);
+  background: rgba(255,255,255,.86);
   border-radius: 8px;
   font-weight: 800;
   font-size: clamp(18px, 3vw, 24px);
@@ -163,10 +165,10 @@ main {
   box-shadow: 0 10px 26px rgba(70, 51, 32, .08);
 }
 .floor-button.active {
-  border-color: var(--violet);
-  background: var(--violet);
+  border-color: var(--munich);
+  background: var(--munich);
   color: #fff;
-  box-shadow: 0 14px 28px rgba(79,52,199,.22);
+  box-shadow: 0 14px 28px rgba(0,83,138,.22);
 }
 .status-strip {
   display: flex;
@@ -213,7 +215,7 @@ main {
   display: block;
   font-size: clamp(34px, 8svh, 68px);
   line-height: 1;
-  color: var(--violet);
+  color: var(--munich);
 }
 .drink-counts {
   display: grid;
@@ -223,60 +225,74 @@ main {
 }
 .count-tile {
   border-left: 5px solid var(--count);
-  padding: clamp(7px, 1.4svh, 10px);
-  background: rgba(255,255,255,.66);
+  padding: clamp(6px, 1.1svh, 9px);
+  background: rgba(255,255,255,.76);
   border-radius: 8px;
 }
+.count-tile span {
+  overflow-wrap: anywhere;
+  font-size: clamp(11px, 1.55svh, 13px);
+  line-height: 1.05;
+}
 .count-tile strong {
-  font-size: clamp(21px, 3.6svh, 34px);
+  margin-top: 3px;
+  font-size: clamp(18px, 3.2svh, 28px);
   color: var(--ink);
 }
 .drink-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: clamp(10px, 1.6svh, 14px);
   min-height: 0;
 }
 .drink-button {
   min-height: 0;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(5,9,11,.08);
+  border: 1px solid rgba(0,83,138,.08);
   color: var(--ink);
   border-radius: 8px;
-  padding: clamp(12px, 2.2svh, 22px);
-  text-align: left;
+  padding: clamp(8px, 1.4svh, 12px);
+  text-align: center;
   display: grid;
-  align-content: space-between;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(8px, 1.4svh, 12px);
   background:
-    linear-gradient(145deg, rgba(255,255,255,.92), rgba(255,255,255,.72)),
-    var(--drink-soft);
-  box-shadow: 0 24px 54px rgba(70, 51, 32, .18);
+    linear-gradient(180deg, #ffffff, #f9fbfc);
+  box-shadow: 0 18px 42px rgba(0, 45, 76, .13);
   touch-action: manipulation;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
 .drink-button::before {
   content: "";
   position: absolute;
   inset: 0 0 auto;
-  height: 10px;
+  height: 6px;
   background: var(--drink);
 }
-.drink-button::after {
-  content: "";
-  position: absolute;
-  right: -34px;
-  bottom: -54px;
-  width: 140px;
-  height: 140px;
-  border: 18px solid color-mix(in srgb, var(--drink) 18%, transparent);
-  border-radius: 50%;
+.drink-button:hover {
+  border-color: color-mix(in srgb, var(--drink) 42%, #ffffff);
+  box-shadow: 0 22px 48px rgba(0, 45, 76, .17);
 }
 .drink-button:active {
-  transform: scale(.985);
+  transform: scale(.985) translateY(1px);
 }
 .drink-button[disabled] {
   filter: saturate(.55);
+}
+.drink-photo {
+  position: relative;
+  z-index: 1;
+  display: block;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  background-color: #fff;
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(5,9,11,.05);
 }
 .drink-icon {
   position: relative;
@@ -295,12 +311,19 @@ main {
 .drink-label {
   position: relative;
   z-index: 1;
-  width: min-content;
-  min-width: 78%;
-  font-size: clamp(23px, 5.4svh, 42px);
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(40px, 7svh, 58px);
+  padding: 0 4px 2px;
+  width: 100%;
+  font-size: clamp(17px, 2.95svh, 25px);
+  line-height: 1.05;
   font-weight: 900;
   letter-spacing: 0;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--drink) 72%, var(--ink));
+  overflow-wrap: anywhere;
 }
 .error-panel, .toast {
   background: #fff4f2;
