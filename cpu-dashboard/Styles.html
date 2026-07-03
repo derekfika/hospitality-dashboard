@@ -414,6 +414,9 @@
     .compact-select select, .toggle-chip, .search-field, .product-filter summary { height: 48px; border-radius: 14px; font-size: 14px; }
     .toggle-chip { justify-content: center; }
     .product-filter { grid-column: span 1; }
+    body:not(.view-production) .product-filter,
+    body:not(.view-production) .search-field { display: none; }
+    body:not(.view-production) .toolbar-group { grid-template-columns: 160px 1fr 1fr; }
     .product-filter details, .product-filter summary { min-width: 0; width: 100%; }
     .search-field { grid-column: span 2; min-width: 0; }
     .view-switch { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; border-radius: 16px; }
@@ -427,6 +430,8 @@
 
     .calendar-board { display: flex; min-height: 62vh; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     .day-column { flex: 0 0 330px; min-width: 330px; scroll-snap-align: start; }
+    body.day-focused .calendar-board { display: grid; grid-template-columns: 1fr !important; overflow-x: visible; }
+    body.day-focused .day-column { min-width: 0; width: 100%; }
     .day-header { padding: 13px; }
     .day-number { font-size: 34px; }
     .day-summary { font-size: 12px; }

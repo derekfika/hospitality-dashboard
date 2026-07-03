@@ -5,7 +5,7 @@ It scans hospitality and delivery events from configured Google Calendars,
 reads attached Google Docs and Microsoft Office quotes, caches the resulting
 production data in Google Sheets, and presents a multi-site operational view.
 
-Current build: `2026.06.21.8`
+Current build: `2026.06.21.9`
 
 ## Core capabilities
 
@@ -13,7 +13,7 @@ Current build: `2026.06.21.8`
 - Multi-site, service, day, category, updated-only and completion filters
 - Categorised production board with totals, site splits and booking drill-down
 - Run sheet, Dietary, Deliveries and full-screen Kitchen views
-- Simplified landscape tablet layout for kitchen prep/photo workflows
+- Simplified day-first landscape tablet layout for kitchen prep/photo workflows
 - Prep progress tracking with persistent Prepped/Done flags and chef attribution
 - Tablet/mobile proof-of-prep and allergen sheet photo uploads saved back to Drive
 - Quick-prep controls on calendar and production records

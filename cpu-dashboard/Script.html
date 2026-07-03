@@ -1,5 +1,5 @@
 <script>
-  const CLIENT_BUILD = "2026.06.21.8";
+  const CLIENT_BUILD = "2026.06.21.9";
   const PREP_CHEF_KEY = "cpu-dashboard-last-prep-chef";
   const PREFS_KEY = "cpu-dashboard-preferences-v1";
   const state = {
@@ -28,6 +28,7 @@
 
   document.addEventListener("DOMContentLoaded", function() {
     restorePreferences_();
+    applyTabletDefaults_();
     bindKeyboardShortcuts_();
     bindDropdownDismiss_();
     renderLoadingSkeleton_();
@@ -102,6 +103,7 @@
   }
 
   function renderAll() {
+    document.body.classList.toggle("day-focused", state.dayFocus !== "");
     const orders = filteredOrders();
     const progressOrders = filteredOrders({ includeCompleted: true });
     renderStats(orders);
@@ -1125,11 +1127,18 @@
 
   function setView(view) {
     state.view = view;
+    updateBodyViewClass_();
     ["calendar", "list", "production", "delivery", "dietary"].forEach(function(name) {
       document.getElementById(name + "View").classList.toggle("hidden", name !== view);
       document.getElementById(name + "ViewButton").classList.toggle("active", name === view);
     });
     savePreferences_();
+  }
+
+  function updateBodyViewClass_() {
+    ["calendar", "list", "production", "delivery", "dietary"].forEach(function(name) {
+      document.body.classList.toggle("view-" + name, state.view === name);
+    });
   }
 
   function toggleKitchenMode() {
@@ -1168,6 +1177,7 @@
     if (state.loading) return;
     state.loading = true;
     state.weekStart = startOfWeek(new Date());
+    if (isTabletPrepView_()) state.dayFocus = tabletDefaultDayFocus_();
     updatePeriodHeading();
     setWeekLoading_(true);
     loadDashboard();
@@ -1479,6 +1489,26 @@
       state.kitchenMode = saved.kitchenMode === true;
       state.view = saved.view || "calendar";
     } catch (ignore) {}
+  }
+
+  function applyTabletDefaults_() {
+    if (!isTabletPrepView_() || state.preferencesRestored || state.dayFocus !== "") return;
+    state.dayFocus = tabletDefaultDayFocus_();
+  }
+
+  function isTabletPrepView_() {
+    try {
+      return window.matchMedia &&
+        window.matchMedia("(min-width: 761px) and (max-width: 1368px) and (pointer: coarse)").matches;
+    } catch (ignore) {
+      return false;
+    }
+  }
+
+  function tabletDefaultDayFocus_() {
+    if (!isCurrentWeek(state.weekStart)) return "0";
+    const day = (new Date().getDay() + 6) % 7;
+    return String(Math.min(Math.max(day, 0), 4));
   }
 
   function bindKeyboardShortcuts_() {

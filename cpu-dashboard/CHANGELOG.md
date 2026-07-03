@@ -1,5 +1,11 @@
 # CPU Dashboard Changelog
 
+## 2026.06.21.9
+
+- Tablet view now defaults to a single-day focus instead of the whole week when no user preference exists.
+- The selected tablet day now expands to a full-width prep lane.
+- Tablet calendar view hides product/search controls unless the Production view is active, reducing visual clutter.
+
 ## 2026.06.21.8
 
 - Added a simplified tablet layout for landscape kitchen/tablet use.
