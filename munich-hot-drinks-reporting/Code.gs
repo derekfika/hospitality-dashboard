@@ -243,7 +243,7 @@ function getReportingDataHealth() {
   activeTodayRows.forEach(function(row) {
     drinksToday[row.drink] = (drinksToday[row.drink] || 0) + 1;
   });
-  return {
+  const result = {
     ok: true,
     spreadsheetId: spreadsheet.getId(),
     spreadsheetName: spreadsheet.getName(),
@@ -266,4 +266,46 @@ function getReportingDataHealth() {
       };
     })
   };
+  Logger.log(JSON.stringify(result, null, 2));
+  writeReportingDataHealthSheet_(spreadsheet, result);
+  return "Reporting data health written to the Reporting_Data_Health tab. Live today: " + result.liveActiveRowsToday + ". Spreadsheet: " + result.spreadsheetName + " (" + result.spreadsheetId + ")";
+}
+
+function writeReportingDataHealthSheet_(spreadsheet, result) {
+  const name = "Reporting_Data_Health";
+  let sheet = spreadsheet.getSheetByName(name);
+  if (!sheet) sheet = spreadsheet.insertSheet(name);
+  sheet.clear();
+  const latestRows = result.latestLiveRows || [];
+  const drinkRows = Object.keys(result.drinksToday || {}).sort().map(function(drink) {
+    return [drink, result.drinksToday[drink]];
+  });
+  const summaryRows = [
+    ["Generated At", new Date()],
+    ["Spreadsheet Name", result.spreadsheetName],
+    ["Spreadsheet ID", result.spreadsheetId],
+    ["Timezone", result.timezone],
+    ["Today", result.today],
+    ["Live Rows", result.liveRows],
+    ["Live Active Rows", result.liveActiveRows],
+    ["Live Active Rows Today", result.liveActiveRowsToday],
+    ["Archived Rows", result.archivedRows],
+    ["Settings Drinks", result.settingsDrinks.join(", ")]
+  ];
+  sheet.getRange(1, 1, summaryRows.length, 2).setValues(summaryRows);
+  sheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#00538A").setFontColor("#ffffff");
+
+  const drinkStart = summaryRows.length + 3;
+  sheet.getRange(drinkStart, 1, 1, 2).setValues([["Drink Today", "Count"]]).setFontWeight("bold").setBackground("#101820").setFontColor("#ffffff");
+  if (drinkRows.length) sheet.getRange(drinkStart + 1, 1, drinkRows.length, 2).setValues(drinkRows);
+
+  const latestStart = drinkStart + Math.max(drinkRows.length, 1) + 3;
+  const latestHeader = ["Date", "Time", "Floor", "Drink", "Status", "Archived"];
+  sheet.getRange(latestStart, 1, 1, latestHeader.length).setValues([latestHeader]).setFontWeight("bold").setBackground("#101820").setFontColor("#ffffff");
+  if (latestRows.length) {
+    sheet.getRange(latestStart + 1, 1, latestRows.length, latestHeader.length).setValues(latestRows.map(function(row) {
+      return [row.date, row.time, row.floor, row.drink, row.status, row.archived];
+    }));
+  }
+  sheet.autoResizeColumns(1, latestHeader.length);
 }
