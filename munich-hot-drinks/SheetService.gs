@@ -122,8 +122,11 @@ function getTodayCounts() {
     counts.total += 1;
     if (!counts.byDrink[row.drink]) counts.byDrink[row.drink] = 0;
     if (!counts.byFloor[row.floor]) counts.byFloor[row.floor] = 0;
+    if (!counts.byFloorDrink[row.floor]) counts.byFloorDrink[row.floor] = {};
+    if (!counts.byFloorDrink[row.floor][row.drink]) counts.byFloorDrink[row.floor][row.drink] = 0;
     counts.byDrink[row.drink] += 1;
     counts.byFloor[row.floor] += 1;
+    counts.byFloorDrink[row.floor][row.drink] += 1;
   });
   counts.date = today;
   return counts;
@@ -180,9 +183,14 @@ function getSheetLogRows_() {
 function makeEmptyCounts_(settings) {
   const byDrink = {};
   const byFloor = {};
+  const byFloorDrink = {};
   settings.drinks.forEach(function(drink) { byDrink[drink] = 0; });
-  settings.floors.forEach(function(floor) { byFloor[floor] = 0; });
-  return { total: 0, byDrink: byDrink, byFloor: byFloor };
+  settings.floors.forEach(function(floor) {
+    byFloor[floor] = 0;
+    byFloorDrink[floor] = {};
+    settings.drinks.forEach(function(drink) { byFloorDrink[floor][drink] = 0; });
+  });
+  return { total: 0, byDrink: byDrink, byFloor: byFloor, byFloorDrink: byFloorDrink };
 }
 
 function logAudit_(action, submissionId, floor, drink, device, details) {

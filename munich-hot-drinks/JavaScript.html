@@ -40,20 +40,28 @@
 
   function renderSelectors() {
     $("#floor-selector").innerHTML = (config.floors || []).map(floor =>
-      `<button class="floor-button ${floor === state.floor ? "active" : ""}" data-floor="${escapeHtml(floor)}" type="button">${escapeHtml(floor)}</button>`
+      `<button class="floor-button ${floor === state.floor ? "active" : ""}" data-floor="${escapeHtml(floor)}" type="button">
+        <span>${escapeHtml(floor)}</span>
+        <strong data-floor-count="${escapeHtml(floor)}">0</strong>
+      </button>`
     ).join("");
     $("#drink-buttons").innerHTML = (config.drinks || []).map((drink, index) => {
       const meta = drinkMeta[drink] || { code: initials(drink), accent: colors[index % colors.length], tone: "#f3f0ea" };
       return `
       <button class="drink-button" data-drink="${escapeHtml(drink)}" style="--drink:${meta.accent}; --drink-soft:${meta.tone}" type="button">
+        <span class="drink-count" data-drink-count="${escapeHtml(drink)}">0</span>
         <span class="drink-art" aria-hidden="true">
           <span class="drink-orbit"></span>
           <span class="drink-icon">${escapeHtml(meta.code)}</span>
         </span>
-        <span class="drink-label">${escapeHtml(drink)}</span>
+        <span class="drink-copy">
+          <span class="drink-label">${escapeHtml(drink)}</span>
+          <span class="drink-subtitle">Tap to add</span>
+        </span>
       </button>
     `;
     }).join("");
+    updateDrinkTileCounts();
   }
 
   function bindEvents() {
@@ -94,6 +102,8 @@
   function setFloor(floor) {
     state.floor = floor;
     document.querySelectorAll(".floor-button").forEach(button => button.classList.toggle("active", button.dataset.floor === floor));
+    renderBreakdown();
+    updateDrinkTileCounts();
     toast(`Floor set to ${floor}`);
   }
 
@@ -110,6 +120,8 @@
     saveQueue();
     applyOptimisticCount(drink, 1);
     flashButton(button);
+    burstPlusOne(button);
+    setLastTap(drink, state.floor);
     updateQueueStatus();
     $("#error-panel").hidden = true;
     if (state.queue.length >= maxBatchSize) syncQueue();
@@ -144,6 +156,8 @@
     }
     const batch = state.queue.slice(0, maxBatchSize);
     state.syncing = true;
+    $("#sync-status").classList.remove("sync-synced", "sync-offline", "sync-error");
+    $("#sync-status").classList.add("sync-saving");
     setStatus(`Syncing ${batch.length}...`);
     google.script.run
       .withSuccessHandler(result => {
@@ -173,18 +187,32 @@
   function setCounts(counts) {
     state.counts = counts;
     $("#today-total").textContent = counts.total || 0;
-    $("#drink-counts").innerHTML = Object.keys(counts.byDrink || {}).map((drink, index) => `
+    renderBreakdown();
+    updateFloorCounts();
+    updateDrinkTileCounts();
+  }
+
+  function renderBreakdown() {
+    const counts = state.counts || { byDrink: {}, byFloorDrink: {} };
+    const floorCounts = (counts.byFloorDrink && counts.byFloorDrink[state.floor]) || counts.byDrink || {};
+    $("#drink-counts").innerHTML = Object.keys(floorCounts || {}).map((drink, index) => `
       <div class="count-tile" style="--count:${(drinkMeta[drink] && drinkMeta[drink].accent) || colors[index % colors.length]}">
         <span>${escapeHtml(drink)}</span>
-        <strong>${counts.byDrink[drink] || 0}</strong>
+        <strong>${floorCounts[drink] || 0}</strong>
       </div>
     `).join("");
   }
 
   function applyOptimisticCount(drink, delta) {
-    const counts = state.counts || { total: 0, byDrink: {}, byFloor: {} };
+    const counts = state.counts || { total: 0, byDrink: {}, byFloor: {}, byFloorDrink: {} };
+    counts.byDrink = counts.byDrink || {};
+    counts.byFloor = counts.byFloor || {};
+    counts.byFloorDrink = counts.byFloorDrink || {};
+    counts.byFloorDrink[state.floor] = counts.byFloorDrink[state.floor] || {};
     counts.total = Math.max(0, (counts.total || 0) + delta);
     counts.byDrink[drink] = Math.max(0, (counts.byDrink[drink] || 0) + delta);
+    counts.byFloor[state.floor] = Math.max(0, (counts.byFloor[state.floor] || 0) + delta);
+    counts.byFloorDrink[state.floor][drink] = Math.max(0, (counts.byFloorDrink[state.floor][drink] || 0) + delta);
     setCounts(counts);
   }
 
@@ -195,7 +223,22 @@
   }
 
   function flashButton(button) {
+    if (!button) return;
     button.animate([{ transform: "scale(1)" }, { transform: "scale(.97)" }, { transform: "scale(1)" }], { duration: 180 });
+  }
+
+  function burstPlusOne(button) {
+    if (!button) return;
+    const burst = document.createElement("span");
+    burst.className = "tap-burst";
+    burst.textContent = "+1";
+    button.appendChild(burst);
+    burst.addEventListener("animationend", () => burst.remove(), { once: true });
+  }
+
+  function setLastTap(drink, floor) {
+    $("#last-tap-drink").textContent = drink;
+    $("#last-tap-meta").textContent = `${floor} - just now`;
   }
 
   function setStatus(text) {
@@ -204,10 +247,22 @@
 
   function updateQueueStatus(prefix) {
     const queued = state.queue.length;
-    if (prefix) return setStatus(`${prefix} · ${queued} queued`);
-    if (!navigator.onLine) return setStatus(`${queued} queued · offline`);
-    if (state.syncing) return;
-    setStatus(queued ? `${queued} queued · autosync every minute` : "Synced");
+    const status = $("#sync-status");
+    status.classList.remove("sync-synced", "sync-saving", "sync-offline", "sync-error");
+    if (prefix) {
+      status.classList.add("sync-error");
+      return setStatus(`${prefix} - ${queued} queued`);
+    }
+    if (!navigator.onLine) {
+      status.classList.add("sync-offline");
+      return setStatus(`${queued} queued - offline`);
+    }
+    if (state.syncing) {
+      status.classList.add("sync-saving");
+      return;
+    }
+    status.classList.add(queued ? "sync-saving" : "sync-synced");
+    setStatus(queued ? `${queued} queued - autosync` : "Synced");
   }
 
   function loadQueue() {
@@ -224,15 +279,36 @@
   }
 
   function applyQueueCounts(counts) {
-    const output = JSON.parse(JSON.stringify(counts || { total: 0, byDrink: {}, byFloor: {} }));
+    const output = JSON.parse(JSON.stringify(counts || { total: 0, byDrink: {}, byFloor: {}, byFloorDrink: {} }));
+    output.byDrink = output.byDrink || {};
+    output.byFloor = output.byFloor || {};
+    output.byFloorDrink = output.byFloorDrink || {};
     const today = config.serverDate || new Date().toISOString().slice(0, 10);
     state.queue.forEach(tap => {
       if (!String(tap.tappedAt || "").startsWith(today)) return;
       output.total = (output.total || 0) + 1;
       output.byDrink[tap.drink] = (output.byDrink[tap.drink] || 0) + 1;
       output.byFloor[tap.floor] = (output.byFloor[tap.floor] || 0) + 1;
+      output.byFloorDrink[tap.floor] = output.byFloorDrink[tap.floor] || {};
+      output.byFloorDrink[tap.floor][tap.drink] = (output.byFloorDrink[tap.floor][tap.drink] || 0) + 1;
     });
     return output;
+  }
+
+  function updateFloorCounts() {
+    const byFloor = (state.counts && state.counts.byFloor) || {};
+    document.querySelectorAll("[data-floor-count]").forEach(item => {
+      item.textContent = byFloor[item.dataset.floorCount] || 0;
+    });
+  }
+
+  function updateDrinkTileCounts() {
+    const byFloorDrink = (state.counts && state.counts.byFloorDrink && state.counts.byFloorDrink[state.floor]) || {};
+    const byDrink = (state.counts && state.counts.byDrink) || {};
+    document.querySelectorAll("[data-drink-count]").forEach(item => {
+      const drink = item.dataset.drinkCount;
+      item.textContent = byFloorDrink[drink] || byDrink[drink] || 0;
+    });
   }
 
   function toast(text) {

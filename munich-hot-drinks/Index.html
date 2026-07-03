@@ -63,17 +63,33 @@
 
   <main>
     <section class="view tally-view">
-      <div class="tally-control-panel">
-        <div class="floor-row" id="floor-selector"></div>
+      <!-- Live control panel -->
+      <aside class="tally-control-panel">
+        <section class="control-section">
+          <span class="section-label">Floor</span>
+          <div class="floor-row" id="floor-selector"></div>
+        </section>
+
         <section class="today-panel" aria-live="polite">
-          <div class="total-tile"><span>Total today</span><strong id="today-total">0</strong></div>
+          <div class="total-tile">
+            <span>Total today</span>
+            <strong id="today-total">0</strong>
+          </div>
+          <div class="last-tap-card">
+            <span>Last tap</span>
+            <strong id="last-tap-drink">None yet</strong>
+            <small id="last-tap-meta">Ready for service</small>
+          </div>
           <div id="drink-counts" class="drink-counts"></div>
         </section>
-        <div class="status-strip">
-          <span id="sync-status">Ready</span>
+
+        <section class="control-footer">
+          <span id="sync-status" class="sync-pill sync-synced">Synced</span>
           <button id="undo-button" type="button">Undo last tap</button>
-        </div>
-      </div>
+        </section>
+      </aside>
+
+      <!-- Touch-first POS product grid -->
       <section id="drink-buttons" class="drink-grid"></section>
       <div id="error-panel" class="error-panel" hidden>
         <span id="error-message"></span>
