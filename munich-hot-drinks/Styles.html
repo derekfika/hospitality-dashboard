@@ -134,7 +134,7 @@ main {
   gap: 9px;
 }
 
-.section-label, .today-panel span, .last-tap-card span {
+.section-label, .today-panel span {
   color: var(--muted);
   font-size: 11px;
   font-weight: 950;
@@ -196,11 +196,11 @@ main {
 .today-panel {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
 }
 
-.total-tile, .last-tap-card {
+.total-tile {
   border-radius: 8px;
   border: 1px solid rgba(0,83,138,.1);
   background: linear-gradient(145deg, #ffffff, #f7fbfd);
@@ -231,25 +231,6 @@ main {
   font-size: clamp(42px, 7svh, 64px);
   line-height: .92;
   font-weight: 950;
-}
-
-.last-tap-card {
-  display: grid;
-  gap: 2px;
-  padding: 12px 14px;
-}
-
-.last-tap-card strong {
-  margin: 0;
-  color: var(--ink);
-  font-size: clamp(17px, 2.7svh, 22px);
-  line-height: 1.05;
-}
-
-.last-tap-card small {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 750;
 }
 
 .drink-counts {

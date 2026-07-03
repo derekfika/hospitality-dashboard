@@ -121,7 +121,6 @@
     applyOptimisticCount(drink, 1);
     flashButton(button);
     burstPlusOne(button);
-    setLastTap(drink, state.floor);
     updateQueueStatus();
     $("#error-panel").hidden = true;
     if (state.queue.length >= maxBatchSize) syncQueue();
@@ -234,11 +233,6 @@
     burst.textContent = "+1";
     button.appendChild(burst);
     burst.addEventListener("animationend", () => burst.remove(), { once: true });
-  }
-
-  function setLastTap(drink, floor) {
-    $("#last-tap-drink").textContent = drink;
-    $("#last-tap-meta").textContent = `${floor} - just now`;
   }
 
   function setStatus(text) {
