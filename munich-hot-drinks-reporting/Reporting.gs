@@ -299,14 +299,18 @@ function csvCell_(value) {
 function buildPdfReportModel_(filters, summary, settings) {
   const generatedAt = Utilities.formatDate(new Date(), HOT_DRINKS_CONFIG.timezone, "d MMMM yyyy HH:mm");
   const drinks = (settings && settings.drinks && settings.drinks.length) ? settings.drinks : HOT_DRINKS_CONFIG.drinks;
+  const reportWeekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const activeDays = Object.keys(summary.byDate || {}).length;
   const drinkRows = mapRows_(summary.byDrink || {}, summary.total, summary.drinkMix || {});
   const floorRows = mapRows_(summary.byFloor || {}, summary.total, null);
-  const weekdayRows = mapRows_(summary.byWeekday || {}, summary.total, null);
+  const weekdayRows = mapRowsInOrder_(summary.byWeekday || {}, summary.total, null, reportWeekdays);
   const trend = summary.trend || [];
   const trendMax = Math.max(1, Math.max.apply(null, trend.map(function(item) { return item.total; }).concat([0])));
   const heatmap = summary.heatmap || {};
-  const heatmapMax = maxNestedValue_(heatmap);
+  const heatmapDays = reportWeekdays.filter(function(day) { return !!heatmap[day]; });
+  const displayHeatmap = {};
+  heatmapDays.forEach(function(day) { displayHeatmap[day] = heatmap[day]; });
+  const heatmapMax = maxNestedValue_(displayHeatmap);
   const drinkColors = ["#00538A", "#0b70a8", "#167a62", "#ff8000", "#4F34C7", "#8f3d2f", "#d39a22", "#647280"];
   const mostPopularDrink = drinkRows.length ? drinkRows.slice().sort(function(a, b) { return b.value - a.value; })[0] : null;
   const floorSplit = floorRows.map(function(row) { return row.label + " " + row.percent + "%"; }).join(" / ") || "-";
@@ -350,10 +354,10 @@ function buildPdfReportModel_(filters, summary, settings) {
         height: Math.max(4, Math.round(item.total / trendMax * 100))
       };
     }),
-    heatmapDays: Object.keys(heatmap),
+    heatmapDays: heatmapDays,
     heatmapBuckets: HOT_DRINKS_CONFIG.timeBuckets.map(function(bucket) { return bucket.label; }),
     heatmapBucketMeta: HOT_DRINKS_CONFIG.timeBuckets,
-    heatmap: heatmap,
+    heatmap: displayHeatmap,
     heatmapMax: heatmapMax,
     hourlyDrinkRows: hourlyDrinkRows,
     drinks: drinks,
@@ -405,6 +409,23 @@ function buildPdfHourlyDrinkRows_(rows, drinks, colors) {
 function mapRows_(map, total, percentages) {
   const max = Math.max(1, Math.max.apply(null, Object.keys(map).map(function(key) { return Number(map[key] || 0); }).concat([0])));
   return Object.keys(map).map(function(key) {
+    const value = Number(map[key] || 0);
+    const percent = percentages && percentages[key] != null
+      ? percentages[key]
+      : total ? Math.round(value / total * 1000) / 10 : 0;
+    return {
+      label: key,
+      value: value,
+      percent: percent,
+      width: Math.max(2, Math.round(value / max * 100))
+    };
+  });
+}
+
+function mapRowsInOrder_(map, total, percentages, keys) {
+  const availableKeys = (keys || []).filter(function(key) { return map[key] != null; });
+  const max = Math.max(1, Math.max.apply(null, availableKeys.map(function(key) { return Number(map[key] || 0); }).concat([0])));
+  return availableKeys.map(function(key) {
     const value = Number(map[key] || 0);
     const percent = percentages && percentages[key] != null
       ? percentages[key]
