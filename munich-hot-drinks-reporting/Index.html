@@ -38,6 +38,7 @@
         </div>
       </header>
 
+      <!-- Changed: sticky report control bar with advanced filters tucked away -->
       <form id="dashboard-filters" class="filters">
         <label>Preset<select name="preset">
           <option value="today">Today</option>
@@ -54,16 +55,49 @@
         <label>Start<input name="startDate" type="date"></label>
         <label>End<input name="endDate" type="date"></label>
         <label>Floor<select name="floor"></select></label>
-        <label>Drink<select name="drink"></select></label>
-        <label class="check"><input name="excludeBankHolidays" type="checkbox" checked> Exclude bank holidays</label>
-        <label class="check"><input name="excludeClosedPeriods" type="checkbox" checked> Exclude closed periods/days</label>
         <button type="submit">Run report</button>
+        <details class="advanced-filters">
+          <summary>Advanced filters</summary>
+          <div>
+            <label>Drink<select name="drink"></select></label>
+            <label class="check"><input name="excludeBankHolidays" type="checkbox" checked> Exclude bank holidays</label>
+            <label class="check"><input name="excludeClosedPeriods" type="checkbox" checked> Exclude closed periods/days</label>
+          </div>
+        </details>
       </form>
 
       <div id="report-context" class="report-context"></div>
+      <!-- Changed: deterministic insight layer before detailed charts -->
+      <section class="takeaways-panel">
+        <div class="panel-heading">
+          <div>
+            <span>Key takeaways</span>
+            <h2>What changed in this report</h2>
+          </div>
+        </div>
+        <div id="key-takeaways" class="takeaway-list"></div>
+      </section>
       <div id="report-summary" class="summary-grid"></div>
 
       <section class="dashboard-grid">
+        <article class="panel wide">
+          <div class="panel-heading">
+            <div><span>Daily movement</span><h2>Trend over time</h2></div>
+          </div>
+          <div id="trend" class="trend"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading">
+            <div><span>Product split</span><h2>Drink mix</h2></div>
+          </div>
+          <div id="drink-mix" class="list-chart"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading">
+            <div><span>Location split</span><h2>Floor comparison</h2></div>
+          </div>
+          <div id="floor-comparison" class="list-chart"></div>
+        </article>
         <article class="panel wide">
           <div class="panel-heading">
             <div>
@@ -92,24 +126,6 @@
             </div>
           </div>
           <div id="hourly-drinks" class="hourly-drinks"></div>
-        </article>
-        <article class="panel">
-          <div class="panel-heading">
-            <div><span>Product split</span><h2>Drink mix</h2></div>
-          </div>
-          <div id="drink-mix" class="list-chart"></div>
-        </article>
-        <article class="panel">
-          <div class="panel-heading">
-            <div><span>Location split</span><h2>Floor comparison</h2></div>
-          </div>
-          <div id="floor-comparison" class="list-chart"></div>
-        </article>
-        <article class="panel wide">
-          <div class="panel-heading">
-            <div><span>Daily movement</span><h2>Trend over time</h2></div>
-          </div>
-          <div id="trend" class="trend"></div>
         </article>
       </section>
     </section>
