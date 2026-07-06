@@ -131,6 +131,7 @@ function summarizeRows_(rows, filters, settings) {
   const heatmap = {};
   const heatmapDrinkTop = {};
   const hourlyDrinkMix = {};
+  let excludedClosedPeriodRows = 0;
   settings.drinks.forEach(function(drink) { byDrink[drink] = 0; });
   settings.floors.forEach(function(floor) { byFloor[floor] = 0; });
   HOT_DRINKS_CONFIG.timeBuckets.forEach(function(bucket) {
@@ -156,6 +157,8 @@ function summarizeRows_(rows, filters, settings) {
       heatmap[weekday][bucket.label] += 1;
       hourlyDrinkMix[bucket.label][row.drink] = (hourlyDrinkMix[bucket.label][row.drink] || 0) + 1;
       heatmapDrinkTop[weekday][bucket.label] = topDrinkForBucket_(heatmapDrinkTop[weekday][bucket.label], row.drink);
+    } else if (bucket && filters.excludeClosedPeriods && bucket.closed) {
+      excludedClosedPeriodRows += 1;
     }
   });
 
@@ -184,6 +187,7 @@ function summarizeRows_(rows, filters, settings) {
     heatmap: heatmap,
     heatmapDrinkTop: finalizeHeatmapDrinkTop_(heatmapDrinkTop, heatmap),
     hourlyDrinkMix: buildHourlyDrinkMix_(hourlyDrinkMix),
+    excludedClosedPeriodRows: excludedClosedPeriodRows,
     drinkMix: drinkMix,
     trend: activeDates.sort().map(function(date) { return { date: date, total: byDate[date] }; })
   };

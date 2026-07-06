@@ -45,3 +45,5 @@ The tally screen is deployed separately from `../munich-hot-drinks`; this app is
 Completed days are archived from `Drink_Log` into Drive JSON files. Dashboard, CSV and PDF reporting include both current Sheet rows and archived JSON rows.
 
 If archive files are created by the tally app, run `getHotDrinkArchiveFolderId()` there and then `setHotDrinkArchiveFolderId("FOLDER_ID")` in this reporting app so reporting can read the same Drive folder.
+
+For dashboard/archive testing, run `generateJune2026ArchiveTestData()` from the Apps Script editor. It writes one archive JSON per day for June 2026, leaves weekends/bank holidays/closed days empty, and fills service days with synthetic opening-hours drink activity. Run `clearJune2026ArchiveTestData()` to remove only those synthetic archive rows.

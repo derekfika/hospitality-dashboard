@@ -41,7 +41,7 @@
       button.addEventListener("click", () => {
         state.hourlyView = button.dataset.hourlyView;
         document.querySelectorAll("[data-hourly-view]").forEach(item => item.classList.toggle("active", item === button));
-        if (state.lastReport) renderHourlyDrinks((state.lastReport.summary || {}).hourlyDrinkMix || []);
+        if (state.lastReport) renderHourlyDrinks(state.lastReport.summary || {});
       });
     });
   }
@@ -86,7 +86,7 @@
     animateMetricNumbers();
     bindMetricActions();
     renderHeatmapFromReport(result);
-    renderHourlyDrinks(summary.hourlyDrinkMix || []);
+    renderHourlyDrinks(summary);
     renderTrend(summary.trend || []);
     renderListChart("#drink-mix", summary.byDrink || {}, summary.drinkMix || {});
     renderListChart("#floor-comparison", summary.byFloor || {});
@@ -94,11 +94,12 @@
 
   function renderHeatmapFromReport(result) {
     const summary = result.summary || {};
-    renderHeatmap(summary.heatmap || {}, summary.heatmapDrinkTop || {}, result.filters || readFilters());
+    renderHeatmap(summary.heatmap || {}, summary.heatmapDrinkTop || {}, result.filters || readFilters(), summary);
   }
 
-  function renderHeatmap(heatmap, heatmapDrinkTop, filters) {
+  function renderHeatmap(heatmap, heatmapDrinkTop, filters, summary) {
     filters = filters || {};
+    summary = summary || {};
     const bucketConfig = config.timeBuckets || [];
     const buckets = bucketConfig.map(bucket => bucket.label);
     const days = Object.keys(heatmap);
@@ -106,7 +107,7 @@
     const max = Math.max(1, ...values);
     const total = values.reduce((sum, value) => sum + Number(value || 0), 0);
     if (!days.length || !total) {
-      $("#heatmap").innerHTML = `<div class="empty-state">No heatmap activity in this range</div>`;
+      $("#heatmap").innerHTML = timeEmptyState(summary, "heatmap activity");
       return;
     }
     $("#heatmap").innerHTML = `<div class="heatmap-grid" style="--cols:${buckets.length}">
@@ -124,14 +125,23 @@
     </div>`;
   }
 
-  function renderHourlyDrinks(rows) {
-    const items = rows || [];
+  function renderHourlyDrinks(summaryOrRows) {
+    const summary = Array.isArray(summaryOrRows) ? {} : (summaryOrRows || {});
+    const items = Array.isArray(summaryOrRows) ? summaryOrRows : (summary.hourlyDrinkMix || []);
     const total = items.reduce((sum, row) => sum + Number(row.total || 0), 0);
     if (!items.length || !total) {
-      $("#hourly-drinks").innerHTML = `<div class="empty-state">No hourly drink type data in this range</div>`;
+      $("#hourly-drinks").innerHTML = timeEmptyState(summary, "hourly drink type data");
       return;
     }
     $("#hourly-drinks").innerHTML = state.hourlyView === "table" ? renderHourlyTable(items) : renderHourlyChart(items);
+  }
+
+  function timeEmptyState(summary, label) {
+    const excluded = Number((summary || {}).excludedClosedPeriodRows || 0);
+    if (excluded) {
+      return `<div class="empty-state">${excluded} matching drink${excluded === 1 ? "" : "s"} fall inside excluded closed periods.<br>Open Advanced filters and include closed periods to show this ${escapeHtml(label)}.</div>`;
+    }
+    return `<div class="empty-state">No ${escapeHtml(label)} in this range</div>`;
   }
 
   function renderHourlyChart(rows) {
@@ -261,7 +271,7 @@
     const floor = filters.floor || "Combined";
     const drink = filters.drink || "All";
     const activeDays = Object.keys((summary && summary.byDate) || {}).length;
-    $("#report-context").textContent = `Showing ${floor} / ${drink === "All" ? "All drinks" : drink} · ${formatDate(filters.startDate)} -> ${formatDate(filters.endDate)} · Bank holidays ${filters.excludeBankHolidays ? "excluded" : "included"} · Closed periods ${filters.excludeClosedPeriods ? "excluded" : "included"} · ${activeDays} active day${activeDays === 1 ? "" : "s"}`;
+    $("#report-context").textContent = `Showing ${floor} / ${drink === "All" ? "All drinks" : drink} - ${formatDate(filters.startDate)} -> ${formatDate(filters.endDate)} - Bank holidays ${filters.excludeBankHolidays ? "excluded" : "included"} - Closed periods ${filters.excludeClosedPeriods ? "excluded" : "included"} - ${activeDays} active day${activeDays === 1 ? "" : "s"}`;
   }
 
   function renderTakeaways(summary) {
