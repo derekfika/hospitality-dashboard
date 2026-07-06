@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <style>
-    @page { size: A4 landscape; margin: 10mm; }
+    @page { size: A4 landscape; margin: 8mm; }
     :root {
       --munich: #00538A;
       --munich-dark: #003a61;
@@ -152,7 +152,7 @@
     }
     .page {
       page-break-before: always;
-      padding: 11mm 11mm 12mm;
+      padding: 8mm 9mm 10mm;
       background:
         linear-gradient(90deg, rgba(0,83,138,.055) 0 13mm, transparent 13mm),
         linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
@@ -161,8 +161,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 5mm;
-      padding: 4.5mm 5mm;
+      margin-bottom: 3.5mm;
+      padding: 3.4mm 4.2mm;
       border-radius: 3mm;
       color: #fff;
       background:
@@ -171,7 +171,7 @@
     }
     .page-header h2 {
       margin: 1mm 0 0;
-      font-size: 22px;
+      font-size: 19px;
       line-height: 1;
     }
     .page-header span {
@@ -183,14 +183,14 @@
     .small-munich {
       background: #fff;
       border-radius: 2mm;
-      padding: 2.4mm 3.5mm;
+      padding: 2mm 3mm;
     }
-    .small-munich svg { width: 31mm; height: auto; }
+    .small-munich svg { width: 27mm; height: auto; }
     .footer {
       position: absolute;
-      left: 11mm;
-      right: 11mm;
-      bottom: 4.2mm;
+      left: 9mm;
+      right: 9mm;
+      bottom: 3.2mm;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -203,12 +203,12 @@
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 3mm;
-      margin-bottom: 4mm;
+      gap: 2.2mm;
+      margin-bottom: 3mm;
     }
     .kpi {
-      min-height: 28mm;
-      padding: 4mm;
+      min-height: 20mm;
+      padding: 3mm;
       border: 1px solid var(--line);
       border-radius: 3mm;
       background:
@@ -221,34 +221,34 @@
     .kpi.purple { border-left-color: var(--purple); }
     .kpi strong {
       display: block;
-      margin-top: 2mm;
+      margin-top: 1.2mm;
       color: var(--munich);
-      font-size: 25px;
+      font-size: 18px;
       line-height: 1;
       font-weight: 800;
     }
     .kpi small {
       display: block;
-      margin-top: 2mm;
+      margin-top: 1.2mm;
       color: var(--muted);
-      font-size: 8.2px;
+      font-size: 7.2px;
       font-weight: 700;
       line-height: 1.25;
     }
     .insight {
       display: grid;
-      grid-template-columns: 11mm 1fr;
-      gap: 4mm;
+      grid-template-columns: 9mm 1fr;
+      gap: 3mm;
       align-items: center;
-      margin-bottom: 4mm;
-      padding: 4mm;
+      margin-bottom: 3mm;
+      padding: 3mm;
       border-radius: 3mm;
       background: linear-gradient(135deg, #eaf4fa, #fff);
       border: 1px solid #cfe3ed;
     }
     .insight-mark {
-      width: 11mm;
-      height: 11mm;
+      width: 9mm;
+      height: 9mm;
       display: grid;
       place-items: center;
       border-radius: 50%;
@@ -260,40 +260,40 @@
     .insight p {
       margin: 0;
       color: #234254;
-      font-size: 12px;
-      line-height: 1.45;
+      font-size: 10.2px;
+      line-height: 1.32;
       font-weight: 700;
     }
     .content-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 4mm;
+      gap: 3mm;
     }
     .panel {
-      min-height: 46mm;
-      padding: 4mm;
+      min-height: 35mm;
+      padding: 3mm;
       border: 1px solid var(--line);
       border-radius: 3mm;
       background: linear-gradient(180deg, #ffffff, #f8fbfd);
     }
     .panel.wide { grid-column: 1 / -1; }
     .panel h3 {
-      margin: 0 0 3.6mm;
+      margin: 0 0 2.4mm;
       color: var(--munich-dark);
-      font-size: 14px;
+      font-size: 12px;
     }
     .row {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 3mm;
+      gap: 2mm;
       align-items: center;
-      margin-bottom: 2.8mm;
+      margin-bottom: 1.7mm;
       font-weight: 700;
     }
     .row strong { color: var(--munich); }
     .track {
       grid-column: 1 / -1;
-      height: 3mm;
+      height: 2.2mm;
       overflow: hidden;
       border-radius: 99mm;
       background: var(--munich-soft);
@@ -305,12 +305,12 @@
     }
     .row:nth-of-type(2n) .fill { background: linear-gradient(90deg, var(--coffee), var(--orange)); }
     .trend {
-      height: 44mm;
+      height: 36mm;
       display: flex;
       align-items: end;
       gap: 2mm;
       border-bottom: 1px solid var(--line);
-      padding: 7mm 1mm 7mm;
+      padding: 6mm 1mm 6mm;
     }
     .bar {
       position: relative;
@@ -353,20 +353,20 @@
     }
     .hourly-bars {
       display: grid;
-      gap: 2.6mm;
-      margin-bottom: 5mm;
+      gap: 1.8mm;
+      margin-bottom: 3mm;
     }
     .hourly-bar-row {
       display: grid;
-      grid-template-columns: 24mm 1fr 13mm;
-      gap: 3mm;
+      grid-template-columns: 23mm 1fr 11mm;
+      gap: 2mm;
       align-items: center;
       font-weight: 700;
     }
     .hourly-bar-row > span { color: var(--munich-dark); }
     .hourly-bar-row > strong { color: var(--munich); text-align: right; }
     .stack {
-      height: 5.4mm;
+      height: 4.1mm;
       display: flex;
       overflow: hidden;
       border: 1px solid #c9dfe9;
@@ -381,8 +381,8 @@
     .legend {
       display: flex;
       flex-wrap: wrap;
-      gap: 2mm 5mm;
-      margin-bottom: 4mm;
+      gap: 1.5mm 4mm;
+      margin-bottom: 3mm;
       color: var(--muted);
       font-size: 8px;
       font-weight: 700;
@@ -401,13 +401,13 @@
     table {
       width: 100%;
       border-collapse: separate;
-      border-spacing: 1mm;
-      font-size: 7.6px;
+      border-spacing: .65mm;
+      font-size: 7px;
     }
     th, td {
       border: 0;
-      border-radius: 1.8mm;
-      padding: 2mm;
+      border-radius: 1.4mm;
+      padding: 1.35mm;
       text-align: center;
     }
     th {
@@ -426,8 +426,8 @@
       font-weight: 800;
     }
     .heat-table {
-      border-spacing: 1.2mm;
-      font-size: 8px;
+      border-spacing: .8mm;
+      font-size: 7.3px;
     }
     .heat {
       color: #03283d;
@@ -451,7 +451,7 @@
       justify-content: flex-end;
       align-items: center;
       gap: 2mm;
-      margin: -2mm 0 2mm;
+      margin: -1.4mm 0 1.5mm;
       color: var(--muted);
       font-size: 8px;
       font-weight: 700;
@@ -465,11 +465,11 @@
     .notes {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 3mm;
-      margin-top: 4mm;
+      gap: 2mm;
+      margin-top: 2.6mm;
     }
     .note {
-      padding: 3mm;
+      padding: 2.2mm;
       border: 1px solid var(--line);
       border-left: 4px solid var(--munich);
       border-radius: 2.6mm;
@@ -479,16 +479,16 @@
       display: block;
       margin-top: 1mm;
       color: var(--munich);
-      font-size: 11px;
+      font-size: 9.5px;
     }
     .appendix-note {
-      margin-top: 5mm;
-      padding: 4mm;
+      margin-top: 3mm;
+      padding: 3mm;
       border-radius: 3mm;
       background: #fff7ed;
       border: 1px solid #ffd2a3;
       color: #70470f;
-      font-size: 10px;
+      font-size: 8.8px;
       font-weight: 700;
       line-height: 1.45;
     }
@@ -514,7 +514,7 @@
     <div class="cover-grid">
       <div class="meta-card"><span>Prepared</span><strong><?= report.generatedAt ?></strong></div>
       <div class="meta-card"><span>Scope</span><strong><?= report.filters.floor ?> / <?= report.filters.drink ?></strong></div>
-      <div class="meta-card wide"><span>Data handling</span><strong>Bank holidays <?= report.filters.bankHolidays ?> · Closed periods <?= report.filters.closedPeriods ?></strong></div>
+      <div class="meta-card wide"><span>Data handling</span><strong>Bank holidays <?= report.filters.bankHolidays ?> - Closed periods <?= report.filters.closedPeriods ?></strong></div>
     </div>
   </section>
 
@@ -545,7 +545,7 @@
           <h3>Drink mix</h3>
           <? for (var d = 0; d < report.drinkRows.length; d++) { var drink = report.drinkRows[d]; ?>
             <div class="row">
-              <span><?= drink.label ?></span><strong><?= drink.value ?> · <?= drink.percent ?>%</strong>
+              <span><?= drink.label ?></span><strong><?= drink.value ?> - <?= drink.percent ?>%</strong>
               <div class="track"><div class="fill" style="width:<?= drink.width ?>%"></div></div>
             </div>
           <? } ?>
@@ -554,7 +554,7 @@
           <h3>Floor comparison</h3>
           <? for (var f = 0; f < report.floorRows.length; f++) { var floor = report.floorRows[f]; ?>
             <div class="row">
-              <span><?= floor.label ?></span><strong><?= floor.value ?> · <?= floor.percent ?>%</strong>
+              <span><?= floor.label ?></span><strong><?= floor.value ?> - <?= floor.percent ?>%</strong>
               <div class="track"><div class="fill" style="width:<?= floor.width ?>%"></div></div>
             </div>
           <? } ?>
@@ -570,7 +570,7 @@
         </article>
       </div>
     <? } ?>
-    <div class="footer"><span><?= report.title ?> · <?= report.period ?></span><span><?= report.generatedLabel ?></span></div>
+    <div class="footer"><span><?= report.title ?> - <?= report.period ?></span><span><?= report.generatedLabel ?></span></div>
   </section>
 
   <!-- Changed: visual hourly patterns -->
@@ -626,7 +626,7 @@
         </tbody>
       </table>
     <? } ?>
-    <div class="footer"><span><?= report.title ?> · Hourly patterns</span><span><?= report.generatedLabel ?></span></div>
+    <div class="footer"><span><?= report.title ?> - Hourly patterns</span><span><?= report.generatedLabel ?></span></div>
   </section>
 
   <!-- Changed: polished heatmap and appendix notes -->
@@ -673,7 +673,7 @@
       <div class="note"><span>Drink filter</span><strong><?= report.filters.drink ?></strong></div>
     </div>
     <div class="appendix-note">Data is captured from live barista tally submissions. Reports may exclude configured bank holidays and closed service periods depending on the selected filters. This export reflects the dashboard filters selected at the time the PDF was generated.</div>
-    <div class="footer"><span><?= report.title ?> · Data appendix</span><span><?= report.generatedLabel ?></span></div>
+    <div class="footer"><span><?= report.title ?> - Data appendix</span><span><?= report.generatedLabel ?></span></div>
   </section>
 </body>
 </html>
