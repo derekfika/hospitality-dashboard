@@ -2,6 +2,12 @@
 (() => {
   const config = window.APP_CONFIG || {};
   const $ = selector => document.querySelector(selector);
+  const state = {
+    lastReport: null,
+    heatmapMode: "total",
+    hourlyView: "chart"
+  };
+  const drinkColors = ["#00538A", "#0b70a8", "#167a62", "#ff8000", "#4F34C7", "#8f3d2f", "#d39a22", "#647280"];
 
   function init() {
     renderFilterOptions();
@@ -24,6 +30,20 @@
     });
     bindClick("#export-csv", exportCsv);
     bindClick("#export-pdf", exportPdf);
+    const heatmapMode = $("#heatmap-mode");
+    if (heatmapMode) {
+      heatmapMode.addEventListener("change", event => {
+        state.heatmapMode = event.target.value;
+        if (state.lastReport) renderHeatmapFromReport(state.lastReport);
+      });
+    }
+    document.querySelectorAll("[data-hourly-view]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.hourlyView = button.dataset.hourlyView;
+        document.querySelectorAll("[data-hourly-view]").forEach(item => item.classList.toggle("active", item === button));
+        if (state.lastReport) renderHourlyDrinks((state.lastReport.summary || {}).hourlyDrinkMix || []);
+      });
+    });
   }
 
   function bindClick(selector, handler) {
@@ -48,6 +68,7 @@
   }
 
   function renderReport(result) {
+    state.lastReport = result;
     const summary = result.summary || {};
     renderReportContext(result.filters || readFilters(), summary);
     $("#report-summary").innerHTML = [
@@ -61,13 +82,19 @@
       metric("Active days", Object.keys(summary.byDate || {}).length, "days with activity", "calendar")
     ].join("");
     animateMetricNumbers();
-    renderHeatmap(summary.heatmap || {}, result.filters || readFilters());
+    renderHeatmapFromReport(result);
+    renderHourlyDrinks(summary.hourlyDrinkMix || []);
     renderTrend(summary.trend || []);
     renderListChart("#drink-mix", summary.byDrink || {}, summary.drinkMix || {});
     renderListChart("#floor-comparison", summary.byFloor || {});
   }
 
-  function renderHeatmap(heatmap, filters) {
+  function renderHeatmapFromReport(result) {
+    const summary = result.summary || {};
+    renderHeatmap(summary.heatmap || {}, summary.heatmapDrinkTop || {}, result.filters || readFilters());
+  }
+
+  function renderHeatmap(heatmap, heatmapDrinkTop, filters) {
     filters = filters || {};
     const bucketConfig = config.timeBuckets || [];
     const buckets = bucketConfig.map(bucket => bucket.label);
@@ -85,10 +112,54 @@
         const value = heatmap[day][bucket.label] || 0;
         const intensity = Math.max(.05, value / max);
         const closed = bucket.closed && filters.excludeClosedPeriods;
-        const title = closed ? `${day} ${bucket.label}: closed period` : `${day} ${bucket.label}: ${value}`;
-        return `<div class="heat-cell${closed ? " is-closed" : ""}" title="${escapeAttr(title)}" style="--heat:${intensity}"><span>${closed ? "Closed" : value || ""}</span></div>`;
+        const topDrink = ((heatmapDrinkTop[day] || {})[bucket.label]) || {};
+        const drinkLabel = topDrink.drink ? `${topDrink.drink} (${topDrink.count})` : "";
+        const display = state.heatmapMode === "topDrink" && drinkLabel ? drinkLabel : (value || "");
+        const title = closed ? `${day} ${bucket.label}: closed period` : `${day} ${bucket.label}: ${value} total${drinkLabel ? `, top drink ${drinkLabel}` : ""}`;
+        return `<div class="heat-cell${closed ? " is-closed" : ""}${state.heatmapMode === "topDrink" ? " heat-cell-drink" : ""}" title="${escapeAttr(title)}" style="--heat:${intensity}"><span>${closed ? "Closed" : escapeHtml(display)}</span></div>`;
       }).join("")}`).join("")}
     </div>`;
+  }
+
+  function renderHourlyDrinks(rows) {
+    const items = rows || [];
+    const total = items.reduce((sum, row) => sum + Number(row.total || 0), 0);
+    if (!items.length || !total) {
+      $("#hourly-drinks").innerHTML = `<div class="empty-state">No hourly drink type data in this range</div>`;
+      return;
+    }
+    $("#hourly-drinks").innerHTML = state.hourlyView === "table" ? renderHourlyTable(items) : renderHourlyChart(items);
+  }
+
+  function renderHourlyChart(rows) {
+    const max = Math.max(1, ...rows.map(row => Number(row.total || 0)));
+    const drinks = config.drinks || [];
+    return `<div class="hourly-legend">${drinks.map((drink, index) => `<span><i style="background:${drinkColor(index)}"></i>${escapeHtml(drink)}</span>`).join("")}</div>
+      <div class="hourly-chart">${rows.map(row => {
+        const segments = drinks.map((drink, index) => {
+          const value = Number((row.drinks || {})[drink] || 0);
+          if (!value) return "";
+          const width = Math.max(3, value / Math.max(1, row.total) * 100);
+          return `<i title="${escapeAttr(`${row.bucket} ${drink}: ${value}`)}" style="width:${width}%; background:${drinkColor(index)}"></i>`;
+        }).join("");
+        return `<div class="hourly-row">
+          <span>${escapeHtml(row.bucket)}</span>
+          <div class="hourly-stack" style="--height:${Math.max(10, Number(row.total || 0) / max * 100)}%">${segments}</div>
+          <strong>${row.total || 0}</strong>
+        </div>`;
+      }).join("")}</div>`;
+  }
+
+  function renderHourlyTable(rows) {
+    const drinks = config.drinks || [];
+    return `<div class="hourly-table-wrap"><table class="hourly-table">
+      <thead><tr><th>Hour</th><th>Total</th>${drinks.map(drink => `<th>${escapeHtml(drink)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(row => `<tr>
+        <th>${escapeHtml(row.bucket)}</th>
+        <td>${row.total || 0}</td>
+        ${drinks.map(drink => `<td>${(row.drinks || {})[drink] || 0}</td>`).join("")}
+      </tr>`).join("")}</tbody>
+    </table></div>`;
   }
 
   function renderTrend(trend) {
@@ -247,6 +318,7 @@
     $("#report-summary").innerHTML = Array.from({ length: 8 }, () => `<div class="metric skeleton-card"><span></span><strong></strong></div>`).join("");
     $("#heatmap").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading heatmap...</div>`;
     $("#trend").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading trend...</div>`;
+    $("#hourly-drinks").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading hourly drink types...</div>`;
     $("#drink-mix").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading drink mix...</div>`;
     $("#floor-comparison").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading floors...</div>`;
   }
@@ -266,6 +338,10 @@
 
   function escapeAttr(value) {
     return escapeHtml(value).replace(/"/g, "&quot;");
+  }
+
+  function drinkColor(index) {
+    return drinkColors[index % drinkColors.length];
   }
 
   document.addEventListener("DOMContentLoaded", init);

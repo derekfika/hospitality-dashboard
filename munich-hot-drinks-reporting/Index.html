@@ -70,9 +70,28 @@
               <span>Service pattern</span>
               <h2>Hourly heatmap</h2>
             </div>
-            <div class="heat-legend"><i></i><span>Low</span><strong>High</strong></div>
+            <div class="panel-tools">
+              <label class="mini-select">View<select id="heatmap-mode">
+                <option value="total">Total drinks</option>
+                <option value="topDrink">Top drink type</option>
+              </select></label>
+              <div class="heat-legend"><i></i><span>Low</span><strong>High</strong></div>
+            </div>
           </div>
           <div id="heatmap" class="heatmap"></div>
+        </article>
+        <article class="panel wide">
+          <div class="panel-heading">
+            <div>
+              <span>Hourly detail</span>
+              <h2>Drinks by hour and type</h2>
+            </div>
+            <div class="segmented" role="group" aria-label="Hourly drink type view">
+              <button class="active" data-hourly-view="chart" type="button">Graph</button>
+              <button data-hourly-view="table" type="button">Table</button>
+            </div>
+          </div>
+          <div id="hourly-drinks" class="hourly-drinks"></div>
         </article>
         <article class="panel">
           <div class="panel-heading">

@@ -9,7 +9,7 @@
       margin: 0;
       color: #05090B;
       font-family: Arial, Helvetica, sans-serif;
-      background: #ffffff;
+      background: #eef4f7;
       font-size: 10.5px;
     }
     .cover {
@@ -18,7 +18,10 @@
       overflow: hidden;
       padding: 18mm;
       color: #fff;
-      background: linear-gradient(122deg, #00538A 0%, #08689f 58%, #ffffff 58.2%, #ffffff 100%);
+      background:
+        radial-gradient(circle at 82% 14%, rgba(255,255,255,.22), transparent 25%),
+        radial-gradient(circle at 12% 88%, rgba(255,128,0,.18), transparent 22%),
+        linear-gradient(135deg, #003a61 0%, #00538A 58%, #0b70a8 100%);
       border: 1px solid #d9e4eb;
     }
     .cover:after {
@@ -118,6 +121,7 @@
     .page {
       page-break-before: always;
       padding: 0;
+      background: #eef4f7;
     }
     .page-header {
       display: flex;
@@ -126,7 +130,9 @@
       padding: 5mm 6mm;
       margin-bottom: 5mm;
       color: #fff;
-      background: linear-gradient(120deg, #00538A, #08689f);
+      background:
+        radial-gradient(circle at 92% 0%, rgba(255,128,0,.22), transparent 24%),
+        linear-gradient(120deg, #003a61, #00538A 72%, #0b70a8);
       border-radius: 3mm;
     }
     .page-header h2 {
@@ -158,7 +164,9 @@
       border-top: 4px solid #00538A;
       border-radius: 3mm;
       padding: 4mm;
-      background: linear-gradient(180deg, #fff, #f7fbfd);
+      background:
+        radial-gradient(circle at 92% 16%, rgba(0,83,138,.1), transparent 30%),
+        linear-gradient(180deg, #fff, #f7fbfd);
     }
     .kpi:nth-child(3),
     .kpi:nth-child(4) { border-top-color: #ff8000; }
@@ -188,12 +196,14 @@
       border-radius: 3mm;
       padding: 4mm;
       min-height: 50mm;
-      background: #fff;
+      background: linear-gradient(180deg, #ffffff, #f8fbfd);
+      box-shadow: 0 3mm 8mm rgba(0,45,76,.06);
     }
     .panel.wide { grid-column: 1 / -1; }
     .panel h3 {
       margin: 0 0 4mm;
       font-size: 14px;
+      color: #003a61;
     }
     .row {
       display: grid;
@@ -207,7 +217,7 @@
     .track {
       grid-column: 1 / -1;
       height: 3.2mm;
-      background: #eaf3f8;
+      background: #eaf4fa;
       border-radius: 99mm;
       overflow: hidden;
     }
@@ -271,6 +281,82 @@
       color: #03283d;
       font-weight: 800;
     }
+    .colour-strip {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 1.2mm;
+      margin-bottom: 4mm;
+    }
+    .colour-strip span {
+      height: 3mm;
+      border-radius: 99mm;
+    }
+    .hourly-bars {
+      display: grid;
+      gap: 2.6mm;
+      margin-bottom: 5mm;
+    }
+    .hourly-bar-row {
+      display: grid;
+      grid-template-columns: 24mm 1fr 12mm;
+      align-items: center;
+      gap: 3mm;
+      font-weight: 700;
+    }
+    .hourly-bar-row > span {
+      color: #003a61;
+    }
+    .hourly-bar-row > strong {
+      color: #00538A;
+      text-align: right;
+    }
+    .stack {
+      height: 5.2mm;
+      display: flex;
+      overflow: hidden;
+      border-radius: 99mm;
+      background: #dcebf3;
+      border: 1px solid #c9dfe9;
+    }
+    .stack i {
+      display: block;
+      min-width: 1.2mm;
+      height: 100%;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2mm 5mm;
+      margin-bottom: 4mm;
+      color: #667481;
+      font-size: 8px;
+      font-weight: 700;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 1.5mm;
+    }
+    .legend i {
+      width: 2.6mm;
+      height: 2.6mm;
+      border-radius: 99mm;
+      display: inline-block;
+    }
+    .detail-table {
+      border-spacing: 1mm;
+      font-size: 7.2px;
+    }
+    .detail-table td {
+      background: #fff;
+      border: 1px solid #e2edf3;
+      font-weight: 700;
+    }
+    .detail-table td.total {
+      color: #00538A;
+      background: #eaf4fa;
+      font-weight: 800;
+    }
     .notes {
       margin-top: 4mm;
       display: grid;
@@ -319,6 +405,66 @@
       <div class="meta-card"><span>Scope</span><strong><?= report.filters.floor ?> / <?= report.filters.drink ?></strong></div>
       <div class="meta-card"><span>Data handling</span><strong>Bank holidays <?= report.filters.bankHolidays ?> &middot; Closed days <?= report.filters.closedPeriods ?></strong></div>
     </div>
+  </section>
+
+  <section class="page">
+    <header class="page-header">
+      <div>
+        <h2>Hourly drinks by type</h2>
+        <span>Hourly number of drinks sold, split by product type</span>
+      </div>
+      <div class="small-munich"><?!= report.logos.munichRe ?></div>
+    </header>
+
+    <article class="panel wide">
+      <h3>Hourly type mix</h3>
+      <div class="colour-strip">
+        <? for (var colourIndex = 0; colourIndex < report.drinkColors.length; colourIndex++) { ?>
+          <span style="background:<?= report.drinkColors[colourIndex] ?>"></span>
+        <? } ?>
+      </div>
+      <div class="legend">
+        <? for (var drinkIndex = 0; drinkIndex < report.drinks.length; drinkIndex++) { ?>
+          <span><i style="background:<?= report.drinkColors[drinkIndex % report.drinkColors.length] ?>"></i><?= report.drinks[drinkIndex] ?></span>
+        <? } ?>
+      </div>
+      <div class="hourly-bars">
+        <? for (var hourIndex = 0; hourIndex < report.hourlyDrinkRows.length; hourIndex++) { var hour = report.hourlyDrinkRows[hourIndex]; ?>
+          <div class="hourly-bar-row">
+            <span><?= hour.bucket ?></span>
+            <div class="stack">
+              <? for (var segmentIndex = 0; segmentIndex < hour.segments.length; segmentIndex++) { var segment = hour.segments[segmentIndex]; ?>
+                <? if (segment.value) { ?><i style="width:<?= segment.width ?>%; background:<?= segment.color ?>"></i><? } ?>
+              <? } ?>
+            </div>
+            <strong><?= hour.total ?></strong>
+          </div>
+        <? } ?>
+      </div>
+    </article>
+
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>Hour</th>
+          <th>Total</th>
+          <? for (var headerDrink = 0; headerDrink < report.drinks.length; headerDrink++) { ?>
+            <th><?= report.drinks[headerDrink] ?></th>
+          <? } ?>
+        </tr>
+      </thead>
+      <tbody>
+        <? for (var tableHourIndex = 0; tableHourIndex < report.hourlyDrinkRows.length; tableHourIndex++) { var tableHour = report.hourlyDrinkRows[tableHourIndex]; ?>
+          <tr>
+            <th><?= tableHour.bucket ?></th>
+            <td class="total"><?= tableHour.total ?></td>
+            <? for (var tableSegmentIndex = 0; tableSegmentIndex < tableHour.segments.length; tableSegmentIndex++) { ?>
+              <td><?= tableHour.segments[tableSegmentIndex].value ?></td>
+            <? } ?>
+          </tr>
+        <? } ?>
+      </tbody>
+    </table>
   </section>
 
   <section class="page">
