@@ -308,12 +308,17 @@ function buildPdfReportModel_(filters, summary, settings) {
   const heatmap = summary.heatmap || {};
   const heatmapMax = maxNestedValue_(heatmap);
   const drinkColors = ["#00538A", "#0b70a8", "#167a62", "#ff8000", "#4F34C7", "#8f3d2f", "#d39a22", "#647280"];
+  const mostPopularDrink = drinkRows.length ? drinkRows.slice().sort(function(a, b) { return b.value - a.value; })[0] : null;
+  const floorSplit = floorRows.map(function(row) { return row.label + " " + row.percent + "%"; }).join(" / ") || "-";
+  const hourlyDrinkRows = buildPdfHourlyDrinkRows_(summary.hourlyDrinkMix || [], drinks, drinkColors);
 
   return {
-    title: "Hot drink usage report",
+    title: "Hot Drink Usage Report",
     strapline: "Not if, but how",
     period: formatDisplayDate_(filters.startDate) + " - " + formatDisplayDate_(filters.endDate),
     generatedAt: generatedAt,
+    generatedLabel: "Prepared " + generatedAt,
+    captureStatement: "Live service data captured at point of preparation",
     filters: {
       floor: filters.floor,
       drink: filters.drink,
@@ -322,13 +327,17 @@ function buildPdfReportModel_(filters, summary, settings) {
       closedPeriods: filters.excludeClosedPeriods ? "Excluded" : "Included"
     },
     kpis: [
-      { label: "Total drinks", value: summary.total || 0 },
-      { label: "Average per active day", value: summary.averagePerDay || 0 },
-      { label: "Peak hour", value: summary.peakHour || "-" },
-      { label: "Busiest day", value: formatDisplayDate_(summary.busiestDay) || "-" },
-      { label: "Tue-Thu daily average", value: summary.tuesdayThursdayDailyAverage || 0 },
-      { label: "Mon-Thu daily average", value: summary.mondayThursdayDailyAverage || 0 }
+      { label: "Total drinks", value: summary.total || 0, helper: "Selected report range", tone: "blue" },
+      { label: "Average per active day", value: summary.averagePerDay || 0, helper: activeDays + " active day" + (activeDays === 1 ? "" : "s"), tone: "green" },
+      { label: "Peak hour", value: summary.peakHour || "-", helper: "Busiest recorded hour", tone: "orange" },
+      { label: "Busiest day", value: formatDisplayDate_(summary.busiestDay) || "-", helper: "Highest daily volume", tone: "blue" },
+      { label: "Tue-Thu average", value: summary.tuesdayThursdayDailyAverage || 0, helper: "Midweek benchmark", tone: "green" },
+      { label: "Mon-Thu average", value: summary.mondayThursdayDailyAverage || 0, helper: "Core week benchmark", tone: "green" },
+      { label: "Most popular drink", value: mostPopularDrink && mostPopularDrink.value ? mostPopularDrink.label : "-", helper: mostPopularDrink && mostPopularDrink.value ? mostPopularDrink.percent + "% of drinks" : "No drink activity", tone: "purple" },
+      { label: "Floor split", value: floorSplit, helper: "Share of selected volume", tone: "orange" }
     ],
+    insightText: buildInsightText_(summary, drinkRows, activeDays),
+    hasData: Number(summary.total || 0) > 0,
     activeDays: activeDays,
     quietestHour: summary.quietestHour || "-",
     drinkRows: drinkRows,
@@ -343,13 +352,33 @@ function buildPdfReportModel_(filters, summary, settings) {
     }),
     heatmapDays: Object.keys(heatmap),
     heatmapBuckets: HOT_DRINKS_CONFIG.timeBuckets.map(function(bucket) { return bucket.label; }),
+    heatmapBucketMeta: HOT_DRINKS_CONFIG.timeBuckets,
     heatmap: heatmap,
     heatmapMax: heatmapMax,
-    hourlyDrinkRows: buildPdfHourlyDrinkRows_(summary.hourlyDrinkMix || [], drinks, drinkColors),
+    hourlyDrinkRows: hourlyDrinkRows,
     drinks: drinks,
     drinkColors: drinkColors,
     logos: getReportLogos_()
   };
+}
+
+function buildInsightText_(summary, drinkRows, activeDays) {
+  const total = Number(summary.total || 0);
+  if (!total || activeDays < 1) {
+    return "No drink activity matched the selected filters, so trend insight is not available for this range.";
+  }
+  const topDrink = drinkRows.length ? drinkRows.slice().sort(function(a, b) { return b.value - a.value; })[0] : null;
+  const parts = ["Across the selected period, the bars recorded " + total + " hot drink" + (total === 1 ? "" : "s") + "."];
+  if (topDrink && topDrink.value) {
+    parts.push(topDrink.label + " accounted for " + topDrink.percent + "% of activity.");
+  }
+  if (summary.peakHour) {
+    parts.push("Peak demand was recorded around " + summary.peakHour + ".");
+  }
+  if (summary.tuesdayThursdayDailyAverage) {
+    parts.push("Tuesday to Thursday averaged " + summary.tuesdayThursdayDailyAverage + " drinks per active day.");
+  }
+  return parts.join(" ");
 }
 
 function buildPdfHourlyDrinkRows_(rows, drinks, colors) {
