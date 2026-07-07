@@ -2,3 +2,5 @@
 node_modules/
 cpu-dashboard/qa/
 .artifact-work/
+.deployment-id
+client-feedback-portal/.clasp.json

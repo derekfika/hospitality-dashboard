@@ -1,8 +1,18 @@
 # ignore folders / subprojects
 client-booking-platform/**
+cfc-client-booking-platform/**
+cfc-hospitality-dashboard/**
+client-feedback-portal/**
 cpu-dashboard/**
 58ve-dashboard/**
+mnk-client-booking-platform/**
+mnk-hospitality-dashboard/**
+munich-hot-drinks/**
+munich-hot-drinks-reporting/**
+workforce-operations-platform/**
 .artifact-work/**
+.agents/**
+.codex/**
 node_modules/**
 .git/**
 .npm-cache/**
@@ -11,6 +21,9 @@ node_modules/**
 README.md
 CHANGELOG.md
 .gitignore
+*.bat
+*.zip
+bat
 
 # keep root Apps Script files
 !appsscript.json

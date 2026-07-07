@@ -1,0 +1,83 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+cd /d "%~dp0"
+
+set "PROJECT_NAME=Angel Court Hospitality Dashboard"
+set "PROJECT_DIR=%~dp0"
+set "CLASP_USER=hospitality"
+set "DEPLOYMENT_ID=AKfycbyLnNKaZVHf8ZcTbJOwZ9RQDxq5OYs4uO6gRZ0WXrcNfJtEuqvgz1_zlNupVmnfXQAU"
+
+echo.
+echo ============================================================
+echo  Release %PROJECT_NAME%
+echo ============================================================
+echo  Apps Script user: %CLASP_USER%
+echo  Deployment: %DEPLOYMENT_ID%
+echo.
+
+set "MESSAGE="
+set /P "MESSAGE=Release description [Update Angel Court dashboard]: "
+if not defined MESSAGE set "MESSAGE=Update Angel Court dashboard"
+
+set "CONFIRM="
+set /P "CONFIRM=Push, deploy and commit this release? [Y/N]: "
+if /I not "%CONFIRM%"=="Y" (
+  echo Release cancelled.
+  exit /b 0
+)
+
+call :clasp_command push --force
+if errorlevel 1 goto :failed
+
+call :clasp_command deploy --deploymentId "%DEPLOYMENT_ID%" --description "%MESSAGE%"
+if errorlevel 1 goto :failed
+
+git add -- ^
+  .claspignore .gitignore ^
+  00_config.js 02_Schema.js 03_Utils.js 04_Parser.js ^
+  05_GmailScanner.js 06_DataLayer.js 07_Webapp.js ^
+  08_DriveHelper.js 09_QuoteEngine.js 10_Calendar.js ^
+  11_Triggers.js 12_TestHarness.js 13_Feedback.js appsscript.json ^
+  Index.html Styles.html Script.html Icons.html ^
+  README.md CHANGELOG.md hospitalitypush.bat ^
+  push-apps-script.bat push-git-projects.bat feedbackpush.bat
+if errorlevel 1 goto :failed
+
+call :commit_and_push "%MESSAGE% - Angel Court dashboard"
+if errorlevel 1 goto :failed
+
+echo.
+echo SUCCESS: %PROJECT_NAME% pushed, deployed and saved to Git.
+pause
+exit /b 0
+
+:clasp_command
+pushd "%PROJECT_DIR%"
+where clasp.cmd >nul 2>nul
+if not errorlevel 1 (
+  call clasp.cmd --user "%CLASP_USER%" %*
+) else (
+  call npx.cmd --yes @google/clasp --user "%CLASP_USER%" %*
+)
+set "RESULT=!ERRORLEVEL!"
+popd
+exit /b !RESULT!
+
+:commit_and_push
+git diff --cached --quiet
+if errorlevel 1 (
+  git commit -m "%~1"
+  if errorlevel 1 exit /b 1
+) else (
+  echo No Git changes to commit.
+)
+for /F "delims=" %%B in ('git branch --show-current') do set "BRANCH=%%B"
+if not defined BRANCH exit /b 1
+git push origin "!BRANCH!"
+exit /b !ERRORLEVEL!
+
+:failed
+echo.
+echo ERROR: %PROJECT_NAME% release stopped. Review the error above.
+pause
+exit /b 1

@@ -51,8 +51,6 @@ function writeBookingToSheet_(booking) {
 
   const map = getHeaderMap_();
 
-  const row = sh.getLastRow() + 1;
-
   const values = {};
 
   assertRequiredHeaders_(map, [
@@ -62,6 +60,13 @@ function writeBookingToSheet_(booking) {
     "MessageId",
     "AttachmentName"
   ]);
+
+  const existingRow = findDashboardRowBySourceKey_(booking.messageId, booking.attachmentName, sh, map);
+  if (existingRow) {
+    return existingRow;
+  }
+
+  const row = sh.getLastRow() + 1;
 
   values.BookingID = booking.bookingId;
 
@@ -188,6 +193,7 @@ function writeBookingToSheet_(booking) {
 
   sh.getRange(row, 1, 1, lastCol).setValues([rowValues]);
 
+  return row;
 }
 
 function assertRequiredHeaders_(map, required) {
@@ -195,4 +201,34 @@ function assertRequiredHeaders_(map, required) {
   if (missing.length) {
     throw new Error("Missing dashboard headers: " + missing.join(", "));
   }
+}
+
+function findDashboardRowBySourceKey_(messageId, attachmentName, sh, map) {
+  const cleanMessageId = String(messageId || "").trim();
+  const cleanAttachmentName = String(attachmentName || "").trim();
+  if (!cleanMessageId || !cleanAttachmentName) return 0;
+
+  sh = sh || getDashboardSheet_();
+  map = map || getHeaderMap_();
+
+  const messageCol = map.MessageId;
+  const attachmentCol = map.AttachmentName;
+  if (!messageCol || !attachmentCol) return 0;
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const rowMessageId = String(row[messageCol - 1] || "").trim();
+    const rowAttachmentName = String(row[attachmentCol - 1] || "").trim();
+
+    if (rowMessageId === cleanMessageId && rowAttachmentName === cleanAttachmentName) {
+      return i + 2;
+    }
+  }
+
+  return 0;
 }

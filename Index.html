@@ -79,6 +79,17 @@
 
     </header>
     <section class="stats" id="stats"></section>
+    <section class="feedback-insights" id="feedbackInsights" aria-live="polite">
+      <div class="feedback-insights-heading">
+        <div>
+          <span class="eyebrow">Client feedback</span>
+          <h2>Hospitality pulse</h2>
+        </div>
+        <span class="muted" id="feedbackInsightsStatus">Loading feedback…</span>
+      </div>
+      <div class="feedback-metrics" id="feedbackMetrics"></div>
+      <div class="feedback-items" id="feedbackItems"></div>
+    </section>
 
     <section class="controls">
       <input id="searchInput" placeholder="Search company, host, floor, status..." oninput="renderBookings()">

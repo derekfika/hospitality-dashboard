@@ -26,7 +26,10 @@
 
   console.log("SCRIPT LOADED VERSION BETA TEST v0.9.2");
 
-  document.addEventListener("DOMContentLoaded", loadBookings);
+  document.addEventListener("DOMContentLoaded", () => {
+    loadBookings();
+    loadFeedbackMetrics();
+  });
 
   function toggleTheme() {
     document.body.classList.toggle("theme-dark");
@@ -527,6 +530,49 @@
       .getDashboardBookings();
   }
 
+  function loadFeedbackMetrics() {
+    const status = document.getElementById("feedbackInsightsStatus");
+    google.script.run
+      .withSuccessHandler(renderFeedbackMetrics)
+      .withFailureHandler(err => {
+        if (status) status.textContent = "Feedback unavailable";
+        console.warn("Feedback metrics failed:", err);
+      })
+      .getHospitalityFeedbackMetrics();
+  }
+
+  function renderFeedbackMetrics(data) {
+    const metrics = document.getElementById("feedbackMetrics");
+    const items = document.getElementById("feedbackItems");
+    const status = document.getElementById("feedbackInsightsStatus");
+    if (!metrics || !items || !status) return;
+
+    if (!data || !data.available) {
+      status.textContent = "Portal not set up yet";
+      metrics.innerHTML = "";
+      items.innerHTML = "";
+      return;
+    }
+
+    status.textContent = `${data.completed || 0} responses from ${data.sent || 0} requests`;
+    metrics.innerHTML = `
+      <div class="feedback-metric"><strong>${data.averageOverall ?? "—"}</strong><span>Average rating / 5</span></div>
+      <div class="feedback-metric"><strong>${data.responseRate || 0}%</strong><span>Response rate</span></div>
+      <div class="feedback-metric"><strong>${data.nps ?? "—"}</strong><span>Net promoter score</span></div>
+      <div class="feedback-metric ${data.lowRatings ? "needs-attention" : ""}"><strong>${data.lowRatings || 0}</strong><span>Low ratings</span></div>
+    `;
+
+    const itemRows = Array.isArray(data.items) ? data.items : [];
+    items.innerHTML = itemRows.length
+      ? `<div class="feedback-items-title">Menu item intelligence</div>
+         <div class="feedback-item-list">${itemRows.map(item => `
+           <div class="feedback-item-row">
+             <span>${escapeHtml(item.itemName)}</span>
+             <span class="feedback-item-score">${item.average} ★ <small>${item.responses} response${item.responses === 1 ? "" : "s"}</small></span>
+           </div>`).join("")}</div>`
+      : `<span class="muted">Item-level ratings will appear here after the first responses.</span>`;
+  }
+
   function showToast(message, type = "success", persist = false) {
     const el = document.getElementById("toast");
     if (!el) {
@@ -976,7 +1022,7 @@
         clearBusy();
         showToast("Save failed: " + (err.message || err), "error");
       })
-      .updateBookingFromDashboard(row.RowNumber, patch);
+      .updateBookingFromDashboard(row.RowNumber, patch, row.BookingID);
   }
 
   function handleQuoteClick(bookingId) {

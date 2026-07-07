@@ -69,6 +69,7 @@ function createEmptyBooking_() {
 function validateBooking_(booking) {
 
   const errors = [];
+  const currentStatus = booking.status;
 
   if (!booking.clientCompany)
     errors.push("Missing company");
@@ -93,11 +94,6 @@ function validateBooking_(booking) {
 
   booking.validationErrors = errors;
 
-  booking.status =
-    errors.length > 0
-      ? CONFIG.STATUS.NEEDS_REVIEW
-      : CONFIG.STATUS.READY;
-
   const lockedStatuses = [
     CONFIG.STATUS.QUOTE_GENERATED,
     CONFIG.STATUS.CPU_CREATED,
@@ -106,12 +102,11 @@ function validateBooking_(booking) {
     CONFIG.STATUS.ARCHIVED
   ];
 
-  if (!lockedStatuses.includes(booking.status)) {
-    booking.status =
-      errors.length > 0
-        ? CONFIG.STATUS.NEEDS_REVIEW
-        : CONFIG.STATUS.READY;
-  }
+  booking.status = lockedStatuses.includes(currentStatus)
+    ? currentStatus
+    : errors.length > 0
+      ? CONFIG.STATUS.NEEDS_REVIEW
+      : CONFIG.STATUS.READY;
 
   return booking;
 }

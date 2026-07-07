@@ -63,12 +63,14 @@ function include_(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-function updateBookingFromDashboard(rowNumber, patch) {
+function updateBookingFromDashboard(rowNumber, patch, expectedBookingId) {
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 
   const parsedJsonCol = map.ParsedJSON;
   if (!parsedJsonCol) throw new Error("ParsedJSON column not found.");
+
+  rowNumber = resolveDashboardUpdateRow_(sh, map, rowNumber, expectedBookingId);
 
   const currentJson = sh.getRange(rowNumber, parsedJsonCol).getValue();
   let booking = safeJsonParse_(currentJson, null);
@@ -160,6 +162,51 @@ function writeBookingObjectToExistingRow_(rowNumber, booking) {
   sh.getRange(rowNumber, 1, 1, lastCol).setValues([currentRow]);
 
   syncBookingJsonFileIfPresent_(booking);
+}
+
+function resolveDashboardUpdateRow_(sh, map, rowNumber, expectedBookingId) {
+  const requestedRow = Number(rowNumber || 0);
+  const expectedId = String(expectedBookingId || "").trim();
+
+  if (!expectedId) {
+    if (requestedRow >= 2 && requestedRow <= sh.getLastRow()) return requestedRow;
+    throw new Error("Could not identify the booking row to update.");
+  }
+
+  const bookingIdCol = map.BookingID;
+  if (!bookingIdCol) throw new Error("BookingID column not found.");
+
+  if (requestedRow >= 2 && requestedRow <= sh.getLastRow()) {
+    const rowBookingId = String(sh.getRange(requestedRow, bookingIdCol).getValue() || "").trim();
+    if (rowBookingId === expectedId) return requestedRow;
+  }
+
+  const foundRow = findDashboardRowByBookingId_(sh, map, expectedId);
+  if (foundRow) return foundRow;
+
+  throw new Error("Could not find existing booking " + expectedId + " to update.");
+}
+
+function findDashboardRowByBookingId_(sh, map, bookingId) {
+  const bookingIdCol = map.BookingID;
+  const parsedJsonCol = map.ParsedJSON;
+  const target = String(bookingId || "").trim();
+  const lastRow = sh.getLastRow();
+  if (!target || lastRow < 2) return 0;
+
+  const values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    if (String(row[bookingIdCol - 1] || "").trim() === target) return i + 2;
+
+    if (parsedJsonCol) {
+      const parsed = safeJsonParse_(row[parsedJsonCol - 1], null);
+      if (parsed && String(parsed.bookingId || "").trim() === target) return i + 2;
+    }
+  }
+
+  return 0;
 }
 
 function syncBookingJsonFileIfPresent_(booking) {

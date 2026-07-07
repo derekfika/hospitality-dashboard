@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 set "PROJECT_NAME=Client Feedback Portal"
 set "PROJECT_DIR=%~dp0client-feedback-portal"
-set "CLASP_USER=default login"
+set "CLASP_USER=hospitality"
 set "DEPLOYMENT_FILE=%PROJECT_DIR%\.deployment-id"
 
 if not exist "%PROJECT_DIR%\.clasp.json" (
@@ -100,11 +100,11 @@ exit /b 0
 pushd "%PROJECT_DIR%"
 where clasp.cmd >nul 2>nul
 if not errorlevel 1 (
-  call clasp.cmd login --status >nul 2>nul
-  if errorlevel 1 call clasp.cmd login
+  call clasp.cmd --user "%CLASP_USER%" login --status >nul 2>nul
+  if errorlevel 1 call clasp.cmd --user "%CLASP_USER%" login
 ) else (
-  call npx.cmd --yes @google/clasp login --status >nul 2>nul
-  if errorlevel 1 call npx.cmd --yes @google/clasp login
+  call npx.cmd --yes @google/clasp --user "%CLASP_USER%" login --status >nul 2>nul
+  if errorlevel 1 call npx.cmd --yes @google/clasp --user "%CLASP_USER%" login
 )
 set "RESULT=!ERRORLEVEL!"
 popd
@@ -114,9 +114,9 @@ exit /b !RESULT!
 pushd "%PROJECT_DIR%"
 where clasp.cmd >nul 2>nul
 if not errorlevel 1 (
-  call clasp.cmd %*
+  call clasp.cmd --user "%CLASP_USER%" %*
 ) else (
-  call npx.cmd --yes @google/clasp %*
+  call npx.cmd --yes @google/clasp --user "%CLASP_USER%" %*
 )
 set "RESULT=!ERRORLEVEL!"
 popd

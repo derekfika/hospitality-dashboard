@@ -71,6 +71,7 @@ function clearAndRefillQuoteDoc_(doc, booking) {
   const body = doc.getBody();
 
   const replacements = {
+    "<SITE>": booking.location || getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || CONFIG.APP_NAME || ""),
     "<FLOOR>": booking.floor || "",
     "<DAY>": formatDayName_(booking.eventDate),
     "<PAX>": booking.pax || "",
