@@ -8,6 +8,7 @@
     hourlyView: "chart"
   };
   const drinkColors = ["#00538A", "#0b70a8", "#167a62", "#ff8000", "#4F34C7", "#8f3d2f", "#d39a22", "#647280"];
+  const reportingWeekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
   function init() {
     renderFilterOptions();
@@ -102,7 +103,7 @@
     summary = summary || {};
     const bucketConfig = config.timeBuckets || [];
     const buckets = bucketConfig.map(bucket => bucket.label);
-    const days = Object.keys(heatmap);
+    const days = reportingWeekdays.filter(day => heatmap[day]);
     const values = Object.values(heatmap).flatMap(row => Object.values(row || {}));
     const max = Math.max(1, ...values);
     const total = values.reduce((sum, value) => sum + Number(value || 0), 0);
