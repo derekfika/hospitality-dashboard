@@ -262,22 +262,22 @@
         if (!selected.length) errors.push("Choose at least one menu item.");
         selected.forEach(line => {
           const item = menuItem(line.itemId);
-          if (line.quantity < item.minimumQuantity) errors.push(`${item.name} requires at least ${item.minimumQuantity}.`);
-          if (item.minimumGuests && Number(value("event.guestCount")) < item.minimumGuests) errors.push(`${item.name} requires at least ${item.minimumGuests} guests.`);
+          if (line.quantity < item.minimumQuantity) errors.push(item.name + " requires at least " + item.minimumQuantity + ".");
+          if (item.minimumGuests && Number(value("event.guestCount")) < item.minimumGuests) errors.push(item.name + " requires at least " + item.minimumGuests + " guests.");
           item.choices.forEach(group => {
-            if (group.required && !line.choices[group.id]) errors.push(`Choose an option for ${item.name}.`);
+            if (group.required && !line.choices[group.id]) errors.push("Choose an option for " + item.name + ".");
           });
         });
       }
       if (step === 4) {
         const dietaryTotal = ["vegetarian", "vegan", "glutenFree", "coeliac", "dairyFree", "halal", "otherCount"]
-          .reduce((sum, key) => sum + Number(value(`dietaries.${key}`) || 0), 0);
+          .reduce((sum, key) => sum + Number(value("dietaries." + key) || 0), 0);
         if (dietaryTotal > Number(value("event.guestCount"))) errors.push("Dietary counts exceed the total guest count. Please check them.");
         if (value("dietaries.allergyDetails") && !value("dietaries.severeAllergyAcknowledged")) errors.push("Acknowledge the severe allergy notice.");
       }
       if (step === 5) {
         ["quoteSubjectToConfirmation", "noticePolicyAccepted", "dietaryResponsibilityAccepted"].forEach(key => {
-          if (!value(`acknowledgements.${key}`)) errors.push("Accept all three booking acknowledgements.");
+          if (!value("acknowledgements." + key)) errors.push("Accept all three booking acknowledgements.");
         });
       }
       return [...new Set(errors)];
