@@ -31,9 +31,11 @@ Use the spreadsheet ID between `/d/` and `/edit` in the Google Sheets URL. Do no
 `setupBookingPlatformSheets()` creates a `Platform Settings` sheet. Branding can then be changed without editing the app:
 
 - `FIKA_LOGO_URL`
+- `FIKA_LOGO_SVG`
 - `FIKA_LOGO_ALT`
 - `FIKA_FALLBACK_TEXT`
 - `SITE_LOGO_URL`
+- `SITE_LOGO_SVG`
 - `SITE_LOGO_ALT`
 - `SITE_FALLBACK_TEXT`
 - hero copy and primary colours

@@ -1,3 +1,5 @@
+const DEFAULT_ANGEL_COURT_LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 150" role="img" aria-label="Angel Court Bank"><text x="0" y="83" fill="#74828a" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="86" font-weight="600" letter-spacing="-5">angelcourt</text><text x="157" y="134" fill="#74828a" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="42" font-weight="700" letter-spacing="10">BANK</text></svg>';
+
 const SITE_CONFIG = Object.freeze({
   siteId: "angel_court",
   siteName: "Angel Court",
@@ -35,13 +37,15 @@ const SITE_CONFIG = Object.freeze({
   },
   branding: {
     eyebrow: "FIKA hospitality",
-    heroTitle: "A fresh way to book hospitality.",
-    heroBody: "Plan food, drinks and event service for Angel Court in one clear request.",
-    fikaLogoUrl: "",
+    heroTitle: "Hospitality, beautifully arranged.",
+    heroBody: "Plan breakfast, lunch, drinks and event service for Angel Court in one clear request.",
+    fikaLogoSvg: "",
+    fikaLogoUrl: "https://fikacatering.com/assets/fika_logoRGB.png",
     fikaLogoAlt: "FIKA",
     fikaFallbackText: "Fika",
-    siteLogoUrl: "",
-    siteLogoAlt: "Angel Court",
+    siteLogoSvg: DEFAULT_ANGEL_COURT_LOGO_SVG,
+    siteLogoUrl: "https://www.fikacatering.com/assets/angel_court_logo.png",
+    siteLogoAlt: "Angel Court Bank",
     siteFallbackText: "Angel Court",
     accent: "#3d21bf",
     ink: "#221874",
@@ -51,9 +55,11 @@ const SITE_CONFIG = Object.freeze({
 
 const PLATFORM_SETTINGS_SCHEMA = Object.freeze([
   { key: "FIKA_LOGO_URL", fallback: SITE_CONFIG.branding.fikaLogoUrl },
+  { key: "FIKA_LOGO_SVG", fallback: SITE_CONFIG.branding.fikaLogoSvg },
   { key: "FIKA_LOGO_ALT", fallback: SITE_CONFIG.branding.fikaLogoAlt },
   { key: "FIKA_FALLBACK_TEXT", fallback: SITE_CONFIG.branding.fikaFallbackText },
   { key: "SITE_LOGO_URL", fallback: SITE_CONFIG.branding.siteLogoUrl },
+  { key: "SITE_LOGO_SVG", fallback: SITE_CONFIG.branding.siteLogoSvg },
   { key: "SITE_LOGO_ALT", fallback: SITE_CONFIG.branding.siteLogoAlt },
   { key: "SITE_FALLBACK_TEXT", fallback: SITE_CONFIG.branding.siteFallbackText },
   { key: "CLIENT_FACING_NAME", fallback: SITE_CONFIG.clientFacingName },
@@ -94,9 +100,11 @@ function buildPublicSiteConfig_(settings) {
       eyebrow: settings.BRAND_EYEBROW,
       heroTitle: settings.HERO_TITLE,
       heroBody: settings.HERO_BODY,
+      fikaLogoSvg: settings.FIKA_LOGO_SVG,
       fikaLogoUrl: settings.FIKA_LOGO_URL,
       fikaLogoAlt: settings.FIKA_LOGO_ALT,
       fikaFallbackText: settings.FIKA_FALLBACK_TEXT,
+      siteLogoSvg: settings.SITE_LOGO_SVG,
       siteLogoUrl: settings.SITE_LOGO_URL,
       siteLogoAlt: settings.SITE_LOGO_ALT,
       siteFallbackText: settings.SITE_FALLBACK_TEXT,

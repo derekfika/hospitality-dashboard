@@ -13,10 +13,12 @@ const LINE_ITEM_HEADERS = [
 const SETTINGS_HEADERS = ["Key", "Value", "Section", "Label", "Notes"];
 
 const PLATFORM_SETTINGS_ROWS = [
-  ["FIKA_LOGO_URL", "", "Branding", "FIKA logo image URL", "Use a direct HTTPS image URL. Leave blank to show the fallback wordmark."],
+  ["FIKA_LOGO_URL", SITE_CONFIG.branding.fikaLogoUrl, "Branding", "FIKA logo image URL", "Use a direct HTTPS image URL. Leave blank to show the fallback wordmark."],
+  ["FIKA_LOGO_SVG", "", "Branding", "FIKA inline SVG", "Optional inline SVG markup. If set, this is shown before the image URL or fallback wordmark."],
   ["FIKA_LOGO_ALT", "FIKA", "Branding", "FIKA logo alternative text", "Used for accessibility when the image is present."],
   ["FIKA_FALLBACK_TEXT", "Fika", "Branding", "FIKA fallback wordmark", "Shown when the image URL is blank or cannot load."],
-  ["SITE_LOGO_URL", "", "Branding", "Angel Court logo image URL", "Use a direct HTTPS image URL. Leave blank to show the fallback wordmark."],
+  ["SITE_LOGO_URL", SITE_CONFIG.branding.siteLogoUrl, "Branding", "Angel Court logo image URL", "Use a direct HTTPS image URL. Leave blank to show the fallback wordmark."],
+  ["SITE_LOGO_SVG", "", "Branding", "Site inline SVG", "Optional inline SVG markup. If set, this is shown before the image URL or fallback wordmark."],
   ["SITE_LOGO_ALT", "Angel Court", "Branding", "Site logo alternative text", "Used for accessibility when the image is present."],
   ["SITE_FALLBACK_TEXT", "Angel Court", "Branding", "Site fallback wordmark", "Shown when the image URL is blank or cannot load."],
   ["CLIENT_FACING_NAME", SITE_CONFIG.clientFacingName, "Copy", "Browser and platform name", "The client-facing name of the booking platform."],

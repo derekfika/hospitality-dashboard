@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
-set "PROJECT_NAME=Client Booking Platform"
+set "PROJECT_NAME=Angel Court Booking Platform"
 set "PROJECT_DIR=%~dp0client-booking-platform"
 set "CLASP_USER=hospitality"
 set "DEPLOYMENT_ID=AKfycbzPU_s9PqvJnVKXT1LAi9ApoIM3SYDbkPkhzACkjis2hso8ZnKTCpRCR7E-3XG4uzAN"
@@ -20,8 +20,8 @@ echo  Deployment: %DEPLOYMENT_ID%
 echo.
 
 set "MESSAGE="
-set /P "MESSAGE=Release description [Update client booking platform]: "
-if not defined MESSAGE set "MESSAGE=Update client booking platform"
+set /P "MESSAGE=Release description [Update Angel Court booking platform]: "
+if not defined MESSAGE set "MESSAGE=Update Angel Court booking platform"
 
 set "CONFIRM="
 set /P "CONFIRM=Push, deploy and commit this release? [Y/N]: "
@@ -41,7 +41,7 @@ if errorlevel 1 goto :failed
 git add -- "clientpush.bat"
 if errorlevel 1 goto :failed
 
-call :commit_and_push "%MESSAGE% - client booking platform"
+call :commit_and_push "%MESSAGE% - Angel Court booking platform"
 if errorlevel 1 goto :failed
 
 echo.
