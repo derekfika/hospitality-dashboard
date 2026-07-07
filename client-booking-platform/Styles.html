@@ -2460,4 +2460,106 @@
       transition-duration: .01ms !important;
     }
   }
+  .item-options {
+    align-items: start;
+  }
+
+  .item-options>.field,
+  .item-options>.choice-field {
+    align-self: start;
+  }
+
+  .choice-field {
+    min-width: 0;
+  }
+
+  .choice-field legend {
+    color: var(--muted);
+    float: left;
+    margin: 0 0 10px;
+    width: 100%;
+  }
+
+  .choice-checks {
+    align-items: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .choice-check {
+    align-items: center;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(248, 247, 255, .92));
+    border: 1px solid rgba(61, 33, 191, .16);
+    border-radius: 999px;
+    box-shadow: 0 8px 22px rgba(34, 24, 116, .06);
+    color: var(--ink);
+    cursor: pointer;
+    display: inline-flex;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 14px 8px 10px;
+    position: relative;
+    user-select: none;
+    transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease, transform .18s ease;
+  }
+
+  .choice-check:hover {
+    border-color: rgba(61, 33, 191, .34);
+    box-shadow: 0 14px 30px rgba(34, 24, 116, .10);
+    transform: translateY(-1px);
+  }
+
+  .choice-check:has(input:checked) {
+    background: linear-gradient(135deg, rgba(61, 33, 191, .98), rgba(112, 85, 222, .94));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 16px 34px rgba(61, 33, 191, .22);
+  }
+
+  .choice-check input {
+    appearance: none;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    position: absolute;
+    width: 1px;
+  }
+
+  .choice-dot {
+    align-items: center;
+    background: #fff;
+    border: 1px solid rgba(61, 33, 191, .22);
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 4px #fff;
+    display: inline-flex;
+    flex: 0 0 22px;
+    height: 22px;
+    justify-content: center;
+    transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
+    width: 22px;
+  }
+
+  .choice-check input:checked+.choice-dot {
+    background: var(--mint);
+    border-color: rgba(255, 255, 255, .72);
+    box-shadow: inset 0 0 0 5px var(--accent);
+  }
+
+  .choice-check input:focus-visible+.choice-dot {
+    outline: 3px solid rgba(116, 232, 166, .42);
+    outline-offset: 2px;
+  }
+
+  .choice-check span:last-child {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .item-options>.field:not(.full) input[type="time"] {
+    max-width: 220px;
+    min-height: 50px;
+  }
+
 </style>

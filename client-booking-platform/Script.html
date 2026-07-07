@@ -355,6 +355,7 @@
             const checked = selectedValues.includes(option) ? " checked" : "";
             return '<label class="choice-check">' +
               '<input type="checkbox" data-item-choice="' + escapeHtml(item.id) + '" data-choice-id="' + escapeHtml(group.id) + '" data-choice-value="' + escapeHtml(option) + '"' + checked + '>' +
+              '<span class="choice-dot" aria-hidden="true"></span>' +
               '<span>' + escapeHtml(option) + '</span>' +
               '</label>';
           }).join("");
