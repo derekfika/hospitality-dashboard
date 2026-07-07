@@ -88,6 +88,13 @@ function getLogRows_() {
   return getSheetLogRows_().concat(readArchivedLogRows_());
 }
 
+function getLogRowsForDateRange_(startDate, endDate) {
+  const liveRows = getSheetLogRows_().filter(function(row) {
+    return row.date && row.date >= startDate && row.date <= endDate;
+  });
+  return liveRows.concat(readArchivedLogRowsForDateRange_(startDate, endDate));
+}
+
 function getSheetLogRows_() {
   const sheet = getOrCreateSheet_(getSpreadsheet_(), HOT_DRINKS_CONFIG.sheets.drinkLog, DRINK_LOG_HEADERS);
   const map = getHeaderMap_(sheet);

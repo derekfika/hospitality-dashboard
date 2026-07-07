@@ -1,10 +1,13 @@
+const HOT_DRINKS_REPORTING_WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
 function getDashboardReport(filters) {
   setupHotDrinkTally();
   const settings = getSettings_();
   const normalized = normalizeFilters_(filters || {});
-  const rows = getLogRows_().filter(function(row) {
+  const rows = getLogRowsForDateRange_(normalized.startDate, normalized.endDate).filter(function(row) {
     return row.status === "ACTIVE" && row.date >= normalized.startDate && row.date <= normalized.endDate;
   }).filter(function(row) {
+    if (!isReportingWeekday_(row.date)) return false;
     if (normalized.floor !== "Combined" && row.floor !== normalized.floor) return false;
     if (normalized.drink !== "All" && row.drink !== normalized.drink) return false;
     if (normalized.excludeBankHolidays && settings.bankHolidays.indexOf(row.date) !== -1) return false;
@@ -15,7 +18,7 @@ function getDashboardReport(filters) {
   });
 
   const summary = summarizeRows_(rows, normalized, settings);
-  cacheDashboardReport_(normalized, summary);
+  maybeCacheDashboardReport_(normalized, summary);
   return { ok: true, filters: normalized, settings: settings, summary: summary };
 }
 
@@ -27,9 +30,10 @@ function exportFilteredCsv(filters) {
   const report = getDashboardReport(filters);
   const normalized = report.filters;
   const settings = report.settings;
-  const rows = getLogRows_().filter(function(row) {
+  const rows = getLogRowsForDateRange_(normalized.startDate, normalized.endDate).filter(function(row) {
     return row.status === "ACTIVE" && row.date >= normalized.startDate && row.date <= normalized.endDate;
   }).filter(function(row) {
+    if (!isReportingWeekday_(row.date)) return false;
     if (normalized.floor !== "Combined" && row.floor !== normalized.floor) return false;
     if (normalized.drink !== "All" && row.drink !== normalized.drink) return false;
     if (normalized.excludeBankHolidays && settings.bankHolidays.indexOf(row.date) !== -1) return false;
@@ -109,7 +113,10 @@ function normalizeFilters_(filters) {
   let weekdays = (filters.weekdays || []).filter(Boolean);
   if (preset === "tueThu") weekdays = ["Tuesday", "Wednesday", "Thursday"];
   if (preset === "monThu") weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday"];
-  if (preset === "excludeFridays") weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Saturday", "Sunday"];
+  if (preset === "excludeFridays") weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday"];
+  weekdays = weekdays.filter(function(dayName) {
+    return HOT_DRINKS_REPORTING_WEEKDAYS.indexOf(dayName) !== -1;
+  });
   return {
     preset: preset,
     startDate: dateKey_(start),
@@ -137,7 +144,7 @@ function summarizeRows_(rows, filters, settings) {
   HOT_DRINKS_CONFIG.timeBuckets.forEach(function(bucket) {
     hourlyDrinkMix[bucket.label] = makeDrinkCountMap_(settings.drinks);
   });
-  ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].forEach(function(day) {
+  HOT_DRINKS_REPORTING_WEEKDAYS.forEach(function(day) {
     byWeekday[day] = 0;
     heatmap[day] = {};
     heatmapDrinkTop[day] = {};
@@ -149,6 +156,7 @@ function summarizeRows_(rows, filters, settings) {
     byFloor[row.floor] = (byFloor[row.floor] || 0) + 1;
     byDate[row.date] = (byDate[row.date] || 0) + 1;
     const weekday = weekdayName_(row.date);
+    if (HOT_DRINKS_REPORTING_WEEKDAYS.indexOf(weekday) === -1) return;
     byWeekday[weekday] = (byWeekday[weekday] || 0) + 1;
     const hour = row.time.slice(0, 2) + ":00";
     byHour[hour] = (byHour[hour] || 0) + 1;
@@ -228,6 +236,12 @@ function buildHourlyDrinkMix_(hourlyDrinkMix) {
   });
 }
 
+function maybeCacheDashboardReport_(filters, summary) {
+  const properties = PropertiesService.getScriptProperties();
+  if (properties.getProperty("HOT_DRINK_CACHE_DASHBOARD_RUNS") !== "true") return;
+  cacheDashboardReport_(filters, summary);
+}
+
 function cacheDashboardReport_(filters, summary) {
   const sheet = getOrCreateSheet_(getSpreadsheet_(), HOT_DRINKS_CONFIG.sheets.dashboardData, DASHBOARD_DATA_HEADERS);
   sheet.appendRow([new Date(), filters.startDate, filters.endDate, JSON.stringify(filters), JSON.stringify(summary)]);
@@ -261,6 +275,10 @@ function bucketForTime_(time) {
   return HOT_DRINKS_CONFIG.timeBuckets.find(function(bucket) {
     return time >= bucket.start + ":00" && time < bucket.end + ":00";
   }) || null;
+}
+
+function isReportingWeekday_(dateString) {
+  return HOT_DRINKS_REPORTING_WEEKDAYS.indexOf(weekdayName_(dateString)) !== -1;
 }
 
 function weekdayName_(dateString) {
@@ -303,7 +321,7 @@ function csvCell_(value) {
 function buildPdfReportModel_(filters, summary, settings) {
   const generatedAt = Utilities.formatDate(new Date(), HOT_DRINKS_CONFIG.timezone, "d MMMM yyyy HH:mm");
   const drinks = (settings && settings.drinks && settings.drinks.length) ? settings.drinks : HOT_DRINKS_CONFIG.drinks;
-  const reportWeekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const reportWeekdays = HOT_DRINKS_REPORTING_WEEKDAYS;
   const activeDays = Object.keys(summary.byDate || {}).length;
   const drinkRows = mapRows_(summary.byDrink || {}, summary.total, summary.drinkMix || {});
   const floorRows = mapRows_(summary.byFloor || {}, summary.total, null);

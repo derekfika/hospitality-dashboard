@@ -148,6 +148,29 @@ function readArchivedLogRows_() {
   return rows;
 }
 
+function readArchivedLogRowsForDateRange_(startDate, endDate) {
+  const folderId = PropertiesService.getScriptProperties().getProperty("HOT_DRINK_ARCHIVE_FOLDER_ID");
+  if (!folderId) return [];
+  let folder;
+  try {
+    folder = DriveApp.getFolderById(folderId);
+  } catch (error) {
+    return [];
+  }
+  const rows = [];
+  let cursor = parseLocalDate_(startDate);
+  const end = parseLocalDate_(endDate);
+  while (cursor <= end) {
+    const date = dateKey_(cursor);
+    if (isReportingWeekday_(date)) {
+      const file = getArchiveFile_(folder, archiveFilename_(date));
+      if (file) rows.push.apply(rows, readArchiveFileRows_(file));
+    }
+    cursor = addDays_(cursor, 1);
+  }
+  return rows;
+}
+
 function readArchiveFileRows_(file) {
   try {
     const archive = JSON.parse(file.getBlob().getDataAsString());
