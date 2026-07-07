@@ -66,7 +66,7 @@ const MENU_SCHEMA = Object.freeze([
   menuItem_("charcuterie", "Add-ons", "Charcuterie Platter", "British charcuterie, olives, sun blush tomatoes, gherkins, peppers and artisan breads.", "Per platter · feeds 10", 75, 1, null, 3, [], 510),
   menuItem_("bread_basket", "Add-ons", "Bread basket", "A selection of freshly baked bread.", "Per basket · serves 10", 15, 1, null, 3, [], 520),
   menuItem_("nibble_bowls", "Add-ons", "Nibble bowls", "", "Per bowl · serves 3 · minimum 3", 2, 3, null, 3, [
-    choice_("flavour", "Choose nibble", "select", true, [
+    choice_("flavour", "Choose nibbles", "multi", true, [
       "Spicy chilli crackers",
       "Salted pretzels",
       "Sea salted crisps",

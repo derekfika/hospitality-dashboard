@@ -536,6 +536,50 @@
     margin: 0;
   }
 
+  .choice-field {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .choice-field legend {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    line-height: 1;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+  }
+
+  .choice-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .choice-check {
+    align-items: center;
+    background: rgba(255, 255, 255, .88);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    gap: 8px;
+    min-height: 42px;
+    padding: 9px 13px;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+
+  .choice-check:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    box-shadow: 0 10px 26px rgba(27, 21, 94, .08);
+    transform: translateY(-1px);
+  }
+
+  .choice-check input {
+    accent-color: var(--accent);
+  }
+
   .switch-row,
   .check-row {
     display: flex;
