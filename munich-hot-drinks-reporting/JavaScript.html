@@ -5,7 +5,9 @@
   const state = {
     lastReport: null,
     heatmapMode: "total",
-    hourlyView: "chart"
+    hourlyView: "chart",
+    progressTimer: null,
+    progressStartedAt: 0
   };
   const drinkColors = ["#00538A", "#0b70a8", "#167a62", "#ff8000", "#4F34C7", "#8f3d2f", "#d39a22", "#647280"];
   const reportingWeekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -55,13 +57,16 @@
   function runReport() {
     startAction($("#dashboard-filters button[type='submit']"), "Running...");
     showReportLoading();
+    startReportProgress();
     google.script.run
       .withSuccessHandler(result => {
+        completeReportProgress("Report ready");
         finishAction($("#dashboard-filters button[type='submit']"), "Run report");
         renderReport(result);
         toast("Report updated");
       })
       .withFailureHandler(error => {
+        failReportProgress(error.message || String(error));
         finishAction($("#dashboard-filters button[type='submit']"), "Run report");
         toast(error.message || String(error), "error");
       })
@@ -377,6 +382,70 @@
     $("#hourly-drinks").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading hourly drink types...</div>`;
     $("#drink-mix").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading drink mix...</div>`;
     $("#floor-comparison").innerHTML = `<div class="panel-loading"><span class="spinner"></span>Loading floors...</div>`;
+  }
+
+  function startReportProgress() {
+    clearReportProgressTimer();
+    state.progressStartedAt = Date.now();
+    updateReportProgress(5, "Starting report", "Checking filters and preparing the reporting request...");
+    const stages = [
+      { at: 600, value: 16, label: "Reading live sheet rows", detail: "Checking any current drink-log entries for the selected range..." },
+      { at: 1800, value: 34, label: "Reading archive JSONs", detail: "Loading only the archive files needed for this date range..." },
+      { at: 4200, value: 54, label: "Filtering service days", detail: "Removing weekends, bank holidays, closed days and excluded drinks..." },
+      { at: 7600, value: 70, label: "Building summaries", detail: "Calculating drink mix, floor split, trends and averages..." },
+      { at: 11200, value: 82, label: "Preparing charts", detail: "Creating heatmap and hourly drink type datasets..." },
+      { at: 15800, value: 90, label: "Nearly there", detail: "Waiting for Apps Script to return the finished report..." }
+    ];
+    stages.forEach(stage => {
+      window.setTimeout(() => {
+        if (!state.progressStartedAt) return;
+        updateReportProgress(stage.value, stage.label, stage.detail);
+      }, stage.at);
+    });
+    state.progressTimer = window.setInterval(() => {
+      if (!state.progressStartedAt) return;
+      const elapsed = Date.now() - state.progressStartedAt;
+      const softProgress = Math.min(94, 90 + Math.floor(Math.max(0, elapsed - 15800) / 3000));
+      const current = Number($("#report-progress-fill").dataset.progress || 0);
+      if (softProgress > current) {
+        updateReportProgress(softProgress, "Still working", "Large archive ranges can take a moment. The report is still running...");
+      }
+    }, 3000);
+  }
+
+  function completeReportProgress(message) {
+    updateReportProgress(100, message || "Report ready", "Charts and summary updated.");
+    clearReportProgressTimer();
+    window.setTimeout(() => {
+      const panel = $("#report-progress");
+      if (panel && !state.progressStartedAt) panel.hidden = true;
+    }, 900);
+  }
+
+  function failReportProgress(message) {
+    updateReportProgress(100, "Report failed", message || "Something went wrong while running the report.");
+    clearReportProgressTimer();
+  }
+
+  function updateReportProgress(value, label, detail) {
+    const panel = $("#report-progress");
+    if (!panel) return;
+    const percent = Math.max(0, Math.min(100, Math.round(value)));
+    panel.hidden = false;
+    $("#report-progress-label").textContent = label;
+    $("#report-progress-percent").textContent = percent + "%";
+    $("#report-progress-detail").textContent = detail;
+    const fill = $("#report-progress-fill");
+    fill.style.setProperty("--progress", percent + "%");
+    fill.dataset.progress = String(percent);
+  }
+
+  function clearReportProgressTimer() {
+    if (state.progressTimer) {
+      window.clearInterval(state.progressTimer);
+      state.progressTimer = null;
+    }
+    state.progressStartedAt = 0;
   }
 
   function toast(text, tone) {

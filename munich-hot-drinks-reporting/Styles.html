@@ -96,6 +96,62 @@ button.is-busy { display: inline-flex; align-items: center; justify-content: cen
   100% { transform: translateX(250%); }
 }
 
+.report-progress {
+  margin: 16px 0 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(0,83,138,.12);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(255,128,0,.12), transparent 30%),
+    linear-gradient(135deg, #ffffff, #f4fafc);
+  box-shadow: var(--shadow-soft);
+}
+
+.report-progress-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+  color: var(--munich-dark);
+  font-weight: 950;
+}
+
+.report-progress-copy span {
+  font-size: 15px;
+}
+
+.report-progress-copy strong {
+  color: var(--munich);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dceaf2;
+  box-shadow: inset 0 0 0 1px rgba(0,83,138,.08);
+}
+
+.report-progress-track i {
+  display: block;
+  width: var(--progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--munich), #3e9dc6, var(--orange));
+  transition: width .28s ease;
+}
+
+.report-progress small {
+  display: block;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
