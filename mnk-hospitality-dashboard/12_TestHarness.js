@@ -232,6 +232,14 @@ function testCalendarHelpers_() {
   assertDashboardEqual_(invalidAttendees.valid.length, 1, "Valid attendee was not retained.");
   assertDashboardEqual_(invalidAttendees.invalid[0], "not-an-email", "Invalid attendee was not reported.");
 
+  const attendeeConfig = parseCalendarAttendees_("cpux@fikacatering.com, logistics@fikacatering.com, dwayne@fikacatering.com");
+  const selectedAttendees = selectCalendarAttendees_(attendeeConfig, {
+    attendeeEmails: ["logistics@fikacatering.com"]
+  });
+  assertDashboardEqual_(selectedAttendees.length, 1, "Selected calendar attendees should use only ticked emails.");
+  assertDashboardEqual_(selectedAttendees[0].email, "logistics@fikacatering.com", "Selected calendar attendee email failed.");
+  assertDashboardEqual_(selectCalendarAttendees_(attendeeConfig, { attendeeEmails: [] }).length, 0, "Unticking all calendar attendees should be allowed.");
+
   assertDashboardEqual_(normaliseCalendarColorId_("9"), "9", "Valid calendar colour failed.");
   assertDashboardEqual_(normaliseCalendarColorId_("99"), "", "Invalid calendar colour should be omitted.");
   assertDashboardEqual_(

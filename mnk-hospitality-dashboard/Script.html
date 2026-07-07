@@ -9,6 +9,8 @@
   let CALENDAR_WEEK_START = getMonday_(new Date());
 
   let CANCEL_BOOKING_ID = null;
+  let CALENDAR_BOOKING_ID = null;
+  let CALENDAR_ATTENDEE_OPTIONS = [];
   let REGENERATE_BOOKING_ID = null;
   let SCAN_STATE = null;
   let TOAST_TIMER = null;
@@ -1149,6 +1151,93 @@
     const row = BOOKINGS.find(x => x.BookingID === bookingId);
     if (!row) return;
 
+    CALENDAR_BOOKING_ID = bookingId;
+    openCalendarAttendeesDialog_();
+  }
+
+  function openCalendarAttendeesDialog_() {
+    const modal = document.getElementById("calendarAttendeesModal");
+    if (!modal) return;
+
+    const status = document.getElementById("calendarAttendeesStatus");
+    const list = document.getElementById("calendarAttendeesList");
+
+    CALENDAR_ATTENDEE_OPTIONS = [];
+    if (status) {
+      status.classList.remove("settings-error", "hidden");
+      status.textContent = "Loading attendees...";
+    }
+    if (list) list.innerHTML = "";
+
+    modal.classList.remove("hidden");
+
+    google.script.run
+      .withSuccessHandler(res => {
+        CALENDAR_ATTENDEE_OPTIONS = (res && res.attendees) || [];
+        renderCalendarAttendeesDialog_(res || {});
+      })
+      .withFailureHandler(err => {
+        if (status) {
+          status.classList.add("settings-error");
+          status.textContent = "Could not load calendar attendees: " + (err.message || err);
+        }
+      })
+      .getCalendarAttendeeOptions();
+  }
+
+  function renderCalendarAttendeesDialog_(res) {
+    const status = document.getElementById("calendarAttendeesStatus");
+    const list = document.getElementById("calendarAttendeesList");
+    if (!list) return;
+
+    if (status) {
+      status.classList.remove("settings-error");
+      if (res.invalid && res.invalid.length) {
+        status.classList.add("settings-error");
+        status.textContent = "Settings contains invalid attendee emails: " + res.invalid.join(", ");
+      } else if (CALENDAR_ATTENDEE_OPTIONS.length) {
+        status.textContent = "Untick anyone who should not be involved in this booking.";
+      } else {
+        status.textContent = "No default attendees are configured. The event will be created on the MNK calendar only.";
+      }
+    }
+
+    list.innerHTML = CALENDAR_ATTENDEE_OPTIONS.length
+      ? CALENDAR_ATTENDEE_OPTIONS.map((attendee, index) => `
+        <label class="modal-check">
+          <input
+            class="calendar-attendee-check"
+            type="checkbox"
+            value="${escapeHtml(attendee.email)}"
+            ${attendee.selected === false ? "" : "checked"}
+          >
+          <span>
+            <strong>${escapeHtml(attendee.label || attendee.email)}</strong>
+            <small>${escapeHtml(attendee.email)}</small>
+          </span>
+        </label>
+      `).join("")
+      : `<div class="empty-state">No attendee emails are configured in Settings.</div>`;
+  }
+
+  function closeCalendarAttendeesDialog() {
+    CALENDAR_BOOKING_ID = null;
+    const modal = document.getElementById("calendarAttendeesModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function submitCalendarAttendeesDialog() {
+    const bookingId = CALENDAR_BOOKING_ID;
+    const row = BOOKINGS.find(x => x.BookingID === bookingId);
+    if (!row) return;
+
+    const attendeeEmails = Array.from(document.querySelectorAll(".calendar-attendee-check"))
+      .filter(input => input.checked)
+      .map(input => input.value);
+
+    const modal = document.getElementById("calendarAttendeesModal");
+    if (modal) modal.classList.add("hidden");
+
     setBusy(bookingId);
     showToast("Creating calendar event...", "loading", true);
 
@@ -1162,7 +1251,7 @@
         clearBusy();
         showToast("Calendar failed: " + (err.message || err), "error");
       })
-      .createCalendarEventForRow(row.RowNumber);
+      .createCalendarEventForRow(row.RowNumber, { attendeeEmails });
   }
 
   function confirmBooking(bookingId) {
@@ -1674,6 +1763,9 @@
   window.loadBookings = loadBookings;
   window.renderBookings = renderBookings;
   window.toggleTheme = toggleTheme;
+  window.createCalendar = createCalendar;
+  window.closeCalendarAttendeesDialog = closeCalendarAttendeesDialog;
+  window.submitCalendarAttendeesDialog = submitCalendarAttendeesDialog;
   window.changeCalendarWeek = changeCalendarWeek;
   window.goToCurrentWeek = goToCurrentWeek;
   window.runDashboardClientTests = runDashboardClientTests;

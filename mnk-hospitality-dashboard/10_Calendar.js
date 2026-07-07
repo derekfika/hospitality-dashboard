@@ -1,4 +1,4 @@
-function createCalendarEventForRow(rowNumber) {
+function createCalendarEventForRow(rowNumber, options) {
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 
@@ -32,7 +32,7 @@ function createCalendarEventForRow(rowNumber) {
   writeBookingObjectToExistingRow_(rowNumber, booking);
 
   const attendeeConfig = getCalendarAttendeeConfig_();
-  const attendees = attendeeConfig.valid;
+  const attendees = selectCalendarAttendees_(attendeeConfig, options);
   const calendarId = String(
     getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "primary")
   ).trim();
@@ -144,6 +144,21 @@ function createCalendarEventForRow(rowNumber) {
   updateBookingJsonFile_(bookingJsonFile, booking);
 
   return { ok: true, eventUrl: created.htmlLink || "" };
+}
+
+function getCalendarAttendeeOptions() {
+  const attendeeConfig = getCalendarAttendeeConfig_();
+  return {
+    ok: true,
+    attendees: attendeeConfig.valid.map(function(attendee) {
+      return {
+        email: attendee.email,
+        label: makeCalendarAttendeeLabel_(attendee.email),
+        selected: true
+      };
+    }),
+    invalid: attendeeConfig.invalid
+  };
 }
 
 function getOrCreateBookingJsonFile_(booking) {
@@ -287,6 +302,64 @@ function parseCalendarAttendees_(raw) {
 
 function getCalendarAttendeesFromSettings_() {
   return getCalendarAttendeeConfig_().valid;
+}
+
+function selectCalendarAttendees_(attendeeConfig, options) {
+  if (!options || !Array.isArray(options.attendeeEmails)) {
+    return attendeeConfig.valid;
+  }
+
+  const requested = parseCalendarAttendees_(options.attendeeEmails.join(", "));
+  if (requested.invalid.length) {
+    throw new Error(
+      "Invalid selected calendar attendee email address" +
+      (requested.invalid.length > 1 ? "es" : "") +
+      ": " +
+      requested.invalid.join(", ")
+    );
+  }
+
+  const allowed = {};
+  attendeeConfig.valid.forEach(function(attendee) {
+    allowed[String(attendee.email || "").toLowerCase()] = attendee;
+  });
+
+  const unknown = [];
+  const selected = [];
+
+  requested.valid.forEach(function(attendee) {
+    const key = String(attendee.email || "").toLowerCase();
+    if (!allowed[key]) {
+      unknown.push(attendee.email);
+      return;
+    }
+    selected.push(allowed[key]);
+  });
+
+  if (unknown.length) {
+    throw new Error("Selected calendar attendee is not configured in Settings: " + unknown.join(", "));
+  }
+
+  return selected;
+}
+
+function makeCalendarAttendeeLabel_(email) {
+  const local = String(email || "").split("@")[0] || "";
+  const known = {
+    cpux: "CPU",
+    logistics: "Logistics",
+    dwayne: "Dwayne"
+  };
+  const lower = local.toLowerCase();
+  if (known[lower]) return known[lower];
+
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map(function(part) {
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ") || email;
 }
 
 function normaliseCalendarColorId_(value) {

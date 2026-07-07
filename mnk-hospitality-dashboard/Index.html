@@ -183,6 +183,23 @@
         </div>
       </div>
     </div>
+    <div id="calendarAttendeesModal" class="modal hidden">
+      <div class="modal-card">
+        <h2>Calendar Attendees</h2>
+
+        <p class="muted">
+          Choose who should be invited to this calendar event.
+        </p>
+
+        <div id="calendarAttendeesStatus" class="settings-status muted">Loading attendees...</div>
+        <div id="calendarAttendeesList"></div>
+
+        <div class="modal-actions">
+          <button class="button secondary" onclick="closeCalendarAttendeesDialog()" type="button">Back</button>
+          <button class="button" onclick="submitCalendarAttendeesDialog()" type="button">Create Event</button>
+        </div>
+      </div>
+    </div>
     <div id="settingsModal" class="modal hidden">
       <div class="modal-card settings-modal-card">
         <div class="settings-modal-header">
