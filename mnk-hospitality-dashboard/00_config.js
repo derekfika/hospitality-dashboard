@@ -42,6 +42,7 @@ const CONFIG = {
 
   CALENDAR_EVENT_COLOR_ID: "9",
   CALENDAR_EVENT_DURATION_MINUTES: 60,
+  CALENDAR_EVENT_START_OFFSET_MINUTES: -15,
 
   APP_NAME: "Fika at MNK Hospitality Dashboard",
   LOCATION_NAME: "110 Bishopsgate, EC2N 4AY",
@@ -300,6 +301,7 @@ function getSettingSchema_() {
       fields: [
         { key: "CALENDAR_ID", label: "Calendar ID", type: "text", fallback: CONFIG.CALENDAR_ID, required: true, notes: "Calendar email or ID where CPU events are created." },
         { key: "CALENDAR_EVENT_COLOR_ID", label: "Event colour ID", type: "text", fallback: CONFIG.CALENDAR_EVENT_COLOR_ID, notes: "Google Calendar colour ID. Usually a number from 1 to 11." },
+        { key: "CALENDAR_EVENT_START_OFFSET_MINUTES", label: "Start offset minutes", type: "number", fallback: CONFIG.CALENDAR_EVENT_START_OFFSET_MINUTES, required: true, notes: "Shift calendar events relative to the booking time. Use -15 to place events 15 minutes early." },
         { key: "CALENDAR_EVENT_DURATION_MINUTES", label: "Event duration minutes", type: "number", fallback: CONFIG.CALENDAR_EVENT_DURATION_MINUTES, required: true, min: 1, notes: "Length of created calendar events." }
       ]
     },
@@ -644,6 +646,7 @@ function testDashboardSettingsValidation() {
   invalid.APP_NAME = "";
   invalid.PRINTER_EMAIL = "not-an-email";
   invalid.CALENDAR_ATTENDEES = "good@example.com, bad-email";
+  invalid.CALENDAR_EVENT_START_OFFSET_MINUTES = "abc";
   invalid.CALENDAR_EVENT_DURATION_MINUTES = "0";
   invalid.COLOUR_PRIMARY = "purple";
   invalid.FIKA_LOGO_URL = "not-a-url";
@@ -654,6 +657,7 @@ function testDashboardSettingsValidation() {
     "APP_NAME",
     "PRINTER_EMAIL",
     "CALENDAR_ATTENDEES",
+    "CALENDAR_EVENT_START_OFFSET_MINUTES",
     "CALENDAR_EVENT_DURATION_MINUTES",
     "COLOUR_PRIMARY",
     "FIKA_LOGO_URL"

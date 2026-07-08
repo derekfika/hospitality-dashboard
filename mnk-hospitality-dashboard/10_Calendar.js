@@ -42,6 +42,12 @@ function createCalendarEventForRow(rowNumber, options) {
       CONFIG.CALENDAR_EVENT_DURATION_MINUTES || 60
     )
   );
+  const startOffsetMinutes = Number(
+    getConfiguredNumber_(
+      "CALENDAR_EVENT_START_OFFSET_MINUTES",
+      CONFIG.CALENDAR_EVENT_START_OFFSET_MINUTES || 0
+    )
+  );
   const eventColorId = normaliseCalendarColorId_(
     getConfiguredValue_(
       "CALENDAR_EVENT_COLOR_ID",
@@ -52,6 +58,9 @@ function createCalendarEventForRow(rowNumber, options) {
   if (!calendarId) throw new Error("Calendar ID is blank in Settings.");
   if (!isFinite(eventDuration) || eventDuration < 1) {
     throw new Error("Calendar event duration must be at least 1 minute.");
+  }
+  if (!isFinite(startOffsetMinutes)) {
+    throw new Error("Calendar event start offset must be a number of minutes.");
   }
   if (attendeeConfig.invalid.length) {
     throw new Error(
@@ -64,7 +73,10 @@ function createCalendarEventForRow(rowNumber, options) {
 
   const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
 
-  const start = buildCalendarStart_(booking.eventDate, booking.serviceTimes[0]);
+  const start = applyCalendarStartOffset_(
+    buildCalendarStart_(booking.eventDate, booking.serviceTimes[0]),
+    startOffsetMinutes
+  );
   const end = new Date(start.getTime() + eventDuration * 60 * 1000);
 
   const title = makeCalendarTitle_(booking);
@@ -444,6 +456,13 @@ function buildCalendarStart_(isoDate, timeText) {
   }
 
   return dt;
+}
+
+function applyCalendarStartOffset_(start, offsetMinutes) {
+  const offset = Number(offsetMinutes || 0);
+  if (!offset) return start;
+
+  return new Date(start.getTime() + offset * 60 * 1000);
 }
 
 function resetCalendarForRow(rowNumber) {

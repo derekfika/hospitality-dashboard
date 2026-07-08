@@ -240,11 +240,14 @@ function testQuoteItemDescriptions_() {
 function testCalendarHelpers_() {
   const booking = makeDashboardTestBooking_();
   const start = buildCalendarStart_("2026-07-14", "08:30");
+  const offsetStart = applyCalendarStartOffset_(start, -15);
 
   assertDashboardEqual_(start.getFullYear(), 2026, "Calendar start year failed.");
   assertDashboardEqual_(start.getMonth(), 6, "Calendar start month failed.");
   assertDashboardEqual_(start.getDate(), 14, "Calendar start date failed.");
   assertDashboardEqual_(start.getHours(), 8, "Calendar start hour failed.");
+  assertDashboardEqual_(offsetStart.getHours(), 8, "Calendar offset hour failed.");
+  assertDashboardEqual_(offsetStart.getMinutes(), 15, "Calendar offset minutes failed.");
   assertDashboardTest_(makeCalendarTitle_(booking).indexOf("Example Client") !== -1, "Calendar title missing company.");
 
   const attendees = parseCalendarAttendees_(
