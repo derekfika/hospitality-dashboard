@@ -1018,14 +1018,16 @@
       items: mergedItems
     };
 
-    setBusy(bookingId);
+    BUSY_BOOKING_ID = bookingId;
     showToast("Saving booking...", "loading", true);
 
     google.script.run
-      .withSuccessHandler(() => {
-        clearBusy();
-        showToast("Booking saved.", "success");
+      .withSuccessHandler(res => {
+        applySavedBookingResponse_(row, res && res.booking);
+        BUSY_BOOKING_ID = "";
         OPEN_BOOKING_ID = "";
+        renderBookings();
+        showToast("Booking saved.", "success");
         loadBookings(false);
       })
       .withFailureHandler(err => {
@@ -1033,6 +1035,34 @@
         showToast("Save failed: " + (err.message || err), "error");
       })
       .updateBookingFromDashboard(row.RowNumber, patch);
+  }
+
+  function applySavedBookingResponse_(row, booking) {
+    if (!row || !booking) return;
+
+    row.ParsedBooking = booking;
+    row.ItemsParsed = booking.items || [];
+    row.Status = booking.status || row.Status;
+    row.ValidationErrors = (booking.validationErrors || []).join(", ");
+    row.ValidationErrorsParsed = booking.validationErrors || [];
+    row.ClientCompany = booking.clientCompany || "";
+    row.HostName = booking.hostName || "";
+    row.HostEmail = booking.hostEmail || "";
+    row.Pax = booking.pax || "";
+    row.EventDate = booking.eventDate || "";
+    row.ServiceTimes = JSON.stringify(booking.serviceTimes || []);
+    row.ServiceTimesParsed = booking.serviceTimes || [];
+    row.ServiceType = booking.serviceType || "";
+    row.Location = booking.location || "";
+    row.Floor = booking.floor || "";
+    row.Notes = booking.notes || "";
+    row.TotalPrice = booking.totalPrice || 0;
+    row.MgmtFee = booking.mgmtFee || 0;
+    row.NetPrice = booking.netPrice || 0;
+    row.Vat = booking.vat || 0;
+    row.GrossPrice = booking.grossPrice || 0;
+    row.QuoteURL = booking.quoteUrl || row.QuoteURL || "";
+    row.QuoteStale = booking.quoteStale;
   }
 
   function hasDeliveryCharge_(booking) {
@@ -1051,7 +1081,7 @@
     const quoteStale = parsed.quoteStale === true || parsed.quoteStale === "TRUE";
 
     if (hasQuote && quoteStale) {
-      openRegenerateQuoteModal(bookingId);
+      executeGenerateQuote_(bookingId);
       return;
     }
 
@@ -1059,17 +1089,7 @@
   }
 
   function openRegenerateQuoteModal(bookingId) {
-    REGENERATE_BOOKING_ID = bookingId;
-
-    const modal = document.getElementById("regenerateQuoteModal");
-
-    if (!modal) {
-      const ok = confirm("This booking has changed since the quote was generated. Regenerate the quote now?");
-      if (ok) confirmRegenerateQuote();
-      return;
-    }
-
-    modal.classList.remove("hidden");
+    executeGenerateQuote_(bookingId);
   }
 
   function closeRegenerateQuoteModal() {
@@ -1093,11 +1113,6 @@
 
     const parsed = row.ParsedBooking || {};
     const hasQuote = !!row.QuoteURL || !!parsed.quoteUrl;
-
-    if (hasQuote) {
-      openRegenerateQuoteModal(bookingId);
-      return;
-    }
 
     executeGenerateQuote_(bookingId);
   }

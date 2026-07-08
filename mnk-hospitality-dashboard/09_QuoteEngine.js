@@ -158,9 +158,9 @@ function replaceQuoteOrderPlaceholder_(body, items) {
     const time = item.time ? item.time + " - " : "";
     const qty = item.qty ? " x " + item.qty : "";
 
-    line.appendText(time).setBold(false).setItalic(false).setFontSize(10);
-    line.appendText(item.name || "").setBold(true).setItalic(false).setFontSize(10);
-    line.appendText(qty).setBold(false).setItalic(false).setFontSize(10);
+    appendQuoteText_(line, time, false, false, 10);
+    appendQuoteText_(line, item.name || "Untitled item", true, false, 10);
+    appendQuoteText_(line, qty, false, false, 10);
 
     const detailParts = [];
     if (item.detail) detailParts.push(item.detail);
@@ -174,6 +174,17 @@ function replaceQuoteOrderPlaceholder_(body, items) {
       detail.setSpacingAfter(4);
     }
   });
+}
+
+function appendQuoteText_(paragraph, text, bold, italic, fontSize) {
+  const value = String(text || "");
+  if (!value) return null;
+
+  return paragraph
+    .appendText(value)
+    .setBold(Boolean(bold))
+    .setItalic(Boolean(italic))
+    .setFontSize(fontSize || 10);
 }
 
 function buildQuoteItems_(booking) {
