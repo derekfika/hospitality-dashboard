@@ -7,6 +7,7 @@ function generateQuoteForRow(rowNumber) {
 
   if (!booking) throw new Error("Could not read booking data.");
 
+  const previousStatus = booking.status || "";
   booking = ensureLineItemTimes_(booking);
   booking = applyMnkDeliveryCharge_(booking);
   booking = validateBooking_(booking);
@@ -28,7 +29,7 @@ function generateQuoteForRow(rowNumber) {
 
   booking.quoteUrl = quoteFile.getUrl();
   booking.quoteCreatedAt = new Date();
-  booking.status = CONFIG.STATUS.QUOTE_GENERATED;
+  booking.status = getStatusAfterQuoteGeneration_(previousStatus);
   booking.quoteStale = false;
   booking.updatedAt = new Date();
 
@@ -38,6 +39,61 @@ function generateQuoteForRow(rowNumber) {
     ok: true,
     quoteUrl: quoteFile.getUrl()
   };
+}
+
+function getStatusAfterQuoteGeneration_(previousStatus) {
+  const status = String(previousStatus || "");
+  const preserveStatuses = [
+    CONFIG.STATUS.CPU_CREATED,
+    CONFIG.STATUS.CONFIRMED,
+    CONFIG.STATUS.CANCELLED,
+    CONFIG.STATUS.ARCHIVED
+  ];
+
+  return preserveStatuses.indexOf(status) > -1
+    ? status
+    : CONFIG.STATUS.QUOTE_GENERATED;
+}
+
+function restoreQuoteGeneratedRowsToConfirmed() {
+  const sh = getDashboardSheet_();
+  const map = getHeaderMap_();
+  const statusCol = map.Status;
+  const parsedJsonCol = map.ParsedJSON;
+
+  if (!statusCol) throw new Error("Status column not found.");
+  if (!parsedJsonCol) throw new Error("ParsedJSON column not found.");
+
+  const results = {
+    ok: true,
+    updated: 0,
+    skipped: 0,
+    rows: []
+  };
+
+  for (let rowNumber = 2; rowNumber <= sh.getLastRow(); rowNumber++) {
+    const status = String(sh.getRange(rowNumber, statusCol).getValue() || "");
+    const booking = safeJsonParse_(sh.getRange(rowNumber, parsedJsonCol).getValue(), null);
+
+    if (status !== CONFIG.STATUS.QUOTE_GENERATED || !booking) {
+      results.skipped++;
+      continue;
+    }
+
+    booking.status = CONFIG.STATUS.CONFIRMED;
+    booking.updatedAt = new Date();
+    writeBookingObjectToExistingRow_(rowNumber, booking);
+
+    results.updated++;
+    results.rows.push({
+      rowNumber: rowNumber,
+      bookingId: booking.bookingId || "",
+      status: booking.status
+    });
+  }
+
+  Logger.log(JSON.stringify(results, null, 2));
+  return results;
 }
 
 function regenerateAllQuotesWithoutManagementFee() {
