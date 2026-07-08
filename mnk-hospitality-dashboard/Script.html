@@ -675,6 +675,7 @@
       case "pax": return Number(b.Pax || 0);
       case "service": return String(b.ServiceType || "").toLowerCase();
       case "floor": return String(b.Floor || "").toLowerCase();
+      case "room": return String(getDisplayRoom_(b) || "").toLowerCase();
       case "total": return Number(b.TotalPrice || 0);
       case "status": return String(b.Status || "").toLowerCase();
       default: return "";
@@ -720,6 +721,7 @@
           b.ServiceType,
           b.Location,
           b.Floor,
+          getDisplayRoom_(b),
           b.Status
         ].join(" ").toLowerCase();
 
@@ -755,6 +757,7 @@
         <td>${escapeHtml(b.Pax || "-")}</td>
         <td>${escapeHtml(b.ServiceType || "-")}</td>
         <td>${escapeHtml(b.Floor || "-")}</td>
+        <td>${escapeHtml(getDisplayRoom_(b) || "-")}</td>
         <td>&pound;${Number(b.TotalPrice || 0).toFixed(2)}</td>
         <td><span class="badge status-${escapeHtml(b.Status)}">${escapeHtml(b.Status)}</span></td>
         <td class="missing">${escapeHtml((b.ValidationErrorsParsed || []).join(", "))}</td>
@@ -763,7 +766,7 @@
 
       ${OPEN_BOOKING_ID === b.BookingID ? `
         <tr id="detail-${b.BookingID}" class="detail-row">
-          <td colspan="10">
+          <td colspan="11">
             ${renderDetailPanel(b)}
           </td>
         </tr>
@@ -771,7 +774,28 @@
     `).join("");
 
     document.getElementById("bookingRows").innerHTML =
-      html || `<tr><td colspan="10" class="loading">No bookings found.</td></tr>`;
+      html || `<tr><td colspan="11" class="loading">No bookings found.</td></tr>`;
+  }
+
+  function getDisplayRoom_(row) {
+    const parsed = row.ParsedBooking || {};
+    const clientEvent = parsed.clientBooking && parsed.clientBooking.event
+      ? parsed.clientBooking.event
+      : {};
+    const room =
+      parsed.room ||
+      parsed.roomOrArea ||
+      parsed.deliveryPoint ||
+      clientEvent.roomOrArea ||
+      clientEvent.deliveryPoint ||
+      "";
+
+    if (room) return room;
+
+    const location = String(parsed.location || row.Location || "").trim();
+    const siteAddress = "110 Bishopsgate, EC2N 4AY";
+
+    return location && location !== siteAddress ? location : "";
   }
 
   function renderActionButtons(b) {
