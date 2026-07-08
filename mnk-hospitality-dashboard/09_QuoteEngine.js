@@ -60,7 +60,7 @@ function regenerateAllQuotesWithoutManagementFee() {
   };
 
   for (let rowNumber = 2; rowNumber <= lastRow; rowNumber++) {
-    const quoteUrl = sh.getRange(rowNumber, quoteUrlCol).getValue();
+    const quoteUrl = getExistingQuoteUrlForRow_(sh, rowNumber, map);
 
     if (!quoteUrl) {
       results.skipped++;
@@ -88,6 +88,52 @@ function regenerateAllQuotesWithoutManagementFee() {
 
   Logger.log(JSON.stringify(results, null, 2));
   return results;
+}
+
+function auditExistingQuoteUrlsForRegeneration() {
+  const sh = getDashboardSheet_();
+  const map = getHeaderMap_();
+  const quoteUrlCol = map.QuoteURL;
+  const parsedJsonCol = map.ParsedJSON;
+  const lastRow = sh.getLastRow();
+  const rows = [];
+
+  for (let rowNumber = 2; rowNumber <= lastRow; rowNumber++) {
+    const sheetQuoteUrl = quoteUrlCol
+      ? String(sh.getRange(rowNumber, quoteUrlCol).getValue() || "").trim()
+      : "";
+    const booking = parsedJsonCol
+      ? safeJsonParse_(sh.getRange(rowNumber, parsedJsonCol).getValue(), {})
+      : {};
+    const parsedQuoteUrl = booking && booking.quoteUrl ? String(booking.quoteUrl).trim() : "";
+
+    rows.push({
+      rowNumber: rowNumber,
+      bookingId: booking.bookingId || "",
+      status: booking.status || "",
+      sheetQuoteUrl: sheetQuoteUrl,
+      parsedQuoteUrl: parsedQuoteUrl,
+      wouldRegenerate: Boolean(sheetQuoteUrl || parsedQuoteUrl)
+    });
+  }
+
+  Logger.log(JSON.stringify(rows, null, 2));
+  return rows;
+}
+
+function getExistingQuoteUrlForRow_(sheet, rowNumber, map) {
+  const quoteUrlCol = map.QuoteURL;
+  const parsedJsonCol = map.ParsedJSON;
+  const sheetQuoteUrl = quoteUrlCol
+    ? String(sheet.getRange(rowNumber, quoteUrlCol).getValue() || "").trim()
+    : "";
+
+  if (sheetQuoteUrl) return sheetQuoteUrl;
+
+  if (!parsedJsonCol) return "";
+
+  const booking = safeJsonParse_(sheet.getRange(rowNumber, parsedJsonCol).getValue(), null);
+  return booking && booking.quoteUrl ? String(booking.quoteUrl).trim() : "";
 }
 
 function ensureLineItemTimes_(booking) {
