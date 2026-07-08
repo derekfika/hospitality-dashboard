@@ -84,6 +84,8 @@ function updateBookingFromDashboard(rowNumber, patch) {
     booking[key] = patch[key];
   });
 
+  booking = applyMnkDeliveryCharge_(booking);
+
   const newEventDate = booking.eventDate || "";
   const newServiceTimes = JSON.stringify(booking.serviceTimes || []);
 
@@ -115,6 +117,88 @@ function updateBookingFromDashboard(rowNumber, patch) {
     ok: true,
     booking
   };
+}
+
+function applyMnkDeliveryCharge_(booking) {
+  const deliveryRequired = booking.deliveryChargeRequired === true;
+  const existingItems = Array.isArray(booking.items) ? booking.items : [];
+  const existingDelivery = existingItems.find(function(item) {
+    return item && item.itemId === "mnk_cpu_delivery_charge";
+  });
+  const existingDeliveryAmount = existingDelivery
+    ? Number(existingDelivery.lineTotal || existingDelivery.unitPrice || 35)
+    : Number((booking.charges && booking.charges.delivery && booking.charges.delivery.amount) || 0);
+  const fallbackFoodSubtotal = Math.max(0, Number(booking.totalPrice || 0) - (existingDeliveryAmount || 0));
+  const baseItems = existingItems.filter(function(item) {
+    return !(item && item.itemId === "mnk_cpu_delivery_charge");
+  });
+
+  const charges = booking.charges && typeof booking.charges === "object"
+    ? booking.charges
+    : {};
+
+  if (deliveryRequired) {
+    baseItems.push({
+      section: "Delivery",
+      name: "CPU delivery charge",
+      detail: "One-way delivery from CPU",
+      info: "£35 ex VAT",
+      qty: 1,
+      time: "",
+      comment: "",
+      unitPrice: 35,
+      lineTotal: 35,
+      itemId: "mnk_cpu_delivery_charge"
+    });
+  }
+
+  charges.delivery = {
+    enabled: deliveryRequired,
+    label: "CPU delivery charge",
+    amount: deliveryRequired ? 35 : 0,
+    vatStatus: "ex_vat",
+    direction: "one_way"
+  };
+
+  booking.items = baseItems;
+  booking.charges = charges;
+  booking.deliveryChargeRequired = deliveryRequired;
+
+  return recalculateMnkDashboardTotals_(booking, fallbackFoodSubtotal);
+}
+
+function recalculateMnkDashboardTotals_(booking, fallbackFoodSubtotal) {
+  const items = Array.isArray(booking.items) ? booking.items : [];
+  const foodItems = items.filter(function(item) {
+    return !(item && item.itemId === "mnk_cpu_delivery_charge");
+  });
+  const hasPricedFoodItems = foodItems.some(function(item) {
+    return !isNaN(Number(item.lineTotal)) || (!isNaN(Number(item.unitPrice)) && !isNaN(Number(item.qty)));
+  });
+  const foodSubtotal = hasPricedFoodItems
+    ? foodItems.reduce(function(total, item) {
+      const lineTotal = Number(item.lineTotal);
+      if (!isNaN(lineTotal)) return total + lineTotal;
+
+      const qty = Number(item.qty || 0);
+      const unitPrice = Number(item.unitPrice || 0);
+      return total + (qty * unitPrice);
+    }, 0)
+    : Number(fallbackFoodSubtotal || 0);
+  const deliverySubtotal = booking.deliveryChargeRequired ? 35 : 0;
+  const totalPrice = foodSubtotal + deliverySubtotal;
+
+  const mgmtFee = totalPrice * 0.08;
+  const netPrice = totalPrice + mgmtFee;
+  const vat = netPrice * 0.20;
+
+  booking.totalPrice = roundMoney_(totalPrice);
+  booking.mgmtFee = roundMoney_(mgmtFee);
+  booking.netPrice = roundMoney_(netPrice);
+  booking.vat = roundMoney_(vat);
+  booking.grossPrice = roundMoney_(netPrice + vat);
+
+  return booking;
 }
 
 function writeBookingObjectToExistingRow_(rowNumber, booking) {

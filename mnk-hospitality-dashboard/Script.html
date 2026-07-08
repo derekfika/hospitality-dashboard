@@ -898,6 +898,14 @@
           ${editField("floor", "Floor", b.floor)}
         </div>
 
+        <label class="field full charge-toggle">
+          <input id="edit-deliveryCharge" type="checkbox" ${hasDeliveryCharge_(b) ? "checked" : ""}>
+          <span>
+            <strong>Add CPU delivery charge</strong>
+            <small>One-way delivery from CPU, £35 ex VAT.</small>
+          </span>
+        </label>
+
         <label class="field full">
           <span>Dietary / allergen info</span>
           <textarea id="edit-notes">${escapeHtml(b.notes || "")}</textarea>
@@ -1006,6 +1014,7 @@
       location: document.getElementById("edit-location").value.trim(),
       floor: document.getElementById("edit-floor").value.trim(),
       notes: document.getElementById("edit-notes") ? document.getElementById("edit-notes").value.trim() : "",
+      deliveryChargeRequired: document.getElementById("edit-deliveryCharge") ? document.getElementById("edit-deliveryCharge").checked : false,
       items: mergedItems
     };
 
@@ -1024,6 +1033,13 @@
         showToast("Save failed: " + (err.message || err), "error");
       })
       .updateBookingFromDashboard(row.RowNumber, patch);
+  }
+
+  function hasDeliveryCharge_(booking) {
+    return !!(
+      booking.deliveryChargeRequired ||
+      (booking.charges && booking.charges.delivery && booking.charges.delivery.enabled)
+    );
   }
 
   function handleQuoteClick(bookingId) {

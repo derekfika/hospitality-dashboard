@@ -876,6 +876,45 @@
     margin-bottom: 12px;
   }
 
+  .charge-toggle {
+    align-items: center;
+    background: linear-gradient(135deg, rgba(23, 111, 142, 0.10), rgba(47, 128, 104, 0.10));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .charge-toggle input {
+    accent-color: var(--primary);
+    flex: 0 0 auto;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    width: 18px;
+  }
+
+  .charge-toggle span {
+    display: grid;
+    gap: 3px;
+  }
+
+  .charge-toggle strong {
+    color: var(--text);
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .charge-toggle small {
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
   .field input:focus,
   .field textarea:focus,
   .detail-panel input:focus,

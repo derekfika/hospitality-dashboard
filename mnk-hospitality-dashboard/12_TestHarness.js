@@ -15,10 +15,12 @@ function runDashboardPureTests() {
   record("Email generation", testEmailGeneration_);
   record("Archive logic", testArchiveLogic_);
   record("Quote helper functions", testQuoteHelpers_);
+  record("Quote item descriptions", testQuoteItemDescriptions_);
   record("Calendar helper functions", testCalendarHelpers_);
   record("Status validation", testStatusValidation_);
   record("Settings draft column aliases", testSettingsDraftColumnAliases_);
   record("Locked status validation", testLockedStatusValidation_);
+  record("MNK delivery charge", testMnkDeliveryCharge_);
 
   const failures = results.filter(result => !result.ok);
   return {
@@ -214,6 +216,27 @@ function testQuoteHelpers_() {
   assertDashboardEqual_(booking.invoiceReference, "PO-12345", "Invoice reference fixture failed.");
 }
 
+function testQuoteItemDescriptions_() {
+  const booking = makeDashboardTestBooking_();
+  booking.items = [{
+    itemId: "deli_sandwich_lunch",
+    name: "Deli Style Sandwich Lunch",
+    info: "Per person"
+  }];
+  booking.clientBooking = {
+    order: {
+      items: [{
+        itemId: "deli_sandwich_lunch",
+        description: "Three pieces per person."
+      }]
+    }
+  };
+
+  const quoteItems = buildQuoteItems_(booking);
+
+  assertDashboardEqual_(quoteItems[0].info, "Three pieces per person.", "Quote item description was not applied.");
+}
+
 function testCalendarHelpers_() {
   const booking = makeDashboardTestBooking_();
   const start = buildCalendarStart_("2026-07-14", "08:30");
@@ -290,6 +313,34 @@ function testLockedStatusValidation_() {
   assertDashboardTest_(
     validated.validationErrors.indexOf("Missing company") !== -1,
     "Locked status booking should still record validation errors."
+  );
+}
+
+function testMnkDeliveryCharge_() {
+  const booking = makeDashboardTestBooking_();
+  booking.totalPrice = 120;
+  booking.items = [
+    { section: "Lunch", name: "Sandwiches", qty: "12", time: "12:00" }
+  ];
+
+  booking.deliveryChargeRequired = true;
+  const withDelivery = applyMnkDeliveryCharge_(booking);
+
+  assertDashboardEqual_(withDelivery.totalPrice, 155, "Delivery charge should add £35 to the food subtotal.");
+  assertDashboardEqual_(withDelivery.mgmtFee, 12.4, "Delivery charge management fee failed.");
+  assertDashboardEqual_(withDelivery.vat, 33.48, "Delivery charge VAT failed.");
+  assertDashboardTest_(
+    withDelivery.items.some(function(item) { return item.itemId === "mnk_cpu_delivery_charge"; }),
+    "Delivery charge line item was not added."
+  );
+
+  withDelivery.deliveryChargeRequired = false;
+  const withoutDelivery = applyMnkDeliveryCharge_(withDelivery);
+
+  assertDashboardEqual_(withoutDelivery.totalPrice, 120, "Removing delivery charge should restore original subtotal.");
+  assertDashboardTest_(
+    withoutDelivery.items.every(function(item) { return item.itemId !== "mnk_cpu_delivery_charge"; }),
+    "Delivery charge line item was not removed."
   );
 }
 

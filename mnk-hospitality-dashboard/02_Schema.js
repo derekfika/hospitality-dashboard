@@ -37,6 +37,16 @@ function createEmptyBooking_() {
     netPrice: 0,
     vat: 0,
     grossPrice: 0,
+    charges: {
+      delivery: {
+        enabled: false,
+        label: "CPU delivery charge",
+        amount: 0,
+        vatStatus: "ex_vat",
+        direction: "one_way"
+      }
+    },
+    deliveryChargeRequired: false,
 
     items: [],
 

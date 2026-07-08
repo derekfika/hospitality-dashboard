@@ -98,7 +98,7 @@ function clearAndRefillQuoteDoc_(doc, booking) {
 
   styleQuoteNotes_(body, booking.notes || "");
 
-  replaceQuoteOrderPlaceholder_(body, booking.items || []);
+  replaceQuoteOrderPlaceholder_(body, buildQuoteItems_(booking));
 }
 
 function styleQuoteNotes_(body, notesText) {
@@ -185,6 +185,31 @@ function replaceQuoteOrderPlaceholder_(body, items) {
       detail.setItalic(true);
       detail.setSpacingAfter(4);
     }
+  });
+}
+
+function buildQuoteItems_(booking) {
+  const items = Array.isArray(booking.items) ? booking.items : [];
+  const descriptionsByItemId = {};
+
+  if (
+    booking.clientBooking &&
+    booking.clientBooking.order &&
+    Array.isArray(booking.clientBooking.order.items)
+  ) {
+    booking.clientBooking.order.items.forEach(function(item) {
+      if (item.itemId && item.description) {
+        descriptionsByItemId[item.itemId] = item.description;
+      }
+    });
+  }
+
+  return items.map(function(item) {
+    if (!item || !item.itemId || !descriptionsByItemId[item.itemId]) return item;
+
+    return Object.assign({}, item, {
+      info: descriptionsByItemId[item.itemId]
+    });
   });
 }
 

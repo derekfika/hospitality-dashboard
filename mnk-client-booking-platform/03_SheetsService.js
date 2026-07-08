@@ -153,7 +153,7 @@ function adaptClientBookingForDashboard_(booking) {
       section: item.category,
       name: item.itemName,
       detail: choiceText,
-      info: item.servingInfo,
+      info: item.description || item.servingInfo,
       qty: item.quantity,
       time: item.timeRequired || booking.event.startTime,
       comment: item.comments,
