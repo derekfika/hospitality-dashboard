@@ -8,6 +8,7 @@ function generateQuoteForRow(rowNumber) {
   if (!booking) throw new Error("Could not read booking data.");
 
   booking = ensureLineItemTimes_(booking);
+  booking = applyMnkDeliveryCharge_(booking);
   booking = validateBooking_(booking);
 
   if (booking.validationErrors.length > 0) {
@@ -17,22 +18,9 @@ function generateQuoteForRow(rowNumber) {
   const folder = getQuoteFolderForBooking_(booking);
   const quoteName = makeQuoteName_(booking);
 
-  let quoteFile;
-
-  if (booking.quoteUrl) {
-    const existingId = extractDriveIdFromUrl_(booking.quoteUrl);
-    if (existingId) {
-      quoteFile = DriveApp.getFileById(existingId);
-    }
-  }
-
-  if (!quoteFile) {
-    const templateId = getConfiguredValue_("QUOTE_TEMPLATE_DOC_ID", CONFIG.QUOTE_TEMPLATE_DOC_ID);
-    const template = DriveApp.getFileById(templateId);
-    quoteFile = template.makeCopy(quoteName, folder);
-  } else {
-    quoteFile.setName(quoteName);
-  }
+  const templateId = getConfiguredValue_("QUOTE_TEMPLATE_DOC_ID", CONFIG.QUOTE_TEMPLATE_DOC_ID);
+  const template = DriveApp.getFileById(templateId);
+  const quoteFile = template.makeCopy(quoteName, folder);
 
   const doc = DocumentApp.openById(quoteFile.getId());
   clearAndRefillQuoteDoc_(doc, booking);
