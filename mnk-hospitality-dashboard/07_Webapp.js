@@ -128,7 +128,7 @@ function applyMnkDeliveryCharge_(booking) {
   const existingDeliveryAmount = existingDelivery
     ? Number(existingDelivery.lineTotal || existingDelivery.unitPrice || 35)
     : Number((booking.charges && booking.charges.delivery && booking.charges.delivery.amount) || 0);
-  const fallbackFoodSubtotal = Math.max(0, Number(booking.totalPrice || 0) - (existingDeliveryAmount || 0));
+  const fallbackFoodSubtotal = getMnkFoodSubtotalFallback_(booking, existingDeliveryAmount);
   const baseItems = existingItems.filter(function(item) {
     return !(item && item.itemId === "mnk_cpu_delivery_charge");
   });
@@ -165,6 +165,19 @@ function applyMnkDeliveryCharge_(booking) {
   booking.deliveryChargeRequired = deliveryRequired;
 
   return recalculateMnkDashboardTotals_(booking, fallbackFoodSubtotal);
+}
+
+function getMnkFoodSubtotalFallback_(booking, existingDeliveryAmount) {
+  const totalPrice = Number(booking.totalPrice || 0);
+  const mgmtFee = Number(booking.mgmtFee || 0);
+  const netPrice = Number(booking.netPrice || 0);
+  const deliveryAmount = Number(existingDeliveryAmount || 0);
+
+  if (mgmtFee > 0 && netPrice > 0) {
+    return Math.max(0, roundMoney_(netPrice - mgmtFee - deliveryAmount));
+  }
+
+  return Math.max(0, roundMoney_(totalPrice - deliveryAmount));
 }
 
 function recalculateMnkDashboardTotals_(booking, fallbackFoodSubtotal) {

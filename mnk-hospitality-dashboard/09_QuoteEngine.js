@@ -68,12 +68,16 @@ function regenerateAllQuotesWithoutManagementFee() {
     }
 
     try {
+      const before = getBookingTotalsForRow_(sh, rowNumber, map);
       const res = generateQuoteForRow(rowNumber);
+      const after = getBookingTotalsForRow_(sh, rowNumber, map);
       results.regenerated++;
       results.rows.push({
         rowNumber: rowNumber,
         ok: true,
-        quoteUrl: res.quoteUrl
+        quoteUrl: res.quoteUrl,
+        before: before,
+        after: after
       });
     } catch (e) {
       results.failed++;
@@ -88,6 +92,22 @@ function regenerateAllQuotesWithoutManagementFee() {
 
   Logger.log(JSON.stringify(results, null, 2));
   return results;
+}
+
+function getBookingTotalsForRow_(sheet, rowNumber, map) {
+  const parsedJsonCol = map.ParsedJSON;
+  const booking = parsedJsonCol
+    ? safeJsonParse_(sheet.getRange(rowNumber, parsedJsonCol).getValue(), {})
+    : {};
+
+  return {
+    totalPrice: booking.totalPrice || 0,
+    mgmtFee: booking.mgmtFee || 0,
+    netPrice: booking.netPrice || 0,
+    vat: booking.vat || 0,
+    grossPrice: booking.grossPrice || 0,
+    quoteUrl: booking.quoteUrl || ""
+  };
 }
 
 function auditExistingQuoteUrlsForRegeneration() {
@@ -106,6 +126,7 @@ function auditExistingQuoteUrlsForRegeneration() {
       ? safeJsonParse_(sh.getRange(rowNumber, parsedJsonCol).getValue(), {})
       : {};
     const parsedQuoteUrl = booking && booking.quoteUrl ? String(booking.quoteUrl).trim() : "";
+    const recalculated = booking ? applyMnkDeliveryCharge_(Object.assign({}, booking)) : {};
 
     rows.push({
       rowNumber: rowNumber,
@@ -113,6 +134,14 @@ function auditExistingQuoteUrlsForRegeneration() {
       status: booking.status || "",
       sheetQuoteUrl: sheetQuoteUrl,
       parsedQuoteUrl: parsedQuoteUrl,
+      totalPrice: booking.totalPrice || 0,
+      mgmtFee: booking.mgmtFee || 0,
+      netPrice: booking.netPrice || 0,
+      vat: booking.vat || 0,
+      recalculatedTotalPrice: recalculated.totalPrice || 0,
+      recalculatedMgmtFee: recalculated.mgmtFee || 0,
+      recalculatedNetPrice: recalculated.netPrice || 0,
+      recalculatedVat: recalculated.vat || 0,
       wouldRegenerate: Boolean(sheetQuoteUrl || parsedQuoteUrl)
     });
   }
