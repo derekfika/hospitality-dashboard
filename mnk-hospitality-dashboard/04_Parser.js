@@ -534,7 +534,7 @@ function parseAngelCourtBookingSheet_(sheet) {
   )];
 
   const totalPrice = findCurrencyValueByLabel_(sheet, "Grand Net Total");
-  const mgmtFee = totalPrice * 0.08;
+  const mgmtFee = 0;
   const netPrice = totalPrice + mgmtFee;
   const vat = netPrice * 0.20;
   const grossPrice = netPrice + vat;

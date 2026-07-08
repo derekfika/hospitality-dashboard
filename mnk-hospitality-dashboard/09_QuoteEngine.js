@@ -40,6 +40,56 @@ function generateQuoteForRow(rowNumber) {
   };
 }
 
+function regenerateAllQuotesWithoutManagementFee() {
+  const sh = getDashboardSheet_();
+  const map = getHeaderMap_();
+  const quoteUrlCol = map.QuoteURL;
+  const parsedJsonCol = map.ParsedJSON;
+
+  if (!quoteUrlCol) throw new Error("QuoteURL column not found.");
+  if (!parsedJsonCol) throw new Error("ParsedJSON column not found.");
+
+  const lastRow = sh.getLastRow();
+  const results = {
+    ok: true,
+    checked: Math.max(0, lastRow - 1),
+    regenerated: 0,
+    skipped: 0,
+    failed: 0,
+    rows: []
+  };
+
+  for (let rowNumber = 2; rowNumber <= lastRow; rowNumber++) {
+    const quoteUrl = sh.getRange(rowNumber, quoteUrlCol).getValue();
+
+    if (!quoteUrl) {
+      results.skipped++;
+      continue;
+    }
+
+    try {
+      const res = generateQuoteForRow(rowNumber);
+      results.regenerated++;
+      results.rows.push({
+        rowNumber: rowNumber,
+        ok: true,
+        quoteUrl: res.quoteUrl
+      });
+    } catch (e) {
+      results.failed++;
+      results.ok = false;
+      results.rows.push({
+        rowNumber: rowNumber,
+        ok: false,
+        error: String(e && e.message ? e.message : e)
+      });
+    }
+  }
+
+  Logger.log(JSON.stringify(results, null, 2));
+  return results;
+}
+
 function ensureLineItemTimes_(booking) {
   const defaultTime =
     booking.serviceTimes && booking.serviceTimes.length

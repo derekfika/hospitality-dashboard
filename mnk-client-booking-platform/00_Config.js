@@ -15,7 +15,7 @@ const SITE_CONFIG = Object.freeze({
     dashboardSpreadsheetId: "1GIGIh_oAY0yLrrlXPaSvHte2oMPT8S_dKFAYdZN6nuc",
     spreadsheetId: "",
     dashboardSheetName: "Dashboard Data",
-    managementFeeRate: 0.08,
+    managementFeeRate: 0,
     vatRate: 0.20,
     keepClientRequestLog: false
   },

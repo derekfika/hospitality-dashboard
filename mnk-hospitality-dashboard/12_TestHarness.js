@@ -100,10 +100,10 @@ function makeDashboardTestBooking_() {
   booking.location = "MNK";
   booking.floor = "7";
   booking.totalPrice = 120;
-  booking.mgmtFee = 12;
-  booking.netPrice = 132;
-  booking.vat = 26.4;
-  booking.grossPrice = 158.4;
+  booking.mgmtFee = 0;
+  booking.netPrice = 120;
+  booking.vat = 24;
+  booking.grossPrice = 144;
   booking.items = [
     { section: "Food", name: "Pastries", qty: 12, time: "08:30" }
   ],
@@ -327,8 +327,8 @@ function testMnkDeliveryCharge_() {
   const withDelivery = applyMnkDeliveryCharge_(booking);
 
   assertDashboardEqual_(withDelivery.totalPrice, 155, "Delivery charge should add £35 to the food subtotal.");
-  assertDashboardEqual_(withDelivery.mgmtFee, 12.4, "Delivery charge management fee failed.");
-  assertDashboardEqual_(withDelivery.vat, 33.48, "Delivery charge VAT failed.");
+  assertDashboardEqual_(withDelivery.mgmtFee, 0, "MNK delivery charge should not add a management fee.");
+  assertDashboardEqual_(withDelivery.vat, 31, "Delivery charge VAT failed.");
   assertDashboardTest_(
     withDelivery.items.some(function(item) { return item.itemId === "mnk_cpu_delivery_charge"; }),
     "Delivery charge line item was not added."

@@ -188,7 +188,7 @@ function recalculateMnkDashboardTotals_(booking, fallbackFoodSubtotal) {
   const deliverySubtotal = booking.deliveryChargeRequired ? 35 : 0;
   const totalPrice = foodSubtotal + deliverySubtotal;
 
-  const mgmtFee = totalPrice * 0.08;
+  const mgmtFee = 0;
   const netPrice = totalPrice + mgmtFee;
   const vat = netPrice * 0.20;
 
