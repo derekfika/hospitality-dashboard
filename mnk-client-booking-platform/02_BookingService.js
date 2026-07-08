@@ -137,6 +137,20 @@ function recalculateOrderItems_(requestedItems, guestCount) {
 function validateChoices_(item, requestedChoices) {
   return item.choices.map(function(group) {
     const match = requestedChoices.find(function(choice) { return choice.id === group.id; }) || {};
+    if (isMultiChoiceGroup_(group)) {
+      const requestedValues = Array.isArray(match.value)
+        ? match.value
+        : String(match.value || "").split(/\s*,\s*/);
+      const values = requestedValues.map(clean_)
+        .filter(function(value) { return group.options.indexOf(value) > -1; });
+      const uniqueValues = Array.from(new Set(values));
+      return {
+        id: group.id,
+        label: group.label,
+        value: uniqueValues.join(", "),
+        values: uniqueValues
+      };
+    }
     const value = clean_(match.value);
     return {
       id: group.id,
@@ -144,6 +158,10 @@ function validateChoices_(item, requestedChoices) {
       value: group.options.indexOf(value) > -1 ? value : ""
     };
   });
+}
+
+function isMultiChoiceGroup_(group) {
+  return ["multi", "checkbox", "checkboxes"].indexOf(String(group.type || "").toLowerCase()) > -1;
 }
 
 function validateBookingRequest_(booking) {

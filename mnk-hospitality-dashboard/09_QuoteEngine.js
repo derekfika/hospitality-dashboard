@@ -72,6 +72,7 @@ function clearAndRefillQuoteDoc_(doc, booking) {
 
   const replacements = {
     "<SITE>": booking.location || getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || CONFIG.APP_NAME || ""),
+    "<CLIENT>": booking.clientCompany || "",
     "<FLOOR>": booking.floor || "",
     "<DAY>": formatDayName_(booking.eventDate),
     "<PAX>": booking.pax || "",
@@ -325,41 +326,97 @@ function buildConfirmationSubject_(booking) {
 }
 
 function buildConfirmationEmailHtml_(booking) {
+  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
+  const primary = getConfiguredValue_("COLOUR_PRIMARY", CONFIG.COLOUR_PRIMARY || "#4F34C7");
+  const accent = getConfiguredValue_("COLOUR_ACCENT", CONFIG.COLOUR_ACCENT || "#FF5C00");
+  const paper = getConfiguredValue_("COLOUR_BACKGROUND", CONFIG.COLOUR_BACKGROUND || "#F8F6FF");
+  const itemRows = buildConfirmationItemsHtml_(booking.items || []);
+  const hostGreeting = booking.hostName ? "Hi " + escapeEmailHtml_(booking.hostName) + "," : "Hi there,";
+
   return `
-  <div style="font-family: Arial, sans-serif; color:#241F33; line-height:1.5;">
-    <h2 style="color:#4F34C7; margin-bottom:8px;">Booking Confirmed</h2>
+  <div style="margin:0; padding:0; background:${escapeEmailHtml_(paper)}; font-family: Arial, Helvetica, sans-serif; color:#241F33; line-height:1.5;">
+    <div style="max-width:680px; margin:0 auto; padding:28px 18px;">
+      <div style="background:#ffffff; border:1px solid #DDD8EA; border-radius:22px; overflow:hidden;">
+        <div style="padding:28px 30px; background:${escapeEmailHtml_(primary)}; color:#ffffff;">
+          <div style="font-size:12px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.9;">FIKA Hospitality</div>
+          <h1 style="margin:8px 0 0; font-size:30px; line-height:1.1; font-weight:700;">Booking confirmed</h1>
+          <p style="margin:10px 0 0; font-size:15px;">${escapeEmailHtml_(siteName)} - ${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</p>
+        </div>
 
-    <p>Hi there!,</p>
+        <div style="padding:28px 30px;">
+          <p style="margin:0 0 14px;">${hostGreeting}</p>
+          <p style="margin:0 0 18px;">Your hospitality booking is confirmed and scheduled with our team. Here is a summary of what we have booked in for you.</p>
 
-    <p>Thank you for your booking with <strong>FIKA Hospitality</strong>.</p>
+          <div style="margin:22px 0; padding:18px; border:1px solid #E4DEEF; border-radius:16px; background:#FBFAFF;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; font-size:14px;">
+              <tr><td style="padding:6px 0; color:#6B627A;">Reference</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.bookingId)}</td></tr>
+              <tr><td style="padding:6px 0; color:#6B627A;">Client</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.clientCompany || "")}</td></tr>
+              <tr><td style="padding:6px 0; color:#6B627A;">Service</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.serviceType || "Hospitality")}</td></tr>
+              <tr><td style="padding:6px 0; color:#6B627A;">Date</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</td></tr>
+              <tr><td style="padding:6px 0; color:#6B627A;">Time</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_((booking.serviceTimes || []).join(", "))}</td></tr>
+              <tr><td style="padding:6px 0; color:#6B627A;">Location</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.location || siteName)}</td></tr>
+              <tr><td style="padding:6px 0; color:#6B627A;">Floor</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.floor || "")}</td></tr>
+              <tr><td style="padding:6px 0; color:#6B627A;">Guests</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.pax || "")}</td></tr>
+            </table>
+          </div>
 
-    <p>
-      We're pleased to confirm that your booking has been received and scheduled with our team.
-      Our catering and logistics teams have been notified and will begin preparing your order.
-    </p>
+          <h2 style="margin:24px 0 12px; color:${escapeEmailHtml_(primary)}; font-size:20px;">Your booked items</h2>
+          ${itemRows}
 
-    <div style="margin:22px 0; padding:16px; border:1px solid #DDD8EA; border-radius:14px; background:#F4F0FF;">
-      <p><strong>Booking Reference:</strong> ${escapeEmailHtml_(booking.bookingId)}</p>
-      <p><strong>Service:</strong> ${escapeEmailHtml_(booking.serviceType || "Hospitality")}</p><p><strong>Date:</strong> ${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</p>
-      <p><strong>Time:</strong> ${escapeEmailHtml_((booking.serviceTimes || []).join(", "))}</p>
-      <p><strong>Location:</strong> ${escapeEmailHtml_(booking.location || "")}</p>
-      <p><strong>Floor:</strong> ${escapeEmailHtml_(booking.floor || "")}</p>
-      <p><strong>Guests:</strong> ${escapeEmailHtml_(booking.pax || "")}</p>
+          <div style="margin:24px 0 0; padding:16px; border-left:4px solid ${escapeEmailHtml_(accent)}; background:#FFF8F4; border-radius:12px;">
+            <p style="margin:0; font-size:14px;">No prices are shown here because this is a booking confirmation, not a quote. Labour, equipment hire, VAT or event-specific requirements may be confirmed separately where needed.</p>
+          </div>
+
+          <p style="margin:24px 0 0;">If anything needs changing before the service date, please let us know as soon as possible and we will do our best to help.</p>
+          <p style="margin:24px 0 0;">Kind regards,<br><strong style="color:${escapeEmailHtml_(primary)};">FIKA Hospitality</strong></p>
+        </div>
+      </div>
     </div>
-
-    <p>Should any changes be required before the service date, please let us know as soon as possible and we'll do our best to accommodate them.</p>
-
-    <p style="margin-top:24px;">
-      We look forward to enhancing your hospitality experience.<br><br>
-      <strong style="color:#4F34C7; font-size:18px;">Let's FIKA!</strong>
-    </p>
-
-    <p style="margin-top:24px;">
-      Kind regards,<br>
-      <strong>FIKA Hospitality</strong>
-    </p>
   </div>
   `;
+}
+
+function buildConfirmationItemsHtml_(items) {
+  const rows = (items || []).filter(function(item) {
+    return item && (item.name || item.qty || item.detail || item.info || item.comment);
+  });
+
+  if (!rows.length) {
+    return '<p style="margin:0; color:#6B627A;">No itemised order details were available for this booking.</p>';
+  }
+
+  return `
+    <div style="border:1px solid #E4DEEF; border-radius:16px; overflow:hidden;">
+      ${rows.map(function(item, index) {
+        const qty = item.qty || item.quantity || "";
+        const title = (qty ? escapeEmailHtml_(qty) + " x " : "") + escapeEmailHtml_(item.name || "Hospitality item");
+        const meta = buildConfirmationItemMeta_(item);
+        const detail = [item.detail, item.info, item.comment]
+          .map(function(value) { return String(value || "").trim(); })
+          .filter(Boolean)
+          .map(escapeEmailHtml_)
+          .join("<br>");
+
+        return `
+          <div style="padding:15px 16px; ${index ? "border-top:1px solid #E4DEEF;" : ""}">
+            <div style="font-weight:700; color:#241F33;">${title}</div>
+            ${meta ? `<div style="margin-top:4px; color:#6B627A; font-size:13px;">${meta}</div>` : ""}
+            ${detail ? `<div style="margin-top:8px; color:#4A4358; font-size:13px;">${detail}</div>` : ""}
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function buildConfirmationItemMeta_(item) {
+  return [
+    item.time ? "Time: " + item.time : "",
+    item.section ? "Section: " + item.section : ""
+  ]
+    .filter(Boolean)
+    .map(escapeEmailHtml_)
+    .join(" &bull; ");
 }
 
 function escapeEmailHtml_(value) {
@@ -373,8 +430,15 @@ function escapeEmailHtml_(value) {
 function stripHtml_(html) {
   return String(html || "")
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/(p|div|h[1-6])>/gi, "\n\n")
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/td>/gi, "  ")
     .replace(/<[^>]+>/g, "")
+    .replace(/&bull;/g, "-")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

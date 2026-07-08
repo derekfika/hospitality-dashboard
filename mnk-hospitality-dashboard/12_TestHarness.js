@@ -185,7 +185,9 @@ function testEmailGeneration_() {
   const cancellationHtml = buildCancellationEmailHtml_(booking);
 
   assertDashboardTest_(confirmationSubject.indexOf("Booking Confirmed") !== -1, "Confirmation subject is missing status text.");
-  assertDashboardTest_(confirmationHtml.indexOf("Example Client") === -1, "Confirmation email should not expose company in the current template.");
+  assertDashboardTest_(confirmationHtml.indexOf("Example Client") !== -1, "Confirmation email is missing client company.");
+  assertDashboardTest_(confirmationHtml.indexOf("Pastries") !== -1, "Confirmation email is missing itemised order lines.");
+  assertDashboardTest_(confirmationHtml.indexOf("GBP") === -1, "Confirmation email should not include prices.");
   assertDashboardTest_(confirmationHtml.indexOf("TEST-BOOKING-001") !== -1, "Confirmation email is missing booking reference.");
   assertDashboardTest_(cancellationHtml.indexOf("Booking Cancelled") !== -1, "Cancellation email is missing heading.");
   assertDashboardTest_(stripHtml_(confirmationHtml).indexOf("<") === -1, "HTML stripping left tags behind.");

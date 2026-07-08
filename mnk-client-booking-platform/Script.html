@@ -221,7 +221,7 @@
           if (line.quantity < item.minimumQuantity) errors.push(`${item.name} requires at least ${item.minimumQuantity}.`);
           if (item.minimumGuests && Number(value("event.guestCount")) < item.minimumGuests) errors.push(`${item.name} requires at least ${item.minimumGuests} guests.`);
           item.choices.forEach(group => {
-            if (group.required && !line.choices[group.id]) errors.push(`Choose an option for ${item.name}.`);
+            if (group.required && !hasChoiceValue(line.choices[group.id])) errors.push(`Choose an option for ${item.name}.`);
           });
         });
       }
@@ -299,13 +299,7 @@
     function renderItemOptions(item, line) {
       return `<div class="item-options">
         ${item.choices.map(group => `
-          <label class="field">
-            <span>${escapeHtml(group.label)}${group.required ? " *" : ""}</span>
-            <select data-item-choice="${item.id}" data-choice-id="${group.id}">
-              <option value="">Choose…</option>
-              ${group.options.map(option => `<option value="${escapeHtml(option)}" ${line.choices[group.id] === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
-            </select>
-          </label>
+          ${renderChoiceGroup(item, line, group)}
         `).join("")}
         <label class="field">
           <span>Service time</span>
@@ -337,7 +331,17 @@
     function updateItemDetail(input) {
       const id = input.dataset.itemChoice || input.dataset.itemComment || input.dataset.itemTime;
       const line = ensureLine(id);
-      if (input.dataset.itemChoice) line.choices[input.dataset.choiceId] = input.value;
+      if (input.dataset.itemChoice) {
+        if (input.type === "checkbox" && input.dataset.choiceValue) {
+          const current = Array.isArray(line.choices[input.dataset.choiceId]) ? line.choices[input.dataset.choiceId].slice() : [];
+          const next = input.checked
+            ? Array.from(new Set(current.concat(input.dataset.choiceValue)))
+            : current.filter(value => value !== input.dataset.choiceValue);
+          line.choices[input.dataset.choiceId] = next;
+        } else {
+          line.choices[input.dataset.choiceId] = input.value;
+        }
+      }
       if (input.dataset.itemComment) line.comments = input.value;
       if (input.dataset.itemTime) line.timeRequired = input.value;
       persist(true);
@@ -501,7 +505,7 @@
           items: selectedItems().map(line => ({
             itemId: line.itemId,
             quantity: line.quantity,
-            choices: Object.entries(line.choices).map(([id, value]) => ({ id, value })),
+            choices: Object.entries(line.choices).map(([id, value]) => ({ id, value: Array.isArray(value) ? value.slice() : value })),
             comments: line.comments || "",
             timeRequired: line.timeRequired || value("event.startTime") || ""
           }))
@@ -655,6 +659,39 @@
     function ensureLine(id) {
       if (!state.items[id]) state.items[id] = { itemId: id, quantity: 0, choices: {}, comments: "", timeRequired: "" };
       return state.items[id];
+    }
+
+    function renderChoiceGroup(item, line, group) {
+      if (isMultiChoice(group)) {
+        const selectedValues = Array.isArray(line.choices[group.id]) ? line.choices[group.id] : [];
+        return `<fieldset class="field choice-field">
+          <legend>${escapeHtml(group.label)}${group.required ? " *" : ""}</legend>
+          <div class="choice-checks">
+            ${group.options.map(option => `
+              <label class="choice-check">
+                <input type="checkbox" data-item-choice="${escapeHtml(item.id)}" data-choice-id="${escapeHtml(group.id)}" data-choice-value="${escapeHtml(option)}" ${selectedValues.includes(option) ? "checked" : ""}>
+                <span class="choice-dot" aria-hidden="true"></span>
+                <span>${escapeHtml(option)}</span>
+              </label>
+            `).join("")}
+          </div>
+        </fieldset>`;
+      }
+      return `<label class="field">
+        <span>${escapeHtml(group.label)}${group.required ? " *" : ""}</span>
+        <select data-item-choice="${escapeHtml(item.id)}" data-choice-id="${escapeHtml(group.id)}">
+          <option value="">Choose…</option>
+          ${group.options.map(option => `<option value="${escapeHtml(option)}" ${line.choices[group.id] === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+        </select>
+      </label>`;
+    }
+
+    function isMultiChoice(group) {
+      return ["multi", "checkbox", "checkboxes"].includes(String(group.type || "").toLowerCase());
+    }
+
+    function hasChoiceValue(choice) {
+      return Array.isArray(choice) ? choice.length > 0 : !!choice;
     }
 
     function selectedItems() {
