@@ -21,9 +21,24 @@ function generateQuoteForRow(rowNumber) {
 
   const templateId = getConfiguredValue_("QUOTE_TEMPLATE_DOC_ID", CONFIG.QUOTE_TEMPLATE_DOC_ID);
   const template = DriveApp.getFileById(templateId);
-  const quoteFile = template.makeCopy(quoteName, folder);
+  let quoteFile = null;
+  const existingQuoteId = extractDriveIdFromUrl_(booking.quoteUrl || "");
+
+  if (existingQuoteId) {
+    try {
+      quoteFile = DriveApp.getFileById(existingQuoteId);
+      quoteFile.setName(quoteName);
+    } catch (e) {
+      quoteFile = null;
+    }
+  }
+
+  if (!quoteFile) {
+    quoteFile = template.makeCopy(quoteName, folder);
+  }
 
   const doc = DocumentApp.openById(quoteFile.getId());
+  resetQuoteDocFromTemplate_(doc, templateId);
   clearAndRefillQuoteDoc_(doc, booking);
   doc.saveAndClose();
 
@@ -39,6 +54,49 @@ function generateQuoteForRow(rowNumber) {
     ok: true,
     quoteUrl: quoteFile.getUrl()
   };
+}
+
+function resetQuoteDocFromTemplate_(targetDoc, templateId) {
+  const templateDoc = DocumentApp.openById(templateId);
+  const sourceBody = templateDoc.getBody();
+  const targetBody = targetDoc.getBody();
+
+  targetBody.clear();
+
+  for (let i = 0; i < sourceBody.getNumChildren(); i++) {
+    appendCopiedBodyElement_(targetBody, sourceBody.getChild(i));
+  }
+
+  templateDoc.saveAndClose();
+}
+
+function appendCopiedBodyElement_(targetBody, sourceElement) {
+  const type = sourceElement.getType();
+  const copy = sourceElement.copy();
+
+  if (type === DocumentApp.ElementType.PARAGRAPH) {
+    targetBody.appendParagraph(copy.asParagraph());
+    return;
+  }
+
+  if (type === DocumentApp.ElementType.TABLE) {
+    targetBody.appendTable(copy.asTable());
+    return;
+  }
+
+  if (type === DocumentApp.ElementType.LIST_ITEM) {
+    targetBody.appendListItem(copy.asListItem());
+    return;
+  }
+
+  if (type === DocumentApp.ElementType.HORIZONTAL_RULE) {
+    targetBody.appendHorizontalRule();
+    return;
+  }
+
+  if (type === DocumentApp.ElementType.PAGE_BREAK) {
+    targetBody.appendPageBreak();
+  }
 }
 
 function getStatusAfterQuoteGeneration_(previousStatus) {
