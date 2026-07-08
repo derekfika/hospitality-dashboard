@@ -71,7 +71,7 @@ function clearAndRefillQuoteDoc_(doc, booking) {
   const body = doc.getBody();
 
   const replacements = {
-    "<SITE>": booking.location || getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || CONFIG.APP_NAME || ""),
+    "<SITE>": getConfiguredValue_("LOCATION_SHORT_CODE", CONFIG.LOCATION_SHORT_CODE || "") || getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "") || booking.location || "",
     "<CLIENT>": booking.clientCompany || "",
     "<FLOOR>": booking.floor || "",
     "<DAY>": formatDayName_(booking.eventDate),
@@ -255,6 +255,10 @@ function escapeRegex_(text) {
 }
 
 function printQuoteForRow(rowNumber) {
+  throw new Error("Printing quotes is only enabled on the Angel Court dashboard.");
+}
+
+function printQuoteForRowDisabled_(rowNumber) {
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 

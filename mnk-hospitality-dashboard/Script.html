@@ -806,9 +806,8 @@
           </button>
 
           <button class="icon-btn"
-            title="Print Quote"
-            ${hasQuote ? "" : "disabled"}
-            onclick="event.stopPropagation(); printQuote('${b.BookingID}')">
+            title="Printing is only enabled on Angel Court"
+            disabled>
             ${ICONS.print || "Print"}
           </button>
 
@@ -837,7 +836,7 @@
           ${ICONS.open || "Open"}
         </button>
 
-        <button class="icon-btn" title="Print Quote" ${hasQuote ? "" : "disabled"} onclick="event.stopPropagation(); printQuote('${b.BookingID}')">
+        <button class="icon-btn" title="Printing is only enabled on Angel Court" disabled>
           ${ICONS.print || "Print"}
         </button>
 

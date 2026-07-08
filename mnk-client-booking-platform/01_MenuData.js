@@ -33,8 +33,8 @@ const MENU_SCHEMA = Object.freeze([
     choice_("flavour", "Choose flavour", "select", true, ["Green Glow", "Berry Boost", "Island Breeze", "Mixed"])
   ], 80),
 
-  menuItem_("cookie_box", "Breakfast", "Freshly Baked Cookie Box", "24 freshly baked mixed cookies including milk chocolate, double chocolate, white chocolate, chocolate chip and Carnivals Smarties cookies.", "Box of 24", 40, 1, null, 3, [], 100),
-  menuItem_("tray_bake_box", "Breakfast", "Tray Bake Box", "Medium box contains 24 pieces and can be cut into 48 smaller bites. Example flavours include caramel Rolo brownie, caramelised biscuit brownie, raspberry & white chocolate blondies, and lemon & white chocolate blondies.", "Box of 24 pieces", 75, 1, null, 3, [], 110),
+  menuItem_("cookie_box", "Sweet treats", "Freshly Baked Cookie Box", "24 freshly baked mixed cookies including milk chocolate, double chocolate, white chocolate, chocolate chip and Carnivals Smarties cookies.", "Box of 24", 40, 1, null, 3, [], 100),
+  menuItem_("tray_bake_box", "Sweet treats", "Tray Bake Box", "Medium box contains 24 pieces and can be cut into 48 smaller bites. Example flavours include caramel Rolo brownie, caramelised biscuit brownie, raspberry & white chocolate blondies, and lemon & white chocolate blondies.", "Box of 24 pieces", 75, 1, null, 3, [], 110),
   menuItem_("exotic_fruit_box", "Breakfast", "Exotic Fruit Box", "Watermelon, cantaloupe melon, honey dew melon, pineapple, kiwi, passion fruit and strawberries.", "Serves 20 people", 52.5, 1, null, 3, [], 120),
   menuItem_("mini_pastries", "Breakfast", "Mini Pastries", "A selection of two mini Danish and bite-size chocolate muffins per person, garnished with strawberries and icing sugar.", "Box feeds 12 people", 36, 1, null, 3, [], 130),
   menuItem_("large_pastries", "Breakfast", "Freshly Baked Large Pastries", "Four plain croissants, four raspberry croissants and four almond croissants.", "Box of 12 pastries", 42, 1, null, 3, [], 140),
