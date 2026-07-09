@@ -9,11 +9,11 @@ const SITE_CONFIG = Object.freeze({
   bookingReferencePrefix: "DEMO",
   siteEmailAddress: "demo@example.com",
   notificationRecipients: [],
-  integration: {
+   integration: {
     mode: "direct_dashboard",
-    bookingSpreadsheetId: "",
-    dashboardSpreadsheetId: "",
-    spreadsheetId: "",
+    bookingSpreadsheetId: "1eLTPmE2TGAGZ_uDk9a3TcELK_mXeS4BJqMYQf-LSe74",
+    dashboardSpreadsheetId: "1YwoWOifOYIT35aZbAdxGxXVGRsrvRBPuJkPQNkuj3Ow",
+    spreadsheetId: "1eLTPmE2TGAGZ_uDk9a3TcELK_mXeS4BJqMYQf-LSe74",
     dashboardSheetName: "Dashboard Data",
     managementFeeRate: 0,
     vatRate: 0.20,
