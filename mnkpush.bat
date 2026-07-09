@@ -4,10 +4,10 @@ cd /d "%~dp0"
 
 set "CLASP_USER=mnk"
 set "DASHBOARD_NAME=Fika at MNK Hospitality Dashboard"
-set "DASHBOARD_DIR=%~dp0mnk-hospitality-dashboard"
+set "DASHBOARD_DIR=%~dp0sites\mnk\dashboard"
 set "DASHBOARD_DEPLOYMENT_ID=AKfycbwOeeeYOuSOedH_ePM53NteMZWVKg2jsN4Mhc6iviw2vkj0_p_eeHFoBFkhfYTyBE1u"
 set "BOOKING_NAME=Fika at MNK Booking Platform"
-set "BOOKING_DIR=%~dp0mnk-client-booking-platform"
+set "BOOKING_DIR=%~dp0sites\mnk\booking-platform"
 set "BOOKING_DEPLOYMENT_ID=AKfycbzPS0r6WCzQBK5uS8vK24_J-9IJTFAnhLZmaQlexJgke7JDiy9Qs_gzLpS1n4R-a1MB"
 
 echo.
@@ -53,7 +53,7 @@ echo.
 echo ------------------------------------------------------------
 echo  Staging MNK files for Git
 echo ------------------------------------------------------------
-git add -A -- "mnk-hospitality-dashboard" "mnk-client-booking-platform" "mnkpush.bat"
+git add -A -- "sites\mnk" "mnkpush.bat"
 if errorlevel 1 goto :failed
 
 call :commit_and_push "%MESSAGE% - MNK hospitality platforms"
