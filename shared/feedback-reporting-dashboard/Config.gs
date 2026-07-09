@@ -44,3 +44,10 @@ const FEEDBACK_REPORTING_SITES = Object.freeze([
     propertyKey: "ANGEL_COURT_DASHBOARD_SPREADSHEET_ID"
   },
 ]);
+
+function setupFeedbackPortals(){
+  setupFeedbackPortal('angelcourt');
+  setupFeedbackPortal('demo');
+  setupFeedbackPortal('mnk');
+  
+}
