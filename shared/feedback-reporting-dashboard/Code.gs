@@ -47,12 +47,26 @@ function getFeedbackReportingHealth() {
       }
       try {
         const spreadsheet = SpreadsheetApp.openById(site.spreadsheetId);
+        const tabs = spreadsheet.getSheets().map(function(sheet) {
+          return sheet.getName();
+        });
+        const hasRequests = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.requests));
+        const hasResponses = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.responses));
+        const hasItemRatings = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.itemRatings));
         return {
           siteId: site.siteId,
           siteName: site.siteName,
-          ok: true,
+          ok: hasRequests || hasResponses || hasItemRatings,
           spreadsheetName: spreadsheet.getName(),
-          hasResponses: Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.responses))
+          spreadsheetId: spreadsheet.getId(),
+          source: site.configSource || "config",
+          hasRequests: hasRequests,
+          hasResponses: hasResponses,
+          hasItemRatings: hasItemRatings,
+          tabs: tabs,
+          message: hasRequests || hasResponses || hasItemRatings
+            ? "Connected."
+            : "Spreadsheet opened, but feedback tabs were not found. Available tabs: " + tabs.join(", ")
         };
       } catch (error) {
         return { siteId: site.siteId, siteName: site.siteName, ok: false, message: error.message };
@@ -64,10 +78,29 @@ function getConfiguredFeedbackSites_() {
   const properties = PropertiesService.getScriptProperties();
   return FEEDBACK_REPORTING_SITES.map(function(site) {
     const propertyId = site.propertyKey ? properties.getProperty(site.propertyKey) : "";
+    const legacyPropertyId = site.spreadsheetId
+      ? properties.getProperty(site.spreadsheetId)
+      : "";
+    const configuredId = propertyId || legacyPropertyId || site.spreadsheetId || "";
     return Object.assign({}, site, {
-      spreadsheetId: propertyId || site.spreadsheetId || ""
+      spreadsheetId: configuredId,
+      configSource: propertyId
+        ? "script property " + site.propertyKey
+        : legacyPropertyId
+          ? "legacy script property"
+          : configuredId
+            ? "config"
+            : ""
     });
   });
+}
+
+function clearFeedbackReportingSiteSpreadsheetOverride(siteId) {
+  const site = getFeedbackReportingSite_(siteId);
+  const properties = PropertiesService.getScriptProperties();
+  if (site.propertyKey) properties.deleteProperty(site.propertyKey);
+  if (site.spreadsheetId) properties.deleteProperty(site.spreadsheetId);
+  return getFeedbackReportingHealth();
 }
 
 function getFeedbackReportingSite_(siteId) {
