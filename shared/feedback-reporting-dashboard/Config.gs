@@ -29,30 +29,18 @@ const FEEDBACK_REPORTING_SITES = Object.freeze([
     siteId: "demo",
     siteName: "Demo",
     spreadsheetId: "1YwoWOifOYIT35aZbAdxGxXVGRsrvRBPuJkPQNkuj3Ow",
-    propertyKey: "DEMO_DASHBOARD_SPREADSHEET_ID"
+    propertyKey: "1YwoWOifOYIT35aZbAdxGxXVGRsrvRBPuJkPQNkuj3Ow"
   },
   {
     siteId: "mnk",
     siteName: "MNK",
     spreadsheetId: "1GIGIh_oAY0yLrrlXPaSvHte2oMPT8S_dKFAYdZN6nuc",
-    propertyKey: "MNK_DASHBOARD_SPREADSHEET_ID"
+    propertyKey: "1GIGIh_oAY0yLrrlXPaSvHte2oMPT8S_dKFAYdZN6nuc"
   },
   {
     siteId: "angel_court",
     siteName: "Angel Court",
     spreadsheetId: "",
-    propertyKey: "ANGEL_COURT_DASHBOARD_SPREADSHEET_ID"
+    propertyKey: "1Bjdu4-5OBbsZuMEGCJIKr5nTH5cfWA0gEEQcfGvGh5c"
   },
-  {
-    siteId: "cfc",
-    siteName: "CFC",
-    spreadsheetId: "",
-    propertyKey: "CFC_DASHBOARD_SPREADSHEET_ID"
-  },
-  {
-    siteId: "58ve",
-    siteName: "58 Victoria Embankment",
-    spreadsheetId: "",
-    propertyKey: "VE58_DASHBOARD_SPREADSHEET_ID"
-  }
 ]);
