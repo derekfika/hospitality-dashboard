@@ -4,10 +4,10 @@ cd /d "%~dp0"
 
 set "CLASP_USER=derek"
 set "DASHBOARD_NAME=Demo Hospitality Dashboard"
-set "DASHBOARD_DIR=%~dp0demo-hospitality-dashboard"
+set "DASHBOARD_DIR=%~dp0sites\demo\dashboard"
 set "DASHBOARD_DEPLOYMENT_ID=AKfycbzz8_F6NJENmXIRmAFZAliGIjTEQpZ5nn107Oq21HfjRx4JcR2GpdQANkvBeVgdcE7x"
 set "BOOKING_NAME=Demo Booking Platform"
-set "BOOKING_DIR=%~dp0demo-client-booking-platform"
+set "BOOKING_DIR=%~dp0sites\demo\booking-platform"
 set "BOOKING_DEPLOYMENT_ID=AKfycbwpG_q6xIaAsKaUrITW4LA1NImALjot8n1i-PqsQYBAMICa2gkiVi5bPdEoeDPjdUoi"
 
 echo.
@@ -53,7 +53,7 @@ echo.
 echo ------------------------------------------------------------
 echo  Staging demo files for Git
 echo ------------------------------------------------------------
-git add -A -- "demo-hospitality-dashboard" "demo-client-booking-platform" "demopush.bat"
+git add -A -- "sites\demo" "demopush.bat"
 if errorlevel 1 goto :failed
 
 call :commit_and_push "%MESSAGE% - demo hospitality platforms"
