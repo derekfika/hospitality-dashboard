@@ -41,37 +41,64 @@ function setFeedbackReportingSiteSpreadsheetId(siteId, value) {
 function getFeedbackReportingHealth() {
   return getConfiguredFeedbackSites_()
     .filter(function(site) { return site.siteId !== "all"; })
-    .map(function(site) {
-      if (!site.spreadsheetId) {
-        return { siteId: site.siteId, siteName: site.siteName, ok: false, message: "No spreadsheet configured." };
-      }
-      try {
-        const spreadsheet = SpreadsheetApp.openById(site.spreadsheetId);
-        const tabs = spreadsheet.getSheets().map(function(sheet) {
-          return sheet.getName();
-        });
-        const hasRequests = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.requests));
-        const hasResponses = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.responses));
-        const hasItemRatings = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.itemRatings));
-        return {
-          siteId: site.siteId,
-          siteName: site.siteName,
-          ok: hasRequests || hasResponses || hasItemRatings,
-          spreadsheetName: spreadsheet.getName(),
-          spreadsheetId: spreadsheet.getId(),
-          source: site.configSource || "config",
-          hasRequests: hasRequests,
-          hasResponses: hasResponses,
-          hasItemRatings: hasItemRatings,
-          tabs: tabs,
-          message: hasRequests || hasResponses || hasItemRatings
-            ? "Connected."
-            : "Spreadsheet opened, but feedback tabs were not found. Available tabs: " + tabs.join(", ")
-        };
-      } catch (error) {
-        return { siteId: site.siteId, siteName: site.siteName, ok: false, message: error.message };
-      }
-    });
+    .map(getFeedbackReportingSiteHealth_);
+}
+
+function logFeedbackReportingHealth() {
+  const health = getFeedbackReportingHealth();
+  console.log(JSON.stringify(health, null, 2));
+  Logger.log(JSON.stringify(health, null, 2));
+  return health;
+}
+
+function getFeedbackReportingSiteHealth(siteId) {
+  return getFeedbackReportingSiteHealth_(getConfiguredFeedbackSite_(siteId), true);
+}
+
+function logAngelCourtFeedbackReportingHealth() {
+  const health = getFeedbackReportingSiteHealth("angel_court");
+  console.log(JSON.stringify(health, null, 2));
+  Logger.log(JSON.stringify(health, null, 2));
+  return health;
+}
+
+function getFeedbackReportingSiteHealth_(site, includeTabs) {
+  if (!site.spreadsheetId) {
+    return { siteId: site.siteId, siteName: site.siteName, ok: false, message: "No spreadsheet configured." };
+  }
+
+  try {
+    const spreadsheet = SpreadsheetApp.openById(site.spreadsheetId);
+    const hasRequests = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.requests));
+    const hasResponses = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.responses));
+    const hasItemRatings = Boolean(spreadsheet.getSheetByName(FEEDBACK_REPORTING_CONFIG.sheets.itemRatings));
+    const ok = hasRequests || hasResponses || hasItemRatings;
+    const result = {
+      siteId: site.siteId,
+      siteName: site.siteName,
+      ok: ok,
+      spreadsheetName: spreadsheet.getName(),
+      spreadsheetId: spreadsheet.getId(),
+      source: site.configSource || "config",
+      hasRequests: hasRequests,
+      hasResponses: hasResponses,
+      hasItemRatings: hasItemRatings,
+      message: ok
+        ? "Connected."
+        : "Spreadsheet opened, but feedback tabs were not found."
+    };
+
+    if (includeTabs && !ok) {
+      result.tabs = spreadsheet.getSheets().map(function(sheet) {
+        return sheet.getName();
+      });
+      result.message += " Available tabs: " + result.tabs.join(", ");
+    }
+
+    return result;
+  } catch (error) {
+    return { siteId: site.siteId, siteName: site.siteName, ok: false, message: error.message };
+  }
 }
 
 function getConfiguredFeedbackSites_() {
@@ -106,6 +133,15 @@ function clearFeedbackReportingSiteSpreadsheetOverride(siteId) {
 function getFeedbackReportingSite_(siteId) {
   const id = String(siteId || "").trim();
   const site = FEEDBACK_REPORTING_SITES.find(function(candidate) {
+    return candidate.siteId === id;
+  });
+  if (!site) throw new Error("Unknown site: " + siteId);
+  return site;
+}
+
+function getConfiguredFeedbackSite_(siteId) {
+  const id = String(siteId || "").trim();
+  const site = getConfiguredFeedbackSites_().find(function(candidate) {
     return candidate.siteId === id;
   });
   if (!site) throw new Error("Unknown site: " + siteId);
