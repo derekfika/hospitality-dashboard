@@ -3,8 +3,8 @@ setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 set "PROJECT_NAME=Client Feedback Portal"
-set "PROJECT_DIR=%~dp0client-feedback-portal"
-set "CLASP_USER=hospitality"
+set "PROJECT_DIR=%~dp0shared\client-feedback-portal"
+set "CLASP_USER=derek"
 set "DEPLOYMENT_FILE=%PROJECT_DIR%\.deployment-id"
 
 if not exist "%PROJECT_DIR%\.clasp.json" (
@@ -83,7 +83,7 @@ if defined DEPLOYMENT_ID (
   echo Saved deployment ID: !DEPLOYMENT_ID!
 )
 
-git add -A -- "client-feedback-portal"
+git add -A -- "shared\client-feedback-portal"
 if errorlevel 1 goto :failed
 git add -- "feedbackpush.bat"
 if errorlevel 1 goto :failed
