@@ -13,6 +13,7 @@ function syncConfirmedBookingsToRechargeSheet() {
   const rechargeSheet = getRechargeSheet_();
   const target = getRechargeTarget_(rechargeSheet);
   const syncedRows = [];
+  const skippedRows = [];
   let checked = 0;
   let skipped = 0;
 
@@ -26,8 +27,16 @@ function syncConfirmedBookingsToRechargeSheet() {
 
     checked++;
 
-    if (!shouldSyncBookingToRecharge_(booking)) {
+    const skipReason = getRechargeSkipReason_(booking);
+    if (skipReason) {
       skipped++;
+      skippedRows.push({
+        rowNumber: rowNumber,
+        bookingId: booking.bookingId || "",
+        status: booking.status || "",
+        eventDate: booking.eventDate || "",
+        reason: skipReason
+      });
       continue;
     }
 
@@ -64,17 +73,28 @@ function syncConfirmedBookingsToRechargeSheet() {
     checked: checked,
     synced: syncedRows.length,
     skipped: skipped,
-    rows: syncedRows
+    rows: syncedRows,
+    skippedRows: skippedRows.slice(0, 25)
   };
 }
 
 function shouldSyncBookingToRecharge_(booking) {
-  const status = String(booking.status || "").toUpperCase();
-  if (status !== CONFIG.STATUS.CONFIRMED) return false;
-  if (booking.rechargeSyncedAt) return false;
-  if (!isBookingCompleteForRecharge_(booking)) return false;
+  return !getRechargeSkipReason_(booking);
+}
 
-  return Number(booking.grossPrice || 0) > 0;
+function getRechargeSkipReason_(booking) {
+  const status = String(booking.status || "").toUpperCase();
+  const syncableStatuses = [
+    CONFIG.STATUS.CPU_CREATED,
+    CONFIG.STATUS.CONFIRMED,
+    CONFIG.STATUS.ARCHIVED
+  ];
+  if (syncableStatuses.indexOf(status) === -1) return "Status is not calendar-created, confirmed or archived";
+  if (booking.rechargeSyncedAt) return "Already recharged";
+  if (!isBookingCompleteForRecharge_(booking)) return "Event date is not before today";
+  if (Number(booking.grossPrice || 0) <= 0) return "Missing gross total";
+
+  return "";
 }
 
 function isBookingCompleteForRecharge_(booking) {

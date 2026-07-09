@@ -1356,7 +1356,10 @@
 
         const synced = res && typeof res.synced === "number" ? res.synced : 0;
         const skipped = res && typeof res.skipped === "number" ? res.skipped : 0;
-        showToast(`Recharge sync complete. ${synced} synced, ${skipped} skipped.`, "success");
+        const firstSkip = res && res.skippedRows && res.skippedRows.length
+          ? ` First skip: ${res.skippedRows[0].reason}.`
+          : "";
+        showToast(`Recharge sync complete. ${synced} synced, ${skipped} skipped.${firstSkip}`, "success");
         loadBookings(false);
       })
       .withFailureHandler(err => {
