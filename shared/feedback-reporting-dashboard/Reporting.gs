@@ -1,6 +1,6 @@
 function getFeedbackReport(filters) {
   const normalized = normalizeFeedbackFilters_(filters || {});
-  const rows = getAllFeedbackRows_().filter(function(row) {
+  const rows = getAllFeedbackRows_().filter(function (row) {
     if (normalized.siteId !== "all" && row.siteId !== normalized.siteId) return false;
     if (normalized.startDate && row.activityDate < normalized.startDate) return false;
     if (normalized.endDate && row.activityDate > normalized.endDate) return false;
@@ -14,7 +14,7 @@ function getFeedbackReport(filters) {
     ok: true,
     filters: normalized,
     health: getFeedbackReportingHealth(),
-    rows: rows,
+    rows: rows.map(sanitizeFeedbackRowForClient_),
     summary: summarizeFeedbackRows_(rows)
   };
 }
@@ -27,7 +27,7 @@ function exportFeedbackCsv(filters) {
     "Ease Of Booking", "NPS", "Contact Requested", "What Went Well",
     "Improvements", "Additional Comments"
   ];
-  const csvRows = [header].concat(report.rows.map(function(row) {
+  const csvRows = [header].concat(report.rows.map(function (row) {
     return [
       row.siteName, row.bookingReference, row.submittedDate, row.clientName,
       row.eventDate, row.eventType, row.overallSatisfaction, row.foodQuality,
@@ -39,7 +39,7 @@ function exportFeedbackCsv(filters) {
   return {
     ok: true,
     filename: "hospitality-feedback-" + report.filters.startDate + "-to-" + report.filters.endDate + ".csv",
-    csv: csvRows.map(function(row) { return row.map(csvCell_).join(","); }).join("\n")
+    csv: csvRows.map(function (row) { return row.map(csvCell_).join(","); }).join("\n")
   };
 }
 
@@ -80,10 +80,10 @@ function normalizeFeedbackFilters_(filters) {
 }
 
 function getAllFeedbackRows_() {
-  const sites = getConfiguredFeedbackSites_().filter(function(site) {
+  const sites = getConfiguredFeedbackSites_().filter(function (site) {
     return site.siteId !== "all" && site.spreadsheetId;
   });
-  return sites.reduce(function(output, site) {
+  return sites.reduce(function (output, site) {
     try {
       return output.concat(getFeedbackRowsForSite_(site));
     } catch (error) {
@@ -101,7 +101,7 @@ function getFeedbackRowsForSite_(site) {
 
   const responseMap = getHeaderMap_(responseSheet);
   const responseRows = responseSheet.getRange(2, 1, responseSheet.getLastRow() - 1, responseSheet.getLastColumn()).getValues();
-  const rows = responseRows.map(function(row) {
+  const rows = responseRows.map(function (row) {
     const feedbackJson = parseJson_(row[responseMap["Feedback JSON"] - 1], {});
     const bookingReference = String(row[responseMap["Booking Reference"] - 1] || feedbackJson.bookingReference || "");
     return {
@@ -109,7 +109,7 @@ function getFeedbackRowsForSite_(site) {
       siteName: site.siteName,
       feedbackId: String(row[responseMap["Feedback ID"] - 1] || ""),
       bookingReference: bookingReference,
-      submittedAt: row[responseMap["Submitted At"] - 1],
+      submittedAt: parseDateTimeForClient_(row[responseMap["Submitted At"] - 1]),
       submittedDate: parseDate_(row[responseMap["Submitted At"] - 1]),
       activityDate: parseDate_(row[responseMap["Submitted At"] - 1]),
       overallSatisfaction: Number(row[responseMap["Overall Satisfaction"] - 1] || 0),
@@ -138,11 +138,11 @@ function getRequestRowsForSite_(site, requestSheet, completedRows) {
 
 function enrichWithRequests_(site, requestSheet, completedRows) {
   const byReference = {};
-  completedRows.forEach(function(row) { byReference[row.bookingReference] = row; });
+  completedRows.forEach(function (row) { byReference[row.bookingReference] = row; });
   if (!requestSheet || requestSheet.getLastRow() < 2) return completedRows;
   const requestMap = getHeaderMap_(requestSheet);
   const rows = requestSheet.getRange(2, 1, requestSheet.getLastRow() - 1, requestSheet.getLastColumn()).getValues();
-  rows.forEach(function(row) {
+  rows.forEach(function (row) {
     const bookingReference = String(row[requestMap["Booking Reference"] - 1] || "");
     if (!bookingReference) return;
     const booking = parseJson_(row[requestMap["Booking Snapshot JSON"] - 1], {});
@@ -184,14 +184,14 @@ function enrichWithRequests_(site, requestSheet, completedRows) {
 }
 
 function summarizeFeedbackRows_(rows) {
-  const completed = rows.filter(function(row) { return row.completed && row.overallSatisfaction; });
+  const completed = rows.filter(function (row) { return row.completed && row.overallSatisfaction; });
   const bySite = {};
   const byRating = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
   const trend = {};
   let npsPromoters = 0;
   let npsPassives = 0;
   let npsDetractors = 0;
-  completed.forEach(function(row) {
+  completed.forEach(function (row) {
     bySite[row.siteName] = bySite[row.siteName] || { total: 0, score: 0, followUps: 0 };
     bySite[row.siteName].total += 1;
     bySite[row.siteName].score += row.overallSatisfaction;
@@ -204,7 +204,7 @@ function summarizeFeedbackRows_(rows) {
       else npsDetractors++;
     }
   });
-  Object.keys(bySite).forEach(function(siteName) {
+  Object.keys(bySite).forEach(function (siteName) {
     bySite[siteName].average = round_(bySite[siteName].score / bySite[siteName].total);
   });
   const npsTotal = npsPromoters + npsPassives + npsDetractors;
@@ -212,19 +212,19 @@ function summarizeFeedbackRows_(rows) {
     totalRequests: rows.length,
     completed: completed.length,
     completionRate: rows.length ? Math.round(completed.length / rows.length * 100) : 0,
-    averageOverall: completed.length ? round_(completed.reduce(function(sum, row) { return sum + row.overallSatisfaction; }, 0) / completed.length) : 0,
+    averageOverall: completed.length ? round_(completed.reduce(function (sum, row) { return sum + row.overallSatisfaction; }, 0) / completed.length) : 0,
     averageFood: averageField_(completed, "foodQuality"),
     averagePresentation: averageField_(completed, "presentation"),
     averageDelivery: averageField_(completed, "deliveryTiming"),
     averageEase: averageField_(completed, "easeOfBooking"),
-    followUps: completed.filter(function(row) { return row.contactRequested; }).length,
+    followUps: completed.filter(function (row) { return row.contactRequested; }).length,
     nps: npsTotal ? Math.round(((npsPromoters - npsDetractors) / npsTotal) * 100) : "",
     bySite: bySite,
     byRating: byRating,
-    trend: Object.keys(trend).sort().map(function(date) { return { date: date, total: trend[date] }; }),
-    recentComments: completed.filter(function(row) {
+    trend: Object.keys(trend).sort().map(function (date) { return { date: date, total: trend[date] }; }),
+    recentComments: completed.filter(function (row) {
       return row.whatWentWell || row.improvements || row.additionalComments;
-    }).sort(function(a, b) {
+    }).sort(function (a, b) {
       return String(b.submittedDate).localeCompare(String(a.submittedDate));
     }).slice(0, 18)
   };
@@ -235,14 +235,14 @@ function buildFeedbackPdfModel_(report) {
     generatedAt: Utilities.formatDate(new Date(), FEEDBACK_REPORTING_CONFIG.timeZone, "d MMM yyyy HH:mm"),
     filters: report.filters,
     summary: report.summary,
-    rows: report.rows.filter(function(row) { return row.completed; }).slice(0, 60),
+    rows: report.rows.filter(function (row) { return row.completed; }).slice(0, 60),
     colours: FEEDBACK_REPORTING_CONFIG.colours
   };
 }
 
 function averageField_(rows, field) {
-  const values = rows.map(function(row) { return Number(row[field] || 0); }).filter(Boolean);
-  return values.length ? round_(values.reduce(function(sum, value) { return sum + value; }, 0) / values.length) : 0;
+  const values = rows.map(function (row) { return Number(row[field] || 0); }).filter(Boolean);
+  return values.length ? round_(values.reduce(function (sum, value) { return sum + value; }, 0) / values.length) : 0;
 }
 
 function parseJson_(value, fallback) {
@@ -267,4 +267,30 @@ function addDays_(date, days) {
 
 function dateKey_(date) {
   return Utilities.formatDate(date, FEEDBACK_REPORTING_CONFIG.timeZone, "yyyy-MM-dd");
+}
+
+function sanitizeFeedbackRowForClient_(row) {
+  const output = {};
+
+  Object.keys(row || {}).forEach(function(key) {
+    const value = row[key];
+
+    if (Object.prototype.toString.call(value) === "[object Date]") {
+      output[key] = parseDateTimeForClient_(value);
+    } else if (value === undefined || value === null) {
+      output[key] = "";
+    } else {
+      output[key] = value;
+    }
+  });
+
+  return output;
+}
+
+function parseDateTimeForClient_(value) {
+  if (Object.prototype.toString.call(value) === "[object Date]") {
+    return Utilities.formatDate(value, FEEDBACK_REPORTING_CONFIG.timeZone, "yyyy-MM-dd HH:mm:ss");
+  }
+
+  return String(value == null ? "" : value);
 }
