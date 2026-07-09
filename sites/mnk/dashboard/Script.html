@@ -630,6 +630,7 @@
       READY: 0,
       NEEDS_REVIEW: 0,
       CONFIRMED: 0,
+      RECHARGED: 0,
       CANCELLED: 0,
       ARCHIVED: 0
     };
@@ -655,6 +656,10 @@
       <div class="stat-card status-confirmed">
         <strong>${counts.CONFIRMED}</strong>
         <span>Confirmed</span>
+      </div>
+      <div class="stat-card status-recharged">
+        <strong>${counts.RECHARGED}</strong>
+        <span>Recharged</span>
       </div>
       <div class="stat-card status-cancelled">
         <strong>${counts.CANCELLED}</strong>
@@ -821,9 +826,10 @@
       !!parsed.calendarEventId;
 
     const isArchived = b.Status === "ARCHIVED";
+    const isRecharged = b.Status === "RECHARGED";
     const isConfirmed = b.Status === "CONFIRMED";
 
-    if (isArchived) {
+    if (isArchived || isRecharged) {
       return `
         <div class="action-cluster archived-actions">
           <button class="icon-btn"
@@ -839,7 +845,7 @@
             ${ICONS.print || "Print"}
           </button>
 
-          <span class="archived-pill">Archived</span>
+          <span class="archived-pill">${isRecharged ? "Recharged" : "Archived"}</span>
           ${actionSpinner(b.BookingID)}
         </div>
       `;
@@ -1330,6 +1336,38 @@
         showToast("Confirmation failed: " + (err.message || err), "error");
       })
       .confirmBookingForRow(row.RowNumber);
+  }
+
+  function syncRechargeSheet() {
+    const button = document.getElementById("rechargeSyncBtn");
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Syncing...";
+    }
+
+    showToast("Syncing confirmed bookings to recharge sheet...", "loading", true);
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Sync recharge";
+        }
+
+        const synced = res && typeof res.synced === "number" ? res.synced : 0;
+        const skipped = res && typeof res.skipped === "number" ? res.skipped : 0;
+        showToast(`Recharge sync complete. ${synced} synced, ${skipped} skipped.`, "success");
+        loadBookings(false);
+      })
+      .withFailureHandler(err => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Sync recharge";
+        }
+
+        showToast("Recharge sync failed: " + (err.message || err), "error");
+      })
+      .syncConfirmedBookingsToRechargeSheet();
   }
 
   function openCancelDialog(bookingId) {

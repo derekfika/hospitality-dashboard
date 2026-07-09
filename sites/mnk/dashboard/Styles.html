@@ -612,6 +612,11 @@
     background: var(--confirmed-bg);
   }
 
+  tr.status-RECHARGED td {
+    background: var(--archived-bg);
+    opacity: 0.72;
+  }
+
   tr.status-CANCELLED td {
     background: var(--cancelled-bg);
     opacity: 0.7;
@@ -635,6 +640,10 @@
     border-left: 4px solid var(--confirmed-border);
   }
 
+  tr.status-RECHARGED td:first-child {
+    border-left: 4px solid var(--archived-border);
+  }
+
   tr.status-CANCELLED td:first-child {
     border-left: 4px solid var(--cancelled-border);
   }
@@ -644,7 +653,8 @@
   }
 
   .status-READY,
-  .status-CONFIRMED {
+  .status-CONFIRMED,
+  .status-RECHARGED {
     color: var(--primary-dark);
     border-color: var(--border);
   }
@@ -655,7 +665,8 @@
   }
 
   .status-CANCELLED,
-  .status-ARCHIVED {
+  .status-ARCHIVED,
+  .status-RECHARGED {
     color: var(--text-muted);
   }
 

@@ -256,6 +256,7 @@ function writeBookingObjectToExistingRow_(rowNumber, booking) {
     CancelledAt: booking.cancelledAt || "",
     CancelledBy: booking.cancelledBy || "",
     CancellationEmailSentAt: booking.cancellationEmailSentAt || "",
+    RechargeSyncedAt: booking.rechargeSyncedAt || "",
     UpdatedAt: booking.updatedAt,
     Error: booking.error || ""
   };

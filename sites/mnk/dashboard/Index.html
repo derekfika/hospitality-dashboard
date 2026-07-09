@@ -63,6 +63,7 @@
         </h1>
       </div>
       <div class="header-actions">
+        <button class="button secondary" id="rechargeSyncBtn" onclick="syncRechargeSheet()">Sync recharge</button>
         <button class="button" onclick="loadBookings()">Refresh</button>
         <button class="icon-btn header-settings-btn" title="Settings" aria-label="Settings"
           onclick="openSettingsModal()">
@@ -100,6 +101,7 @@
         <label><input type="checkbox" value="QUOTE_GENERATED" checked onchange="renderBookings()"> Quote</label>
         <label><input type="checkbox" value="CPU_CREATED" checked onchange="renderBookings()"> Calendar</label>
         <label><input type="checkbox" value="CONFIRMED" checked onchange="renderBookings()"> Confirmed</label>
+        <label><input type="checkbox" value="RECHARGED" onchange="renderBookings()"> Recharged</label>
         <label><input type="checkbox" value="CANCELLED" onchange="renderBookings()"> Cancelled</label>
         <label><input type="checkbox" value="ERROR" onchange="renderBookings()"> Error</label>
         <label><input type="checkbox" value="ARCHIVED" onchange="renderBookings()"> Archived</label>

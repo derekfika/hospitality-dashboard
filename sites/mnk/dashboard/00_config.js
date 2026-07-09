@@ -27,6 +27,7 @@ const CONFIG = {
     QUOTE_GENERATED: "QUOTE_GENERATED",
     CPU_CREATED: "CPU_CREATED",
     CONFIRMED: "CONFIRMED",
+    RECHARGED: "RECHARGED",
     CANCELLED: "CANCELLED",
     ERROR: "ERROR",
     ARCHIVED: "ARCHIVED"
@@ -43,6 +44,9 @@ const CONFIG = {
   CALENDAR_EVENT_COLOR_ID: "9",
   CALENDAR_EVENT_DURATION_MINUTES: 60,
   CALENDAR_EVENT_START_OFFSET_MINUTES: -15,
+
+  RECHARGE_SPREADSHEET_ID: "17SfwQbENeHV7oNkWj2ltk6Bp0d7DE6Uuytj66zY-ijw",
+  RECHARGE_SHEET_NAME: "hospitality",
 
   APP_NAME: "Fika at MNK Hospitality Dashboard",
   LOCATION_NAME: "110 Bishopsgate, EC2N 4AY",
@@ -186,7 +190,9 @@ function getSettingSchema_() {
           type: "checkbox",
           fallback: CONFIG.AUTO_ARCHIVE_ENABLED
         },
-        { key: "ARCHIVE_AFTER_DAYS", label: "Archive after days", type: "number", fallback: 0, min: 0, notes: "Bookings older than this can be archived automatically. Use 0 to archive before today." }
+        { key: "ARCHIVE_AFTER_DAYS", label: "Archive after days", type: "number", fallback: 0, min: 0, notes: "Bookings older than this can be archived automatically. Use 0 to archive before today." },
+        { key: "RECHARGE_SPREADSHEET_ID", label: "Recharge sheet ID", type: "text", fallback: CONFIG.RECHARGE_SPREADSHEET_ID, required: true, notes: "Google Sheet that receives recharged MNK hospitality bookings." },
+        { key: "RECHARGE_SHEET_NAME", label: "Recharge tab name", type: "text", fallback: CONFIG.RECHARGE_SHEET_NAME, required: true, notes: "Tab name in the recharge spreadsheet. Matching is case-insensitive." }
       ]
     },
     {

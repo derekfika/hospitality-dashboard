@@ -11,7 +11,7 @@ const DASHBOARD_DATA_HEADERS = [
   "CalendarEventId", "CalendarEventURL", "CalendarCreatedAt", "ManuallyEdited",
   "LastEditedBy", "LastEditedAt", "CreatedAt", "UpdatedAt", "Error", "QuoteStale",
   "CalendarStale", "CalendarRemovedAt", "CancelledAt", "CancelledBy",
-  "CancellationEmailSentAt"
+  "CancellationEmailSentAt", "RechargeSyncedAt"
 ];
 
 function getDashboardSheet_() {

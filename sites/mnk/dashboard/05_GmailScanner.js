@@ -474,6 +474,11 @@ function archiveOldBookings_() {
 }
 
 function archiveOldDashboardBookings() {
+  const rechargeResult =
+    typeof syncConfirmedBookingsToRechargeSheet === "function"
+      ? syncConfirmedBookingsToRechargeSheet()
+      : { synced: 0 };
+
   const sh = getDashboardSheet_();
   const map = getHeaderMap_();
 
@@ -484,7 +489,7 @@ function archiveOldDashboardBookings() {
 
   const lastRow = sh.getLastRow();
   if (lastRow < 2) {
-    return { checked: 0, archived: 0 };
+    return { checked: 0, archived: 0, recharged: rechargeResult.synced || 0 };
   }
 
   const archiveAfterDays = getConfiguredNumber_("ARCHIVE_AFTER_DAYS", 0);
@@ -509,7 +514,8 @@ function archiveOldDashboardBookings() {
 
     if (
       booking.status === CONFIG.STATUS.ARCHIVED ||
-      booking.status === CONFIG.STATUS.CANCELLED
+      booking.status === CONFIG.STATUS.CANCELLED ||
+      booking.status === CONFIG.STATUS.RECHARGED
     ) {
       return;
     }
@@ -531,7 +537,7 @@ function archiveOldDashboardBookings() {
     }
   });
 
-  return { checked, archived };
+  return { checked, archived, recharged: rechargeResult.synced || 0 };
 }
 
 function runDashboardArchiveNow() {

@@ -72,7 +72,10 @@ function createEmptyBooking_() {
     calendarRemovedAt: "",
     cancelledAt: "",
     cancelledBy: "",
-    cancellationEmailSentAt: ""
+    cancellationEmailSentAt: "",
+    rechargeSyncedAt: "",
+    rechargeSpreadsheetId: "",
+    rechargeSheetName: ""
   };
 }
 
@@ -112,6 +115,7 @@ function validateBooking_(booking) {
     CONFIG.STATUS.QUOTE_GENERATED,
     CONFIG.STATUS.CPU_CREATED,
     CONFIG.STATUS.CONFIRMED,
+    CONFIG.STATUS.RECHARGED,
     CONFIG.STATUS.CANCELLED,
     CONFIG.STATUS.ARCHIVED
   ];
