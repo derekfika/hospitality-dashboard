@@ -165,8 +165,8 @@ function adaptClientBookingForDashboard_(booking) {
   if (!serviceTimes.length && booking.event.startTime) serviceTimes.push(booking.event.startTime);
 
   const dashboardItems = booking.order.items.map(function(item) {
-    const choiceText = item.choices.filter(function(choice) { return choice.value; })
-      .map(function(choice) { return choice.label + ": " + choice.value; }).join("; ");
+    const choiceText = item.choices.filter(function(choice) { return hasChoiceValue_(choice.value); })
+      .map(function(choice) { return choice.label + ": " + formatChoiceValue_(choice.value); }).join("; ");
     return {
       section: item.category,
       name: item.itemName,
@@ -235,6 +235,14 @@ function adaptClientBookingForDashboard_(booking) {
     quoteStale: false,
     calendarStale: false
   };
+}
+
+function hasChoiceValue_(value) {
+  return Array.isArray(value) ? value.length > 0 : Boolean(value);
+}
+
+function formatChoiceValue_(value) {
+  return Array.isArray(value) ? value.join(", ") : String(value || "");
 }
 
 function appendDashboardBooking_(sheet, booking) {
