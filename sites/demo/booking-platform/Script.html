@@ -137,9 +137,13 @@
           renderSummary();
           renderDateGuidance();
         }
-        if (event.target.matches("[data-item-quantity]")) setQuantity(event.target.dataset.itemQuantity, event.target.value);
+        if (event.target.matches("[data-item-quantity]")) setQuantity(event.target.dataset.itemQuantity, event.target.value, true);
         if (event.target.matches("[data-item-choice], [data-item-comment], [data-item-time]")) updateItemDetail(event.target);
         if (event.target.id === "menu-search") renderMenuList();
+      });
+
+      document.addEventListener("change", event => {
+        if (event.target.matches("[data-item-quantity]")) finishQuantityEdit(event.target.dataset.itemQuantity);
       });
 
       $("#back-button").addEventListener("click", () => goTo(Math.max(0, state.step - 1)));
@@ -326,11 +330,22 @@
       updateAfterItemChange(id, wasSelected !== (line.quantity > 0));
     }
 
-    function setQuantity(id, raw) {
+    function setQuantity(id, raw, deferRedraw) {
       const line = ensureLine(id);
       const wasSelected = line.quantity > 0;
       line.quantity = Math.max(0, Math.floor(Number(raw || 0)));
-      updateAfterItemChange(id, wasSelected !== (line.quantity > 0));
+      updateAfterItemChange(id, deferRedraw ? false : wasSelected !== (line.quantity > 0));
+    }
+
+    function finishQuantityEdit(id) {
+      const line = ensureLine(id);
+      const current = $$(".menu-card", $("#menu-list")).find(card => card.dataset.menuCard === id);
+      const hasOptions = current && current.querySelector(".item-options");
+      const shouldHaveOptions = line.quantity > 0;
+
+      if (Boolean(hasOptions) !== shouldHaveOptions) {
+        updateMenuCard(id);
+      }
     }
 
     function updateItemDetail(input) {
