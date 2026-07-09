@@ -23,11 +23,13 @@ function generateQuoteForRow(rowNumber) {
   const template = DriveApp.getFileById(templateId);
   let quoteFile = null;
   const existingQuoteId = extractDriveIdFromUrl_(booking.quoteUrl || "");
+  let reusedExistingQuote = false;
 
   if (existingQuoteId) {
     try {
       quoteFile = DriveApp.getFileById(existingQuoteId);
       quoteFile.setName(quoteName);
+      reusedExistingQuote = true;
     } catch (e) {
       quoteFile = null;
     }
@@ -43,16 +45,25 @@ function generateQuoteForRow(rowNumber) {
   doc.saveAndClose();
 
   booking.quoteUrl = quoteFile.getUrl();
+  booking.quoteFileId = quoteFile.getId();
+  booking.quoteRegeneratedInPlace = reusedExistingQuote;
+  booking.quoteLastRegeneratedAt = reusedExistingQuote ? new Date() : "";
   booking.quoteCreatedAt = new Date();
   booking.status = getStatusAfterQuoteGeneration_(previousStatus);
   booking.quoteStale = false;
+  const calendarAttachmentRefreshed = refreshCalendarQuoteAttachmentsAfterQuote_(booking, quoteFile);
+  if (calendarAttachmentRefreshed === false) {
+    booking.calendarStale = true;
+  }
   booking.updatedAt = new Date();
 
   writeBookingObjectToExistingRow_(rowNumber, booking);
 
   return {
     ok: true,
-    quoteUrl: quoteFile.getUrl()
+    quoteUrl: quoteFile.getUrl(),
+    quoteFileId: quoteFile.getId(),
+    reusedExistingQuote: reusedExistingQuote
   };
 }
 
@@ -61,13 +72,33 @@ function resetQuoteDocFromTemplate_(targetDoc, templateId) {
   const sourceBody = templateDoc.getBody();
   const targetBody = targetDoc.getBody();
 
-  targetBody.clear();
+  removeAllBodyChildren_(targetBody);
 
   for (let i = 0; i < sourceBody.getNumChildren(); i++) {
     appendCopiedBodyElement_(targetBody, sourceBody.getChild(i));
   }
 
+  removeLeadingEmptyParagraph_(targetBody);
+
   templateDoc.saveAndClose();
+}
+
+function removeAllBodyChildren_(body) {
+  body.appendParagraph("");
+
+  for (let i = body.getNumChildren() - 2; i >= 0; i--) {
+    body.removeChild(body.getChild(i));
+  }
+}
+
+function removeLeadingEmptyParagraph_(body) {
+  if (body.getNumChildren() < 2) return;
+
+  const first = body.getChild(0);
+  if (first.getType() !== DocumentApp.ElementType.PARAGRAPH) return;
+  if (first.asParagraph().getText()) return;
+
+  body.removeChild(first);
 }
 
 function appendCopiedBodyElement_(targetBody, sourceElement) {
@@ -111,6 +142,26 @@ function getStatusAfterQuoteGeneration_(previousStatus) {
   return preserveStatuses.indexOf(status) > -1
     ? status
     : CONFIG.STATUS.QUOTE_GENERATED;
+}
+
+function refreshCalendarQuoteAttachmentsAfterQuote_(booking, quoteFile) {
+  if (!booking.calendarEventId && !booking.calendarEventUrl) return null;
+
+  if (typeof refreshCalendarQuoteAttachmentsForBooking_ !== "function") {
+    return false;
+  }
+
+  try {
+    return refreshCalendarQuoteAttachmentsForBooking_(booking, quoteFile) === true;
+  } catch (error) {
+    console.warn(
+      "Calendar quote attachment could not be refreshed for " +
+      (booking.bookingId || "unknown booking") +
+      ": " +
+      (error && error.message ? error.message : String(error))
+    );
+    return false;
+  }
 }
 
 function restoreQuoteGeneratedRowsToConfirmed() {

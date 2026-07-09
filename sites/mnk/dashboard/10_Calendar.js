@@ -217,6 +217,68 @@ function updateBookingJsonFile_(file, booking) {
   return file;
 }
 
+function refreshCalendarQuoteAttachmentsForBooking_(booking, quoteFile) {
+  if (!booking.calendarEventId) return false;
+
+  const calendarId = String(
+    getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "primary")
+  ).trim();
+  if (!calendarId) throw new Error("Calendar ID is blank in Settings.");
+
+  const attachments = [{
+    fileUrl: quoteFile.getUrl(),
+    title: quoteFile.getName(),
+    mimeType: quoteFile.getMimeType()
+  }];
+
+  const bookingJsonFile = getExistingFileFromIdOrUrl_(
+    booking.bookingJsonFileId,
+    booking.bookingJsonFileUrl
+  );
+  if (bookingJsonFile) {
+    attachments.push({
+      fileUrl: bookingJsonFile.getUrl(),
+      title: bookingJsonFile.getName(),
+      mimeType: bookingJsonFile.getMimeType()
+    });
+  }
+
+  const originalBookingFile = getExistingFileFromIdOrUrl_(
+    booking.originalBookingFileId,
+    booking.originalBookingFileUrl
+  );
+  if (originalBookingFile) {
+    attachments.push({
+      fileUrl: originalBookingFile.getUrl(),
+      title: originalBookingFile.getName(),
+      mimeType: originalBookingFile.getMimeType()
+    });
+  }
+
+  Calendar.Events.patch(
+    { attachments: attachments },
+    calendarId,
+    booking.calendarEventId,
+    {
+      supportsAttachments: true,
+      sendUpdates: "none"
+    }
+  );
+
+  return true;
+}
+
+function getExistingFileFromIdOrUrl_(fileId, fileUrl) {
+  const id = fileId || extractDriveIdFromUrl_(fileUrl || "");
+  if (!id) return null;
+
+  try {
+    return DriveApp.getFileById(id);
+  } catch (error) {
+    return null;
+  }
+}
+
 function makeBookingJsonFileName_(booking) {
   const id = String(booking.bookingId || "booking")
     .replace(/[^a-zA-Z0-9_-]+/g, "-");
