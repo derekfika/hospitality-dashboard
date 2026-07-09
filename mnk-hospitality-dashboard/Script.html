@@ -755,9 +755,9 @@
           <div class="muted">${escapeHtml(b.HostEmail || "")}</div>
         </td>
         <td>${escapeHtml(b.Pax || "-")}</td>
-        <td>${escapeHtml(b.ServiceType || "-")}</td>
+        <td class="table-titlecase">${escapeHtml(formatTableTitleCase_(b.ServiceType || "-"))}</td>
         <td>${escapeHtml(b.Floor || "-")}</td>
-        <td>${escapeHtml(getDisplayRoom_(b) || "-")}</td>
+        <td class="table-titlecase">${escapeHtml(formatTableTitleCase_(getDisplayRoom_(b) || "-"))}</td>
         <td>&pound;${Number(b.TotalPrice || 0).toFixed(2)}</td>
         <td><span class="badge status-${escapeHtml(b.Status)}">${escapeHtml(b.Status)}</span></td>
         <td class="missing">${escapeHtml((b.ValidationErrorsParsed || []).join(", "))}</td>
@@ -796,6 +796,10 @@
     const siteAddress = "110 Bishopsgate, EC2N 4AY";
 
     return location && location !== siteAddress ? location : "";
+  }
+
+  function formatTableTitleCase_(value) {
+    return String(value || "").toLowerCase().replace(/\b([a-z])/g, letter => letter.toUpperCase());
   }
 
   function renderActionButtons(b) {

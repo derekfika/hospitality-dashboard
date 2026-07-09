@@ -115,6 +115,11 @@
         if (qtyButton) changeQuantity(qtyButton.dataset.itemId, qtyButton.dataset.qtyAction === "up" ? 1 : -1);
         const suggestionButton = event.target.closest("[data-use-suggestion]");
         if (suggestionButton) applySuggestedQuantity(suggestionButton.dataset.useSuggestion);
+        const newBookingButton = event.target.closest('[data-action="new-booking"]');
+        if (newBookingButton) {
+          event.preventDefault();
+          resetBooking();
+        }
         const resetButton = event.target.closest('[data-action="reset"]');
         if (resetButton) {
           event.preventDefault();
