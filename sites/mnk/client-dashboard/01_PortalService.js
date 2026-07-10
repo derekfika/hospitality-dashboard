@@ -45,6 +45,7 @@ function readClientBookings_() {
 
 function sanitiseClientBooking_(row, map, parsed) {
   const serviceTimes = safeJson_(value_(row, map, "ServiceTimes"), parsed.serviceTimes || []);
+  const items = safeJson_(value_(row, map, "ItemsJSON"), parsed.items || []);
   const location = String(value_(row, map, "Location") || parsed.location || "").trim();
   const floor = String(value_(row, map, "Floor") || parsed.floor || "").trim();
   return {
@@ -56,7 +57,18 @@ function sanitiseClientBooking_(row, map, parsed) {
     serviceType: String(value_(row, map, "ServiceType") || parsed.serviceType || "Hospitality"),
     location: location,
     floor: floor,
-    room: String(parsed.roomOrArea || parsed.clientRequest && parsed.clientRequest.event && parsed.clientRequest.event.roomOrArea || "").trim()
+    room: String(parsed.roomOrArea || parsed.clientRequest && parsed.clientRequest.event && parsed.clientRequest.event.roomOrArea || "").trim(),
+    items: Array.isArray(items) ? items.map(sanitiseClientItem_).filter(function(item) { return item.name; }) : []
+  };
+}
+
+function sanitiseClientItem_(item) {
+  return {
+    section: String(item.section || item.category || "").trim(),
+    name: String(item.name || item.itemName || "").trim(),
+    detail: String(item.detail || "").trim(),
+    quantity: Number(item.qty || item.quantity || 0),
+    time: String(item.time || item.timeRequired || "").trim()
   };
 }
 

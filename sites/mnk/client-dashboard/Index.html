@@ -13,7 +13,7 @@
       <h1 id="pinTitle">Welcome, Felipe</h1>
       <p>Enter your PIN to view the MNK hospitality dashboard.</p>
       <label for="pinInput">Access PIN</label>
-      <input id="pinInput" type="password" inputmode="numeric" autocomplete="current-password" required autofocus>
+      <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" required autofocus>
       <button id="pinButton" type="submit">Open dashboard</button>
       <p id="pinError" class="pin-error" role="alert" hidden></p>
     </form>
@@ -29,7 +29,12 @@
       <section class="stats" aria-label="This week">
         <article><span>Bookings this week</span><strong id="weekBookings">0</strong></article>
         <article><span>Pax this week</span><strong id="weekPax">0</strong></article>
-        <article><span>Next booking</span><strong id="nextBooking">—</strong></article>
+        <article><span>Coffee / tea this week</span><strong id="weekDrinks">0</strong></article>
+        <article><span>Food this week</span><strong id="weekFood">0</strong></article>
+      </section>
+      <section class="panel calendar-panel">
+        <div class="panel-head"><div><span class="eyebrow">WEEKLY VIEW</span><h2 id="calendarTitle">Calendar</h2></div><div class="calendar-nav"><button type="button" id="previousWeek" aria-label="Previous week">←</button><button type="button" id="thisWeek">This week</button><button type="button" id="nextWeek" aria-label="Next week">→</button></div></div>
+        <div id="calendar" class="calendar"></div>
       </section>
       <section class="panel">
         <div class="panel-head"><div><span class="eyebrow">COMING UP</span><h2>Upcoming bookings</h2></div></div>
