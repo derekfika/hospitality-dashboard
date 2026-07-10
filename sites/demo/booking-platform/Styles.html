@@ -1,4 +1,25 @@
 <style>
+  @font-face {
+    font-family: 'VIM';
+    src: url('https://bloom-coffee.org/bloom-quiz/assets/fonts/VimSM.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('https://bloom-coffee.org/bloom-quiz/assets/fonts/GILROY-REGULAR.TTF') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('https://bloom-coffee.org/bloom-quiz/assets/fonts/GILROY-BOLD.TTF') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+  }
+
   :root {
     --accent: #3d21bf;
     --accent-dark: #241176;
@@ -2012,11 +2033,15 @@
   }
 
   .site-header {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(320px, 1fr) auto;
     min-height: 66px;
-    padding: 12px clamp(18px, 4vw, 48px);
+    padding: 16px clamp(24px, 5.5vw, 104px);
     position: absolute;
     z-index: 20;
     inset: 0 0 auto;
+    align-items: center;
+    gap: 28px;
     background: transparent;
     color: #fff;
     border-bottom: 0;
@@ -2025,8 +2050,9 @@
 
   .site-header::after {
     content: "Booking   Breakfast   Lunch   Afternoon   Finger food   Bowl food & canapes   Events";
+    justify-self: end;
     margin-left: auto;
-    margin-right: 58px;
+    margin-right: 52px;
     color: #fff;
     font-size: 12px;
     font-weight: 800;
@@ -2036,7 +2062,9 @@
   }
 
   .brand {
-    gap: 11px;
+    justify-self: start;
+    gap: 12px;
+    min-width: 0;
   }
 
   .brand-mark {
@@ -2062,10 +2090,24 @@
 
   .brand-place {
     color: #fff;
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 900;
     letter-spacing: -.03em;
     text-transform: none;
+  }
+
+  .brand-partner {
+    transform: translateY(1px);
+  }
+
+  .logo-slot-site,
+  .logo-slot-fika {
+    min-height: 46px;
+  }
+
+  .logo-slot-fika .brand-logo {
+    max-width: 150px;
+    max-height: 50px;
   }
 
   .link-button {
@@ -2076,7 +2118,7 @@
 
   .reset-icon-button {
     position: absolute;
-    right: clamp(18px, 4vw, 48px);
+    right: clamp(24px, 5.5vw, 104px);
     top: 50%;
     display: grid;
     place-items: center;
@@ -2120,8 +2162,11 @@
   }
 
   .hero {
-    min-height: 360px;
-    padding: 118px clamp(22px, 7vw, 104px) 74px;
+    min-height: 500px;
+    grid-template-columns: minmax(420px, 760px) minmax(260px, 1fr);
+    align-items: end;
+    gap: clamp(36px, 8vw, 150px);
+    padding: 132px clamp(24px, 5.5vw, 104px) 78px;
     background:
       radial-gradient(circle at 78% 22%, rgba(77, 247, 194, .24), transparent 25rem),
       linear-gradient(135deg, #280F8C 0%, #4F34C7 52%, #6d54dd 100%);
@@ -2137,12 +2182,13 @@
   }
 
   .hero h1 {
-    max-width: 760px;
-    margin-top: 12px;
-    font-size: clamp(48px, 7vw, 96px);
+    max-width: 730px;
+    margin: 18px 0 20px;
+    font-family: "VIM", "Gilroy", Arial, sans-serif;
+    font-size: clamp(58px, 6.4vw, 104px);
     font-weight: 800;
-    letter-spacing: .03em;
-    line-height: 1;
+    letter-spacing: .02em;
+    line-height: .95;
     text-transform: uppercase;
   }
 
@@ -2153,11 +2199,15 @@
   }
 
   .hero-guide {
+    justify-self: end;
     align-self: end;
     border: 0;
     border-radius: 0;
     background: transparent;
     color: #fff;
+    margin: 0;
+    min-width: 260px;
+    padding-bottom: 18px;
   }
 
   .app-shell {
@@ -2310,15 +2360,77 @@
   }
 
   @media (max-width: 1120px) {
+    .site-header {
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding-inline: 24px;
+    }
+
     .site-header::after {
       display: none;
+    }
+
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 28px;
+      min-height: 470px;
+      padding-inline: 40px;
+    }
+
+    .hero-guide {
+      justify-self: start;
+      align-self: start;
+      padding-bottom: 13px;
     }
   }
 
   @media (max-width: 720px) {
+    .site-header {
+      min-height: 58px;
+      gap: 12px;
+      padding: 10px 18px;
+    }
+
+    .brand {
+      gap: 8px;
+    }
+
+    .brand-place {
+      font-size: 20px;
+    }
+
+    .brand-partner {
+      font-size: 9px;
+    }
+
+    .logo-slot-fika .brand-logo {
+      max-width: 104px;
+      max-height: 36px;
+    }
+
+    .reset-icon-button {
+      right: 18px;
+      width: 34px;
+      height: 34px;
+    }
+
     .hero {
-      min-height: 330px;
+      min-height: 410px;
+      padding: 92px 20px 52px;
       box-shadow: inset 0 -44px var(--accent);
+    }
+
+    .hero h1 {
+      font-size: clamp(44px, 13vw, 68px);
+    }
+
+    .hero-copy {
+      font-size: 15px;
+    }
+
+    .hero-guide {
+      min-width: 0;
+      width: 100%;
+      justify-content: center;
     }
 
     .brand-mark {
