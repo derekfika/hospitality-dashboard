@@ -404,15 +404,52 @@ function replaceQuoteOrderPlaceholder_(body, items) {
     const detailParts = [];
     if (item.detail) detailParts.push(item.detail);
     if (item.info) detailParts.push(item.info);
-    if (item.comment) detailParts.push("Comment: " + item.comment);
 
     if (detailParts.length) {
       const detail = body.insertParagraph(insertIndex++, detailParts.join(" - "));
       detail.setFontSize(8);
       detail.setItalic(true);
-      detail.setSpacingAfter(4);
+      detail.setSpacingAfter(2);
+    }
+
+    const instructionParts = getQuoteItemInstructionParts_(item);
+    if (instructionParts.length) {
+      insertIndex = appendQuoteItemInstructions_(body, insertIndex, instructionParts);
     }
   });
+}
+
+function getQuoteItemInstructionParts_(item) {
+  const fields = [
+    ["Comment", item.comment || item.comments],
+    ["Allergen info", item.allergenInfo || item.allergens || item.allergyDetails],
+    ["Requirements", item.requirements || item.specialRequirements || item.specialInstructions]
+  ];
+
+  return fields
+    .map(function(field) {
+      const value = String(field[1] || "").trim();
+      return value ? field[0] + ": " + value : "";
+    })
+    .filter(Boolean);
+}
+
+function appendQuoteItemInstructions_(body, insertIndex, instructionParts) {
+  const instruction = body.insertParagraph(insertIndex++, instructionParts.join(" - "));
+  instruction.setFontSize(8);
+  instruction.setBold(true);
+  instruction.setItalic(false);
+  instruction.setForegroundColor("#C05050");
+  instruction.setSpacingAfter(5);
+
+  const text = instruction.editAsText();
+  const value = instruction.getText();
+  if (value) {
+    text.setBold(0, value.length - 1, true);
+    text.setForegroundColor(0, value.length - 1, "#C05050");
+  }
+
+  return insertIndex;
 }
 
 function appendQuoteText_(paragraph, text, bold, italic, fontSize) {
