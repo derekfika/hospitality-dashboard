@@ -2060,7 +2060,7 @@
 
   .header-inner {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     gap: var(--space-8);
     width: min(var(--page-max), 100%);
@@ -2108,23 +2108,13 @@
     background: rgba(255, 255, 255, .28);
   }
 
-  .logo-slot-site {
-    justify-self: start;
-    min-width: 0;
-    min-height: 42px;
-    overflow: hidden;
-  }
-
-  .header-site-logo {
-    display: none !important;
-  }
-
   .brand {
     justify-self: start;
     display: inline-flex;
     align-items: center;
     gap: var(--space-4);
     min-width: 0;
+    grid-column: 1;
   }
 
   .brand-mark {
@@ -2146,16 +2136,6 @@
     font-weight: 800;
     letter-spacing: .12em;
     text-transform: uppercase;
-  }
-
-  .brand-place {
-    color: #fff;
-    font-size: 14px;
-    font-weight: 900;
-    letter-spacing: .18em;
-    line-height: 1;
-    text-transform: uppercase;
-    white-space: nowrap;
   }
 
   .brand-divider {
@@ -2497,7 +2477,7 @@
 
   @media (max-width: 1200px) {
     .header-inner {
-      grid-template-columns: auto 1fr;
+      grid-template-columns: auto minmax(0, 1fr);
     }
 
     .header-category-nav {
@@ -2514,9 +2494,6 @@
       display: none;
     }
 
-    .logo-slot-site {
-      display: none;
-    }
   }
 
   @media (max-width: 1120px) {
@@ -2555,7 +2532,7 @@
 
   @media (max-width: 900px) {
     .header-inner {
-      grid-template-columns: 1fr auto;
+      grid-template-columns: auto minmax(0, 1fr);
     }
 
     .header-category-nav {
@@ -2575,20 +2552,12 @@
     }
 
     .header-inner {
-      grid-template-columns: 1fr auto;
+      grid-template-columns: auto minmax(0, 1fr);
       min-height: 68px;
     }
 
     .brand {
       gap: 10px;
-    }
-
-    .logo-slot-site {
-      display: none;
-    }
-
-    .brand-place {
-      font-size: 20px;
     }
 
     .brand-partner {

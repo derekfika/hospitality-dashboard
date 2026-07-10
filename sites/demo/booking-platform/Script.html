@@ -39,7 +39,6 @@
       document.documentElement.style.setProperty("--paper", config.site.branding.paper);
       document.title = config.site.clientFacingName;
       configureLogo("fika-logo", "fika-logo-svg", "fika-logo-fallback", config.site.branding.fikaLogoSvg, config.site.branding.fikaLogoUrl, config.site.branding.fikaLogoAlt, config.site.branding.fikaFallbackText);
-      configureLogo("site-logo", "site-logo-svg", "site-logo-fallback", config.site.branding.siteLogoSvg, config.site.branding.siteLogoUrl, config.site.branding.siteLogoAlt, config.site.branding.siteFallbackText);
       $("#hero-eyebrow").textContent = config.site.branding.eyebrow;
       $("#hero-title").innerHTML = escapeHtml(config.site.branding.heroTitle).replace(",", ",<br>");
       $("#hero-body").textContent = config.site.branding.heroBody;
@@ -50,6 +49,7 @@
       const image = document.getElementById(imageId);
       const svg = document.getElementById(svgId);
       const fallback = document.getElementById(fallbackId);
+      if (!image || !svg || !fallback) return;
       fallback.textContent = fallbackText || alt || "";
       image.hidden = true;
       svg.hidden = true;
