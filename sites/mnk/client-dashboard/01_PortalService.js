@@ -34,13 +34,23 @@ function readClientBookings_() {
   });
 
   return values.slice(1).filter(function(row) {
-    return row.some(function(cell) { return cell !== "" && cell !== null; });
+    if (!row.some(function(cell) { return cell !== "" && cell !== null; })) return false;
+    const parsed = safeJson_(value_(row, map, "ParsedJSON"), {});
+    return isClientVisibleBooking_(value_(row, map, "Status") || parsed.status, parsed);
   }).map(function(row) {
     const parsed = safeJson_(map.ParsedJSON === undefined ? "" : row[map.ParsedJSON], {});
     return sanitiseClientBooking_(row, map, parsed);
   }).sort(function(a, b) {
     return String(b.eventDate).localeCompare(String(a.eventDate)) || String(b.startTime).localeCompare(String(a.startTime));
   });
+}
+
+function isClientVisibleBooking_(status, parsed) {
+  const value = String(status || "").trim().toUpperCase();
+  if (["CONFIRMED", "ARCHIVED", "RECHARGED"].indexOf(value) >= 0) return true;
+  // A subsequently cancelled booking remains in Felipe's history only if it
+  // previously completed the confirmation-email workflow.
+  return value === "CANCELLED" && Boolean(parsed && parsed.confirmationEmailSentAt);
 }
 
 function sanitiseClientBooking_(row, map, parsed) {
@@ -82,7 +92,7 @@ function sanitiseClientItem_(item) {
 function clientStatus_(status) {
   const value = String(status || "").toUpperCase();
   if (value === "CANCELLED") return "Cancelled";
-  if (["CONFIRMED", "CPU_CREATED", "RECHARGED", "ARCHIVED"].indexOf(value) >= 0) return "Confirmed";
+  if (["CONFIRMED", "RECHARGED", "ARCHIVED"].indexOf(value) >= 0) return "Confirmed";
   if (["QUOTE_GENERATED", "READY", "NEW"].indexOf(value) >= 0) return "In progress";
   return "Being reviewed";
 }

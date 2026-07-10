@@ -8,6 +8,7 @@ Read-only booking history for Felipe, hosted by the Fika Google account.
 - Felipe does not need a Google account. The landing screen asks for a PIN.
 - The PIN is checked on the server and stored in Apps Script Properties, not in this repository.
 - The portal deliberately shows all MNK bookings, regardless of who originally placed them.
+- Bookings are returned only after confirmation. `CONFIRMED`, `ARCHIVED` and `RECHARGED` records remain visible; a cancelled record remains in history only when it previously sent a confirmation email.
 - Only the fields explicitly returned by `sanitiseClientBooking_` reach the browser.
 - This project contains no mutation, quote, calendar, cancellation or recharge functions.
 
