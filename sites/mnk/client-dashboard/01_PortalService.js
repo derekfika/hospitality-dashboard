@@ -46,8 +46,10 @@ function readClientBookings_() {
 function sanitiseClientBooking_(row, map, parsed) {
   const serviceTimes = safeJson_(value_(row, map, "ServiceTimes"), parsed.serviceTimes || []);
   const items = safeJson_(value_(row, map, "ItemsJSON"), parsed.items || []);
-  const location = String(value_(row, map, "Location") || parsed.location || "").trim();
+  const location = cleanClientLocation_(value_(row, map, "Location") || parsed.location || "");
   const floor = String(value_(row, map, "Floor") || parsed.floor || "").trim();
+  const clientEvent = parsed.clientBooking && parsed.clientBooking.event || {};
+  const requestEvent = parsed.clientRequest && parsed.clientRequest.event || {};
   return {
     bookingId: String(value_(row, map, "BookingID") || parsed.bookingId || ""),
     status: clientStatus_(value_(row, map, "Status") || parsed.status),
@@ -57,9 +59,14 @@ function sanitiseClientBooking_(row, map, parsed) {
     serviceType: String(value_(row, map, "ServiceType") || parsed.serviceType || "Hospitality"),
     location: location,
     floor: floor,
-    room: String(parsed.roomOrArea || parsed.clientRequest && parsed.clientRequest.event && parsed.clientRequest.event.roomOrArea || "").trim(),
+    room: String(parsed.room || parsed.roomOrArea || clientEvent.roomOrArea || clientEvent.deliveryPoint || requestEvent.roomOrArea || requestEvent.deliveryPoint || "").trim(),
     items: Array.isArray(items) ? items.map(sanitiseClientItem_).filter(function(item) { return item.name; }) : []
   };
+}
+
+function cleanClientLocation_(value) {
+  const address = "110 Bishopsgate, EC2N 4AY";
+  return String(value || "").replace(address, "").replace(/^\s*[·,\-–—]+\s*|\s*[·,\-–—]+\s*$/g, "").trim();
 }
 
 function sanitiseClientItem_(item) {
