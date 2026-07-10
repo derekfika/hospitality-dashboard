@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <?!= include_("Styles"); ?>
+</head>
+<body>
+  <script>window.PORTAL_ACCESS_KEY = <?!= JSON.stringify(portalAccessKey) ?>;</script>
+  <main class="shell">
+    <header class="hero">
+      <div><span class="eyebrow">FIKA AT MNK</span><h1>My hospitality</h1><p id="welcome">Your bookings, all in one place.</p></div>
+      <a id="bookButton" class="book" hidden>Book hospitality</a>
+    </header>
+    <section id="loading" class="state">Loading your bookings…</section>
+    <section id="error" class="state error" hidden></section>
+    <div id="portal" hidden>
+      <section class="stats" aria-label="This week">
+        <article><span>Bookings this week</span><strong id="weekBookings">0</strong></article>
+        <article><span>Pax this week</span><strong id="weekPax">0</strong></article>
+        <article><span>Next booking</span><strong id="nextBooking">—</strong></article>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><div><span class="eyebrow">COMING UP</span><h2>Upcoming bookings</h2></div></div>
+        <div id="upcoming" class="booking-list"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><div><span class="eyebrow">HISTORY</span><h2>Previous bookings</h2></div><input id="search" type="search" placeholder="Search history" aria-label="Search booking history"></div>
+        <div id="history" class="booking-list"></div>
+      </section>
+      <footer>Need help? <a id="supportLink">Contact the Fika at MNK team</a>.</footer>
+    </div>
+  </main>
+  <?!= include_("Script"); ?>
+</body>
+</html>
