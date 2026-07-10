@@ -104,6 +104,7 @@ function setupPlatformSettingsSheet_(spreadsheet) {
   updateLegacyDemoSetting_(sheet, "SITE_FALLBACK_TEXT", legacyLogoPlaceholder, SITE_CONFIG.branding.siteFallbackText);
   updateLegacyDemoSetting_(sheet, "CLIENT_FACING_NAME", legacyClientName, SITE_CONFIG.clientFacingName);
   updateLegacyDemoSetting_(sheet, "BRAND_EYEBROW", ["De", "mo hospitality booking platform"].join(""), SITE_CONFIG.branding.eyebrow);
+  updateLegacyDemoSetting_(sheet, "HERO_TITLE", "Hospitality, simply arranged.", SITE_CONFIG.branding.heroTitle);
   updateLegacyDemoSetting_(sheet, "COLOUR_ACCENT", "#4f5d64", SITE_CONFIG.branding.accent);
   updateLegacyDemoSetting_(sheet, "COLOUR_INK", "#243036", SITE_CONFIG.branding.ink);
   updateLegacyDemoSetting_(sheet, "COLOUR_PAPER", "#f4f3ef", SITE_CONFIG.branding.paper);

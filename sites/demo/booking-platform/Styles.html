@@ -2034,14 +2034,14 @@
 
   .site-header {
     display: grid;
-    grid-template-columns: minmax(0, auto) minmax(320px, 1fr) auto;
-    min-height: 66px;
-    padding: 16px clamp(24px, 5.5vw, 104px);
+    grid-template-columns: minmax(220px, auto) minmax(260px, 1fr) auto;
+    min-height: 76px;
+    padding: 18px clamp(28px, 5.5vw, 104px);
     position: absolute;
     z-index: 20;
     inset: 0 0 auto;
     align-items: center;
-    gap: 28px;
+    gap: 32px;
     background: transparent;
     color: #fff;
     border-bottom: 0;
@@ -2052,7 +2052,7 @@
     content: "Booking   Breakfast   Lunch   Afternoon   Finger food   Bowl food & canapes   Events";
     justify-self: end;
     margin-left: auto;
-    margin-right: 52px;
+    margin-right: 60px;
     color: #fff;
     font-size: 12px;
     font-weight: 800;
@@ -2063,7 +2063,7 @@
 
   .brand {
     justify-self: start;
-    gap: 12px;
+    gap: 14px;
     min-width: 0;
   }
 
@@ -2090,24 +2090,28 @@
 
   .brand-place {
     color: #fff;
-    font-size: 26px;
+    font-size: 15px;
     font-weight: 900;
-    letter-spacing: -.03em;
-    text-transform: none;
+    letter-spacing: .14em;
+    text-transform: uppercase;
   }
 
-  .brand-partner {
-    transform: translateY(1px);
+  .brand-divider {
+    align-self: center;
+    width: 1px;
+    height: 28px;
+    min-height: 28px;
+    background: rgba(255, 255, 255, .36);
   }
 
   .logo-slot-site,
   .logo-slot-fika {
-    min-height: 46px;
+    min-height: 42px;
   }
 
   .logo-slot-fika .brand-logo {
-    max-width: 150px;
-    max-height: 50px;
+    max-width: 124px;
+    max-height: 42px;
   }
 
   .link-button {
@@ -2162,11 +2166,11 @@
   }
 
   .hero {
-    min-height: 500px;
-    grid-template-columns: minmax(420px, 760px) minmax(260px, 1fr);
+    min-height: 480px;
+    grid-template-columns: minmax(420px, 700px) minmax(260px, 1fr);
     align-items: end;
     gap: clamp(36px, 8vw, 150px);
-    padding: 132px clamp(24px, 5.5vw, 104px) 78px;
+    padding: 138px clamp(28px, 5.5vw, 104px) 72px;
     background:
       radial-gradient(circle at 78% 22%, rgba(77, 247, 194, .24), transparent 25rem),
       linear-gradient(135deg, #280F8C 0%, #4F34C7 52%, #6d54dd 100%);
@@ -2182,20 +2186,21 @@
   }
 
   .hero h1 {
-    max-width: 730px;
-    margin: 18px 0 20px;
+    max-width: 690px;
+    margin: 16px 0 18px;
     font-family: "VIM", "Gilroy", Arial, sans-serif;
-    font-size: clamp(58px, 6.4vw, 104px);
+    font-size: clamp(54px, 5.6vw, 88px);
     font-weight: 800;
-    letter-spacing: .02em;
-    line-height: .95;
+    letter-spacing: .015em;
+    line-height: .98;
     text-transform: uppercase;
   }
 
   .hero-copy {
     max-width: 620px;
     color: rgba(255,255,255,.86);
-    font-size: 17px;
+    font-size: 18px;
+    line-height: 1.45;
   }
 
   .hero-guide {
@@ -2207,7 +2212,7 @@
     color: #fff;
     margin: 0;
     min-width: 260px;
-    padding-bottom: 18px;
+    padding-bottom: 26px;
   }
 
   .app-shell {

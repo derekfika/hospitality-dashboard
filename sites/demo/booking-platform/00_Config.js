@@ -161,6 +161,7 @@ function normaliseLegacyPlatformSetting_(key, value) {
   if (key === "SITE_FALLBACK_TEXT" && (upper === legacyLogoPlaceholder || lower.indexOf("demo") > -1)) return SITE_CONFIG.branding.siteFallbackText;
   if (key === "CLIENT_FACING_NAME" && lower.indexOf("demo") > -1) return SITE_CONFIG.clientFacingName;
   if (key === "BRAND_EYEBROW" && lower.indexOf("demo") > -1) return SITE_CONFIG.branding.eyebrow;
+  if (key === "HERO_TITLE" && lower === "hospitality, simply arranged.") return SITE_CONFIG.branding.heroTitle;
   if (key === "COLOUR_ACCENT" && upper === "#4F5D64") return SITE_CONFIG.branding.accent;
   if (key === "COLOUR_INK" && upper === "#243036") return SITE_CONFIG.branding.ink;
   if (key === "COLOUR_PAPER" && upper === "#F4F3EF") return SITE_CONFIG.branding.paper;
