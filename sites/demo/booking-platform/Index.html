@@ -10,40 +10,55 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#" aria-label="FIKA Hospitality home">
-      <span class="logo-slot logo-slot-fika">
-        <span id="fika-logo-svg" class="brand-logo-svg" hidden></span>
-        <img id="fika-logo" class="brand-logo" hidden>
-        <span id="fika-logo-fallback" class="brand-mark">Fika</span>
-      </span>
-      <span class="brand-divider" aria-hidden="true"></span>
+    <div class="header-inner">
+      <a class="brand" href="#" aria-label="FIKA Hospitality home">
+        <span class="logo-slot logo-slot-fika">
+          <span id="fika-logo-svg" class="brand-logo-svg" hidden></span>
+          <img id="fika-logo" class="brand-logo" hidden>
+          <span id="fika-logo-fallback" class="brand-mark">Fika</span>
+        </span>
+        <span class="brand-divider" aria-hidden="true"></span>
+      </a>
       <span class="logo-slot logo-slot-site">
         <span id="site-logo-svg" class="brand-logo-svg site-brand-logo-svg" hidden></span>
         <img id="site-logo" class="brand-logo site-brand-logo" hidden>
         <span id="site-logo-fallback" class="brand-place">Hospitality</span>
       </span>
-    </a>
-    <button class="link-button reset-icon-button" type="button" data-action="reset" aria-label="Start again">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
-        <path d="M21 3v6h-6"></path>
-      </svg>
-    </button>
+      <div class="header-actions">
+        <nav class="header-category-nav" aria-label="Booking categories">
+          <span>Booking</span>
+          <span>Breakfast</span>
+          <span>Lunch</span>
+          <span>Afternoon</span>
+          <span>Finger food</span>
+          <span>Bowl food &amp; canapes</span>
+          <span>Events</span>
+        </nav>
+        <button class="link-button reset-icon-button" type="button" data-action="reset" aria-label="Start again">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+            <path d="M21 3v6h-6"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
   </header>
 
   <main>
     <section class="hero">
-      <div class="hero-content">
-        <p class="eyebrow" id="hero-eyebrow">Hospitality brochure 2026</p>
-        <h1 id="hero-title">A fresh force for good.</h1>
-        <p class="hero-copy" id="hero-body">Plan breakfast, lunch, afternoon food, drinks and events in one clear request.</p>
-      </div>
-      <div class="hero-guide" aria-label="Booking overview">
-        <span>Choose</span>
-        <i aria-hidden="true"></i>
-        <span>Plan</span>
-        <i aria-hidden="true"></i>
-        <span>Submit</span>
+      <div class="hero-inner">
+        <div class="hero-content">
+          <p class="eyebrow" id="hero-eyebrow">Hospitality brochure 2026</p>
+          <h1 id="hero-title">A fresh force for good.</h1>
+          <p class="hero-copy" id="hero-body">Plan breakfast, lunch, afternoon food, drinks and events in one clear request.</p>
+        </div>
+        <div class="hero-guide" aria-label="Booking overview">
+          <span>Choose</span>
+          <i aria-hidden="true"></i>
+          <span>Plan</span>
+          <i aria-hidden="true"></i>
+          <span>Submit</span>
+        </div>
       </div>
     </section>
 
