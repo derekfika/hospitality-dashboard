@@ -14,7 +14,7 @@ Shared reporting app for feedback across all hospitality platforms.
 
 ## Site Setup
 
-Demo and MNK have committed dashboard spreadsheet IDs. Other sites can be wired by running:
+FIKA Hospitality and MNK have committed dashboard spreadsheet IDs. Other sites can be wired by running:
 
 ```js
 setFeedbackReportingSiteSpreadsheetId("angel_court", "SPREADSHEET_ID_OR_URL");

@@ -1,5 +1,5 @@
 const FEEDBACK_REPORTING_CONFIG = Object.freeze({
-  appName: "Hospitality Feedback Reporting",
+  appName: "FIKA Feedback Reporting",
   timeZone: "Europe/London",
   sheets: {
     requests: "Feedback Requests",
@@ -7,14 +7,14 @@ const FEEDBACK_REPORTING_CONFIG = Object.freeze({
     itemRatings: "Feedback Item Ratings"
   },
   colours: {
-    ink: "#243036",
-    muted: "#667176",
-    paper: "#f4f3ef",
+    ink: "#241F33",
+    muted: "#6F67A8",
+    paper: "#f4f3ff",
     surface: "#ffffff",
-    primary: "#4f5d64",
-    accent: "#75efb8",
-    warning: "#8a6e3e",
-    danger: "#8c4f4f"
+    primary: "#4F34C7",
+    accent: "#4DF7C2",
+    warning: "#FFE800",
+    danger: "#FF5C00"
   }
 });
 
@@ -27,7 +27,7 @@ const FEEDBACK_REPORTING_SITES = Object.freeze([
   },
   {
     siteId: "demo",
-    siteName: "Demo",
+    siteName: "FIKA Hospitality",
     spreadsheetId: "1YwoWOifOYIT35aZbAdxGxXVGRsrvRBPuJkPQNkuj3Ow",
     propertyKey: "DEMO_DASHBOARD_SPREADSHEET_ID"
   },
