@@ -24,9 +24,6 @@ function sendNewBookingNotification_(booking, integration) {
       );
     }
 
-    const dashboardUrl = getBookingNotificationDashboardUrl_(
-      settings.DASHBOARD_URL
-    );
     const eventType = eventTypeLabel_(booking.order.eventType);
     const subject =
       "New " + SITE_CONFIG.clientFacingName + " booking request | " +
@@ -36,7 +33,6 @@ function sendNewBookingNotification_(booking, integration) {
     const plainText = buildBookingNotificationText_(
       booking,
       eventType,
-      dashboardUrl,
       integration
     );
 
@@ -47,7 +43,6 @@ function sendNewBookingNotification_(booking, integration) {
       htmlBody: buildBookingNotificationHtml_(
         booking,
         eventType,
-        dashboardUrl,
         integration
       ),
       name: SITE_CONFIG.clientFacingName
@@ -108,9 +103,10 @@ function getBookingNotificationDashboardUrl_(configuredUrl) {
   }
 }
 
-function buildBookingNotificationText_(booking, eventType, dashboardUrl, integration) {
+function buildBookingNotificationText_(booking, eventType, integration) {
+  const lineItems = buildBookingNotificationLineItemsText_(booking);
   return [
-    "A new booking request has been added to the " + SITE_CONFIG.clientFacingName + " dashboard.",
+    "A new " + SITE_CONFIG.clientFacingName + " booking request is ready for review.",
     "",
     "Reference: " + booking.bookingId,
     "Company: " + booking.client.companyName,
@@ -130,9 +126,10 @@ function buildBookingNotificationText_(booking, eventType, dashboardUrl, integra
       booking.event.roomOrArea
     ].filter(Boolean).join(" / "),
     "Estimated total: " + formatNotificationMoney_(booking.order.netTotal),
-    "Dashboard status: " + integration.dashboardStatus,
-    dashboardUrl ? "" : "",
-    dashboardUrl ? "Open dashboard: " + dashboardUrl : "",
+    "Request status: " + integration.dashboardStatus,
+    "",
+    "Line items:",
+    lineItems || "No line items were captured.",
     "",
     "Please review the request and prepare the quote."
   ].filter(function(line, index, values) {
@@ -140,7 +137,7 @@ function buildBookingNotificationText_(booking, eventType, dashboardUrl, integra
   }).join("\n");
 }
 
-function buildBookingNotificationHtml_(booking, eventType, dashboardUrl, integration) {
+function buildBookingNotificationHtml_(booking, eventType, integration) {
   const rows = [
     ["Reference", booking.bookingId],
     ["Company", booking.client.companyName],
@@ -158,38 +155,82 @@ function buildBookingNotificationHtml_(booking, eventType, dashboardUrl, integra
       booking.event.roomOrArea
     ].filter(Boolean).join(" / ")],
     ["Estimated total", formatNotificationMoney_(booking.order.netTotal)],
-    ["Dashboard status", integration.dashboardStatus]
+    ["Request status", integration.dashboardStatus]
   ];
+  const lineItemsHtml = buildBookingNotificationLineItemsHtml_(booking);
 
   return [
-    '<div style="font-family:Arial,sans-serif;color:#07506f;max-width:620px">',
-    '<div style="background:#176f8e;color:#fff;padding:24px 28px;border-radius:0">',
-    '<div style="font-size:12px;font-weight:bold;letter-spacing:1.4px;text-transform:uppercase">Hospitality brochure 2026</div>',
-    '<h1 style="font-size:26px;margin:8px 0 0">New ' + escapeNotificationHtml_(SITE_CONFIG.clientFacingName) + ' booking</h1>',
+    '<div style="font-family:Gilroy,Arial,sans-serif;color:#280F8C;max-width:680px;background:#F4F3FF;border:1px solid #ddd7ff">',
+    '<div style="background:#4F34C7;color:#fff;padding:24px 28px 26px;border-radius:0">',
+    '<img src="https://fikacatering.com/assets/fika_logoRGB.png" alt="FIKA" style="display:block;width:104px;height:auto;margin:0 0 18px;filter:brightness(0) invert(1)">',
+    '<div style="font-size:11px;font-weight:bold;letter-spacing:1.7px;text-transform:uppercase;opacity:.78">Hospitality booking request</div>',
+    '<h1 style="font-family:Arial,sans-serif;font-size:28px;line-height:1.08;margin:8px 0 0;color:#fff">New ' + escapeNotificationHtml_(SITE_CONFIG.clientFacingName) + ' booking</h1>',
     '</div>',
-    '<div style="padding:26px 28px;border:1px solid #c7dfe8;border-top:0;border-radius:0">',
-    '<p style="margin-top:0;color:#4d7890">A new client booking request is ready for review.</p>',
-    '<table style="width:100%;border-collapse:collapse">',
+    '<div style="padding:28px;background:#fff;border-top:0;border-radius:0">',
+    '<p style="margin:0 0 18px;color:#5F5A82;font-size:14px;line-height:1.5">A new client booking request is ready for review. The requested menu items are included below.</p>',
+    '<table style="width:100%;border-collapse:collapse;margin:0 0 24px">',
     rows.map(function(row) {
       return '<tr>' +
-        '<td style="padding:9px 8px;border-bottom:1px solid #e4f1f5;color:#4d7890">' +
+        '<td style="padding:10px 8px;border-bottom:1px solid #ECE8FF;color:#6F67A8;font-size:13px">' +
         escapeNotificationHtml_(row[0]) +
         '</td>' +
-        '<td style="padding:9px 8px;border-bottom:1px solid #e4f1f5;text-align:right;font-weight:bold">' +
+        '<td style="padding:10px 8px;border-bottom:1px solid #ECE8FF;text-align:right;font-weight:bold;color:#280F8C;font-size:13px">' +
         escapeNotificationHtml_(row[1]) +
         '</td>' +
         '</tr>';
     }).join(""),
     '</table>',
-    dashboardUrl
-      ? '<p style="margin:24px 0 8px"><a href="' +
-        escapeNotificationHtml_(dashboardUrl) +
-        '" style="display:inline-block;background:#176f8e;color:#fff;padding:12px 18px;border-radius:0;text-decoration:none;font-weight:bold">Open hospitality dashboard</a></p>'
-      : "",
-    '<p style="font-size:12px;color:#4d7890;margin-bottom:0">Please review the request and prepare the quote.</p>',
+    '<h2 style="font-size:15px;letter-spacing:1.3px;text-transform:uppercase;margin:0 0 12px;color:#4F34C7">Line items</h2>',
+    lineItemsHtml || '<p style="margin:0 0 22px;color:#6F67A8">No line items were captured.</p>',
+    '<p style="font-size:12px;color:#6F67A8;margin:24px 0 0">Please review the request and prepare the quote.</p>',
     '</div>',
     '</div>'
   ].join("");
+}
+
+function buildBookingNotificationLineItemsText_(booking) {
+  return (booking.order.items || []).map(function(item) {
+    const details = buildBookingNotificationItemDetails_(item);
+    return [
+      "- " + item.itemName + " x " + item.quantity + " (" + formatNotificationMoney_(item.lineTotal) + ")",
+      details ? "  " + details : ""
+    ].filter(Boolean).join("\n");
+  }).join("\n");
+}
+
+function buildBookingNotificationLineItemsHtml_(booking) {
+  return (booking.order.items || []).map(function(item) {
+    const details = buildBookingNotificationItemDetails_(item);
+    return [
+      '<div style="padding:14px 0;border-bottom:1px solid #ECE8FF">',
+      '<div style="display:flex;gap:12px;justify-content:space-between;align-items:flex-start">',
+      '<div>',
+      '<strong style="display:block;color:#280F8C;font-size:15px;line-height:1.25">' + escapeNotificationHtml_(item.itemName) + '</strong>',
+      '<span style="display:block;margin-top:4px;color:#6F67A8;font-size:12px">' + escapeNotificationHtml_(item.category || item.servingInfo || "") + '</span>',
+      '</div>',
+      '<div style="text-align:right;white-space:nowrap;color:#280F8C;font-weight:bold;font-size:14px">',
+      escapeNotificationHtml_(item.quantity) + ' x ' + escapeNotificationHtml_(formatNotificationMoney_(item.unitPrice)),
+      '<br><span style="font-size:13px;color:#4F34C7">' + escapeNotificationHtml_(formatNotificationMoney_(item.lineTotal)) + '</span>',
+      '</div>',
+      '</div>',
+      details ? '<div style="margin-top:9px;color:#5F5A82;font-size:12px;line-height:1.45">' + escapeNotificationHtml_(details) + '</div>' : '',
+      '</div>'
+    ].join("");
+  }).join("");
+}
+
+function buildBookingNotificationItemDetails_(item) {
+  const choices = (item.choices || [])
+    .filter(function(choice) { return choice && choice.value !== "" && choice.value !== null && choice.value !== undefined; })
+    .map(function(choice) {
+      return choice.label + ": " + (Array.isArray(choice.value) ? choice.value.join(", ") : choice.value);
+    });
+  return [
+    item.timeRequired ? "Time: " + item.timeRequired : "",
+    item.description || "",
+    choices.join("; "),
+    item.comments ? "Comment: " + item.comments : ""
+  ].filter(Boolean).join(" | ");
 }
 
 function formatNotificationMoney_(value) {
