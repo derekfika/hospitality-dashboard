@@ -54,7 +54,12 @@
     <header class="topbar">
 
       <div class="logo-wrap">
-        <div class="demo-logo-placeholder">YOUR LOGO HERE</div>
+        <? const primaryLogoUrl = getConfiguredValue_("PRIMARY_LOGO_URL", CONFIG.PRIMARY_LOGO_URL); ?>
+        <? if (primaryLogoUrl) { ?>
+        <img class="fika-logo" src="<?!= primaryLogoUrl ?>" alt="FIKA">
+        <? } else { ?>
+        <div class="fika-logo-fallback">FIKA</div>
+        <? } ?>
       </div>
 
       <div class="header-title">

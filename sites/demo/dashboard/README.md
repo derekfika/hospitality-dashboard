@@ -1,19 +1,16 @@
-# Demo Hospitality Dashboard
+# FIKA Hospitality Dashboard
 
-Unbranded site-manager dashboard for demo hospitality bookings.
+FIKA-branded site-manager dashboard for hospitality booking demos.
 
-This project keeps the current dashboard workflow: booking review, quote generation, calendar creation, confirmation email handling, settings, feedback, and recent quote/calendar fixes. Live IDs and brand-specific defaults have been removed.
+This project keeps the current dashboard workflow: booking review, quote generation, calendar creation, confirmation email handling, settings, feedback, and recent quote/calendar fixes.
 
-## Demo Defaults
+## FIKA Defaults
 
-- App name: `Demo Hospitality Dashboard`
-- Location name/code: `Demo Building` / `DEMO`
-- Dashboard spreadsheet ID: blank
-- Quote template ID: `REPLACE_WITH_DEMO_QUOTE_TEMPLATE_DOC_ID`
-- Quote/root folder fallback: `Demo Hospitality`
-- Processed Gmail label fallback: `DEMO_HOSPITALITY_PROCESSED`
-- Calendar ID: blank
-- Logo placeholder: `YOUR LOGO HERE`
-- Palette: neutral greys and soft warm paper
+- App name: `FIKA Hospitality Dashboard`
+- Location name/code: `FIKA Hospitality` / `FIKA`
+- Primary logo: FIKA logo URL
+- Quote/root folder fallback: `FIKA Hospitality`
+- Management fee: disabled
+- Palette: FIKA Purple with bright brand accents
 
-Before deploying, create/link a new Apps Script project, connect a demo dashboard spreadsheet, and complete the Settings sheet values.
+Before deploying, create/link an Apps Script project, connect the dashboard spreadsheet, and complete the Settings sheet values.

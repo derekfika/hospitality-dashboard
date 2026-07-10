@@ -6,14 +6,14 @@ const CONFIG = {
   APP_ENVIRONMENT: "Production",
 
   QUOTE_TEMPLATE_DOC_ID: "1bsEk_0u6y2dqLj1KRm6updGmc96L2pR_jwLPugaVSdk",
-  QUOTE_ROOT_FOLDER_NAME: "Demo Hospitality",
+  QUOTE_ROOT_FOLDER_NAME: "FIKA Hospitality",
   SHEET_NAME: "Dashboard Data",
   DASHBOARD_SPREADSHEET_ID: "",
 
   PRINTER_EMAIL: "mvt5149ww1d8q0@print.epsonconnect.com",
 
   DRIVE: {
-    ROOT_FOLDER_NAME: "Demo Hospitality"
+    ROOT_FOLDER_NAME: "FIKA Hospitality"
   },
 
   CALENDAR: {
@@ -42,32 +42,32 @@ const CONFIG = {
   CALENDAR_EVENT_DURATION_MINUTES: 60,
   CALENDAR_EVENT_START_OFFSET_MINUTES: -15,
 
-  APP_NAME: "Demo Hospitality Dashboard",
-  LOCATION_NAME: "Demo Building",
-  LOCATION_SHORT_CODE: "DEMO",
+  APP_NAME: "FIKA Hospitality Dashboard",
+  LOCATION_NAME: "FIKA Hospitality",
+  LOCATION_SHORT_CODE: "FIKA",
 
-  PRIMARY_LOGO_URL: "",
+  PRIMARY_LOGO_URL: "https://fikacatering.com/assets/fika_logoRGB.png",
   ANGEL_COURT_LOGO_URL: "",
   SEVEN_LOGO_URL: "",
   FAVICON_URL: "",
 
   FONT_TITLE_URL: "",
   FONT_BODY_URL: "",
-  FONT_TITLE_FAMILY: "Arial",
-  FONT_BODY_FAMILY: "Arial",
+  FONT_TITLE_FAMILY: "VIM",
+  FONT_BODY_FAMILY: "Gilroy",
 
-  COLOUR_BACKGROUND: "#F4F3EF",
+  COLOUR_BACKGROUND: "#F4F3FF",
   COLOUR_SURFACE: "#FFFFFF",
-  COLOUR_SURFACE_ALT: "#ECE9E3",
-  COLOUR_TEXT: "#243036",
-  COLOUR_TEXT_MUTED: "#667176",
-  COLOUR_BORDER: "#D7D2C8",
-  COLOUR_PRIMARY: "#4F5D64",
-  COLOUR_SECONDARY: "#2F383D",
-  COLOUR_SUCCESS: "#527866",
-  COLOUR_WARNING: "#8A6E3E",
-  COLOUR_DANGER: "#8C4F4F",
-  COLOUR_INFO: "#55737C",
+  COLOUR_SURFACE_ALT: "#F8F6FF",
+  COLOUR_TEXT: "#241F33",
+  COLOUR_TEXT_MUTED: "#6F67A8",
+  COLOUR_BORDER: "#D9D4F4",
+  COLOUR_PRIMARY: "#4F34C7",
+  COLOUR_SECONDARY: "#280F8C",
+  COLOUR_SUCCESS: "#50D700",
+  COLOUR_WARNING: "#FFE800",
+  COLOUR_DANGER: "#FF5C00",
+  COLOUR_INFO: "#4DF7C2",
 
   ADMIN_PIN_HASH: "1bea20e1df19b12013976de2b5e0e3d1fb4ba088b59fe53642c324298b21ffd9",
 
@@ -88,7 +88,7 @@ const CONFIG = {
   USE_FIRST_SERVICE_TIME_ONLY: true,
   ALLOW_EVENING_TIMES: true,
 
-  DEFAULT_LOCATION: "Demo Building",
+  DEFAULT_LOCATION: "FIKA Hospitality",
   DEFAULT_FLOOR: "",
 
   // =========================
@@ -308,7 +308,7 @@ function getSettingSchema_() {
       title: "Admin: Advanced Branding",
       access: "admin",
       fields: [
-        { key: "ANGEL_COURT_LOGO_URL", label: "Demo logo URL", type: "url", fallback: CONFIG.ANGEL_COURT_LOGO_URL, notes: "Reserved for future branded quote/dashboard use." },
+        { key: "ANGEL_COURT_LOGO_URL", label: "Site logo URL", type: "url", fallback: CONFIG.ANGEL_COURT_LOGO_URL, notes: "Reserved for future branded quote/dashboard use." },
         { key: "SEVEN_LOGO_URL", label: "Secondary logo URL", type: "url", fallback: CONFIG.SEVEN_LOGO_URL, notes: "Reserved for future branded quote/dashboard use." },
         { key: "FONT_TITLE_URL", label: "Title font URL", type: "url", fallback: CONFIG.FONT_TITLE_URL, notes: "Optional font file URL for headings." },
         { key: "FONT_BODY_URL", label: "Body font URL", type: "url", fallback: CONFIG.FONT_BODY_URL, notes: "Optional font file URL for body text." },
@@ -362,7 +362,7 @@ function getDashboardAbout_() {
     developerEmail: CONFIG.APP_DEVELOPER_EMAIL,
     environment: CONFIG.APP_ENVIRONMENT,
     platform: "Google Apps Script",
-    company: "Demo Hospitality"
+    company: "FIKA Hospitality"
   };
 }
 
@@ -375,10 +375,7 @@ function getDashboardSettings() {
 
   schema.forEach(section => {
     section.fields.forEach(field => {
-      values[field.key] =
-        stored[field.key] !== undefined && stored[field.key] !== ""
-          ? stored[field.key]
-          : field.fallback;
+      values[field.key] = getConfiguredValue_(field.key, field.fallback);
     });
   });
 
@@ -735,13 +732,37 @@ function getConfiguredValue_(key, fallback) {
     return fallback;
   }
 
-  if (key === "COLOUR_PRIMARY" && String(value).trim().toUpperCase() === "#202020") {
+  if (key === "PRIMARY_LOGO_URL" && !String(value || "").trim()) {
     return fallback;
   }
 
-  if (key === "COLOUR_SECONDARY" && String(value).trim().toUpperCase() === "#8A8A8A") {
+  if (key === "APP_NAME" && String(value).toLowerCase().indexOf("demo") > -1) {
     return fallback;
   }
+
+  if (key === "LOCATION_NAME" && String(value).toLowerCase().indexOf("demo") > -1) {
+    return fallback;
+  }
+
+  if (key === "DEFAULT_LOCATION" && String(value).toLowerCase().indexOf("demo") > -1) {
+    return fallback;
+  }
+
+  if (key === "QUOTE_ROOT_FOLDER_NAME" && String(value).toLowerCase().indexOf("demo") > -1) {
+    return fallback;
+  }
+
+  if (key === "COLOUR_PRIMARY" && ["#202020", "#4F5D64"].indexOf(String(value).trim().toUpperCase()) > -1) {
+    return fallback;
+  }
+
+  if (key === "COLOUR_SECONDARY" && ["#8A8A8A", "#2F383D"].indexOf(String(value).trim().toUpperCase()) > -1) {
+    return fallback;
+  }
+
+  if (key === "COLOUR_BACKGROUND" && String(value).trim().toUpperCase() === "#F4F3EF") return fallback;
+  if (key === "COLOUR_TEXT" && String(value).trim().toUpperCase() === "#243036") return fallback;
+  if (key === "COLOUR_BORDER" && String(value).trim().toUpperCase() === "#D7D2C8") return fallback;
 
   return value === "" || value === null || value === undefined ? fallback : value;
 }

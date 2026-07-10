@@ -19,10 +19,10 @@ const DEMO_FEEDBACK_ITEM_HEADERS = [
 
 function sendDemoFeedbackRequest_(dashboardBooking) {
   try {
-    if (!SITE_CONFIG.feedback.enabled) return { sent: false, reason: "Demo feedback is disabled." };
+    if (!SITE_CONFIG.feedback.enabled) return { sent: false, reason: "Feedback is disabled." };
     const settings = getPlatformSettings_();
     const recipient = normaliseDemoFeedbackRecipient_(settings.DEMO_FEEDBACK_RECIPIENT);
-    if (!recipient) return { sent: false, reason: "No demo feedback recipient configured." };
+    if (!recipient) return { sent: false, reason: "No feedback recipient configured." };
 
     const webAppUrl = String(settings.FEEDBACK_WEB_APP_URL || SITE_CONFIG.feedback.webAppUrl || "").trim();
     if (!/^https:\/\/\S+\/exec(?:\?|$)/i.test(webAppUrl)) {
@@ -56,7 +56,7 @@ function sendDemoFeedbackRequest_(dashboardBooking) {
     sendDemoFeedbackEmail_(dashboardBooking, recipient, buildDemoFeedbackLink_(webAppUrl, token));
     return { sent: true, recipient: recipient };
   } catch (error) {
-    console.error("Demo feedback request failed: " + error.message);
+    console.error("Feedback request failed: " + error.message);
     return { sent: false, reason: error.message };
   }
 }
@@ -72,9 +72,9 @@ function buildDemoFeedbackLink_(webAppUrl, token) {
 }
 
 function sendDemoFeedbackEmail_(booking, recipient, link) {
-  const subject = "Demo feedback link | " + booking.bookingId;
+  const subject = "FIKA feedback link | " + booking.bookingId;
   const body = [
-    "A demo hospitality booking has been submitted.",
+    "A FIKA hospitality booking has been submitted.",
     "",
     "Booking reference: " + booking.bookingId,
     "Client: " + (booking.clientCompany || ""),
@@ -84,17 +84,17 @@ function sendDemoFeedbackEmail_(booking, recipient, link) {
     link
   ].join("\n");
   const html = [
-    '<div style="font-family:Arial,sans-serif;color:#243036;max-width:620px">',
-    '<div style="background:#4f5d64;color:#fff;padding:24px 28px">',
-    '<div style="font-size:12px;font-weight:bold;letter-spacing:1.3px;text-transform:uppercase">Demo hospitality</div>',
+    '<div style="font-family:Gilroy,Arial,sans-serif;color:#280F8C;max-width:620px">',
+    '<div style="background:#4F34C7;color:#fff;padding:24px 28px">',
+    '<div style="font-size:12px;font-weight:bold;letter-spacing:1.3px;text-transform:uppercase">FIKA hospitality</div>',
     '<h1 style="margin:8px 0 0;font-size:26px">Feedback link ready</h1>',
     '</div>',
-    '<div style="padding:26px 28px;border:1px solid #d9ddd8;border-top:0;background:#fff">',
-    '<p>A demo booking has been submitted and is ready for feedback.</p>',
+    '<div style="padding:26px 28px;border:1px solid #d9d4f4;border-top:0;background:#fff">',
+    '<p>A FIKA booking has been submitted and is ready for feedback.</p>',
     '<p><strong>Reference:</strong> ' + escapeDemoFeedbackHtml_(booking.bookingId) + '</p>',
     '<p><strong>Client:</strong> ' + escapeDemoFeedbackHtml_(booking.clientCompany || '') + '</p>',
     '<p><strong>Date:</strong> ' + escapeDemoFeedbackHtml_(booking.eventDate || '') + '</p>',
-    '<p style="margin:24px 0"><a href="' + escapeDemoFeedbackHtml_(link) + '" style="display:inline-block;background:#75efb8;color:#243036;padding:13px 18px;text-decoration:none;font-weight:bold">Leave demo feedback</a></p>',
+    '<p style="margin:24px 0"><a href="' + escapeDemoFeedbackHtml_(link) + '" style="display:inline-block;background:#4DF7C2;color:#280F8C;padding:13px 18px;text-decoration:none;font-weight:bold">Leave feedback</a></p>',
     '</div></div>'
   ].join("");
   MailApp.sendEmail({

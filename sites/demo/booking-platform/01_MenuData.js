@@ -64,7 +64,7 @@ const MENU_SCHEMA = Object.freeze([
   menuItem_("weekly_salad_box", "Salads & Sushi", "Weekly Salad Box", "Weekly salad boxes available. Menu on request.", "Per box", 20, 1, null, 3, [], 290),
   menuItem_("deluxe_sushi_box", "Salads & Sushi", "Deluxe Sushi Box", "84 pieces. Mixed selection of nigiri, maki and uramaki served with pickled ginger, wasabi and soy.", "Feeds 8 to 12 people", 160, 1, null, 3, [], 300),
   menuItem_("vegan_sushi_box", "Salads & Sushi", "Vegan Sushi Box", "72 pieces. Mixed plant based selection of nigiri, maki and uramaki served with pickled ginger, wasabi and soy.", "Feeds 8 to 12 people", 120, 1, null, 3, [], 310),
-  menuItem_("glow_bowl", "Salads & Sushi", "Demo Glow Bowl", "Individual salad bowl. Choose avocado Mex, sweet potato & quinoa, Mediterranean veg, or Asian prawn & edamame.", "Per person", 12.95, 8, 8, 3, [
+  menuItem_("glow_bowl", "Salads & Sushi", "FIKA Glow Bowl", "Individual salad bowl. Choose avocado Mex, sweet potato & quinoa, Mediterranean veg, or Asian prawn & edamame.", "Per person", 12.95, 8, 8, 3, [
     choice_("bowl", "Choose bowl", "select", true, ["Avocado Mex Bowl", "Sweet Potato & Quinoa Bowl", "Mediterranean Veg Bowl", "Asian Prawn & Edamame Bowl", "Mixed"])
   ], 320),
 
@@ -78,8 +78,8 @@ const MENU_SCHEMA = Object.freeze([
   menuItem_("hot_fork_buffet_gold", "Fork Buffet & Bowl Food", "Hot Fork Buffet - Gold Package", "Meat, fish, vegan, two sides, four salads and one dessert. Menu on request.", "Per person", 28, 12, 12, 7, [], 450),
   menuItem_("hot_fork_buffet_silver", "Fork Buffet & Bowl Food", "Hot Fork Buffet - Silver Package", "Meat, vegan, two sides and four salads. Menu on request.", "Per person", 20, 12, 12, 7, [], 460),
   menuItem_("bowl_food", "Fork Buffet & Bowl Food", "Bowl Food", "Three bowls per person. Example menu includes chorizo jambalaya, plant based cumin lamb meatball tagine and hot smoked salmon Caesar salad.", "Per person", 30, 20, 20, 7, [], 470),
-  menuItem_("canapes", "Canapes", "Demo Canapes", "Six items per person. Hot canapes can only be offered on sites with an oven or a hire charge.", "Per person - minimum 20", 30, 20, 20, 7, [], 480),
-  menuItem_("corporate_dining", "Dining", "Demo Corporate Dining", "Bespoke seated dining menus served with homemade focaccia and flavoured butters. One menu per booking.", "Per person - minimum 12", 45, 12, 12, 7, [], 490),
+  menuItem_("canapes", "Canapes", "FIKA Canapes", "Six items per person. Hot canapes can only be offered on sites with an oven or a hire charge.", "Per person - minimum 20", 30, 20, 20, 7, [], 480),
+  menuItem_("corporate_dining", "Dining", "FIKA Corporate Dining", "Bespoke seated dining menus served with homemade focaccia and flavoured butters. One menu per booking.", "Per person - minimum 12", 45, 12, 12, 7, [], 490),
   menuItem_("christmas_themed_menu", "Bespoke Events", "Example Christmas Themed Menu", "Roast turkey with trimmings, butternut squash wellington, roast potatoes, honey glazed roots, Brussels sprouts, chocolate orange cheesecake, mince pies and brandy cream.", "Per person - minimum 50 - from price", 25, 50, 50, 10, [], 500),
   menuItem_("bespoke_event", "Bespoke Events", "Bespoke Event Menu", "For Thanksgiving, Christmas, Valentine's Day or other themed events. The team will create a tailored proposal.", "Price on request", 0, 1, null, 7, [], 510)
 ]);

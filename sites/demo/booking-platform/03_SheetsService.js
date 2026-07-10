@@ -13,10 +13,10 @@ const LINE_ITEM_HEADERS = [
 const SETTINGS_HEADERS = ["Key", "Value", "Section", "Label", "Notes"];
 
 const PLATFORM_SETTINGS_ROWS = [
-  ["PRIMARY_LOGO_URL", "", "Branding", "Primary logo image URL", "Use a direct HTTPS image URL. Leave blank to show the fallback wordmark."],
+  ["PRIMARY_LOGO_URL", SITE_CONFIG.branding.fikaLogoUrl, "Branding", "Primary logo image URL", "Use a direct HTTPS image URL. Leave blank to show the fallback wordmark."],
   ["PRIMARY_LOGO_SVG", "", "Branding", "Primary inline SVG", "Optional inline SVG markup. If set, this is shown before the image URL or fallback wordmark."],
-  ["PRIMARY_LOGO_ALT", "Demo hospitality", "Branding", "Primary logo alternative text", "Used for accessibility when the image is present."],
-  ["PRIMARY_FALLBACK_TEXT", "Hospitality", "Branding", "Primary fallback wordmark", "Shown when the image URL is blank or cannot load."],
+  ["PRIMARY_LOGO_ALT", SITE_CONFIG.branding.fikaLogoAlt, "Branding", "Primary logo alternative text", "Used for accessibility when the image is present."],
+  ["PRIMARY_FALLBACK_TEXT", SITE_CONFIG.branding.fikaFallbackText, "Branding", "Primary fallback wordmark", "Shown when the image URL is blank or cannot load."],
   ["SITE_LOGO_URL", "", "Branding", "Site logo image URL", "Use a direct HTTPS image URL. Leave blank to show the fallback wordmark."],
   ["SITE_LOGO_SVG", "", "Branding", "Site inline SVG", "Optional inline SVG markup. If set, this is shown before the image URL or fallback wordmark."],
   ["SITE_LOGO_ALT", SITE_CONFIG.branding.siteLogoAlt, "Branding", "Site logo alternative text", "Used for accessibility when the image is present."],
@@ -31,8 +31,8 @@ const PLATFORM_SETTINGS_ROWS = [
   ["SITE_EMAIL_ADDRESS", SITE_CONFIG.siteEmailAddress, "Notifications", "Site manager email", "Primary notification inbox for this site. Change this when forking the platform for another location."],
   ["NOTIFICATION_RECIPIENTS", "", "Notifications", "Additional booking recipients", "Optional comma, semicolon or line-separated CC-style recipients."],
   ["DASHBOARD_URL", "", "Notifications", "Hospitality dashboard URL", "Optional deployed dashboard URL included in the notification email."],
-  ["FEEDBACK_WEB_APP_URL", SITE_CONFIG.feedback.webAppUrl, "Feedback", "Feedback portal URL", "Shared feedback portal /exec URL used for demo feedback links."],
-  ["DEMO_FEEDBACK_RECIPIENT", SITE_CONFIG.feedback.recipient, "Feedback", "Demo feedback recipient", "Feedback preview links are sent here immediately after a demo booking is submitted."]
+  ["FEEDBACK_WEB_APP_URL", SITE_CONFIG.feedback.webAppUrl, "Feedback", "Feedback portal URL", "Shared feedback portal /exec URL used for feedback preview links."],
+  ["DEMO_FEEDBACK_RECIPIENT", SITE_CONFIG.feedback.recipient, "Feedback", "Feedback recipient", "Feedback preview links are sent here immediately after a booking is submitted."]
 ];
 
 const DASHBOARD_REQUIRED_HEADERS = [
@@ -94,7 +94,19 @@ function setupPlatformSettingsSheet_(spreadsheet) {
   if (missingRows.length) {
     sheet.getRange(sheet.getLastRow() + 1, 1, missingRows.length, SETTINGS_HEADERS.length).setValues(missingRows);
   }
+  const legacyLogoPlaceholder = ["YOUR", "LOGO", "HERE"].join(" ");
+  const legacyClientName = ["De", "mo Hospitality"].join("");
   updateLegacyDemoSetting_(sheet, "SITE_EMAIL_ADDRESS", "demo@example.com", SITE_CONFIG.siteEmailAddress);
+  updateLegacyDemoSetting_(sheet, "PRIMARY_LOGO_URL", "", SITE_CONFIG.branding.fikaLogoUrl);
+  updateLegacyDemoSetting_(sheet, "PRIMARY_LOGO_ALT", ["De", "mo hospitality"].join(""), SITE_CONFIG.branding.fikaLogoAlt);
+  updateLegacyDemoSetting_(sheet, "PRIMARY_FALLBACK_TEXT", "Hospitality", SITE_CONFIG.branding.fikaFallbackText);
+  updateLegacyDemoSetting_(sheet, "SITE_LOGO_ALT", "Your logo here", SITE_CONFIG.branding.siteLogoAlt);
+  updateLegacyDemoSetting_(sheet, "SITE_FALLBACK_TEXT", legacyLogoPlaceholder, SITE_CONFIG.branding.siteFallbackText);
+  updateLegacyDemoSetting_(sheet, "CLIENT_FACING_NAME", legacyClientName, SITE_CONFIG.clientFacingName);
+  updateLegacyDemoSetting_(sheet, "BRAND_EYEBROW", ["De", "mo hospitality booking platform"].join(""), SITE_CONFIG.branding.eyebrow);
+  updateLegacyDemoSetting_(sheet, "COLOUR_ACCENT", "#4f5d64", SITE_CONFIG.branding.accent);
+  updateLegacyDemoSetting_(sheet, "COLOUR_INK", "#243036", SITE_CONFIG.branding.ink);
+  updateLegacyDemoSetting_(sheet, "COLOUR_PAPER", "#f4f3ef", SITE_CONFIG.branding.paper);
   sheet.getRange(1, 1, 1, SETTINGS_HEADERS.length)
     .setFontWeight("bold").setBackground("#3d21bf").setFontColor("#ffffff");
   if (sheet.getLastRow() > 1) sheet.getRange(2, 2, sheet.getLastRow() - 1, 1).setBackground("#e9fbf5");

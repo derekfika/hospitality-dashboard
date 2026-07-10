@@ -518,7 +518,7 @@ function escapeRegex_(text) {
 }
 
 function printQuoteForRow(rowNumber) {
-  throw new Error("Printing quotes is not enabled on the demo dashboard.");
+  throw new Error("Printing quotes is not enabled on this dashboard.");
 }
 
 function printQuoteForRowDisabled_(rowNumber) {
@@ -529,7 +529,7 @@ function printQuoteForRowDisabled_(rowNumber) {
   let booking = safeJsonParse_(json, null);
   const siteName = getConfiguredValue_(
   "LOCATION_NAME",
-  "Demo Hospitality"
+  "FIKA Hospitality"
   );
   
   if (!booking) throw new Error("Could not read booking data.");
@@ -563,8 +563,9 @@ function printQuoteForRowDisabled_(rowNumber) {
 function sendBookingConfirmationEmail_(booking) {
   const ccAddress = getConfiguredValue_("CALENDAR_ID", CONFIG.CALENDAR_ID || "");
 
+  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
   const subject =
-    `Demo Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
+    `${siteName} | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
 
   const htmlBody = buildConfirmationEmailHtml_(booking);
   const plainTextBody = stripHtml_(htmlBody);
@@ -589,11 +590,12 @@ function sendBookingConfirmationEmail_(booking) {
 }
 
 function buildConfirmationSubject_(booking) {
-  return `Demo Hospitality | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
+  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
+  return `${siteName} | Booking Confirmed | ${formatEmailDate_(booking.eventDate)}`;
 }
 
 function buildConfirmationEmailHtml_(booking) {
-  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "Demo Hospitality");
+  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
   const primary = getConfiguredValue_("COLOUR_PRIMARY", CONFIG.COLOUR_PRIMARY || "#4F34C7");
   const accent = getConfiguredValue_("COLOUR_ACCENT", CONFIG.COLOUR_ACCENT || "#FF5C00");
   const paper = getConfiguredValue_("COLOUR_BACKGROUND", CONFIG.COLOUR_BACKGROUND || "#F8F6FF");
@@ -605,7 +607,7 @@ function buildConfirmationEmailHtml_(booking) {
     <div style="max-width:680px; margin:0 auto; padding:28px 18px;">
       <div style="background:#ffffff; border:1px solid #DDD8EA; border-radius:22px; overflow:hidden;">
         <div style="padding:28px 30px; background:${escapeEmailHtml_(primary)}; color:#ffffff;">
-          <div style="font-size:12px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.9;">Demo Hospitality</div>
+          <div style="font-size:12px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.9;">${escapeEmailHtml_(siteName)}</div>
           <h1 style="margin:8px 0 0; font-size:30px; line-height:1.1; font-weight:700;">Booking confirmed</h1>
           <p style="margin:10px 0 0; font-size:15px;">${escapeEmailHtml_(siteName)} - ${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</p>
         </div>
@@ -635,7 +637,7 @@ function buildConfirmationEmailHtml_(booking) {
           </div>
 
           <p style="margin:24px 0 0;">If anything needs changing before the service date, please let us know as soon as possible and we will do our best to help.</p>
-          <p style="margin:24px 0 0;">Kind regards,<br><strong style="color:${escapeEmailHtml_(primary)};">Demo Hospitality</strong></p>
+          <p style="margin:24px 0 0;">Kind regards,<br><strong style="color:${escapeEmailHtml_(primary)};">${escapeEmailHtml_(siteName)}</strong></p>
         </div>
       </div>
     </div>
@@ -783,14 +785,15 @@ function sendBookingCancellationEmail_(booking) {
 
   if (!to) throw new Error("Cannot send cancellation email. Host email is missing.");
 
+  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
   const subject =
-    `Demo Hospitality | Booking Cancelled | ${formatEmailDate_(booking.eventDate)}`;
+    `${siteName} | Booking Cancelled | ${formatEmailDate_(booking.eventDate)}`;
 
   const htmlBody = buildCancellationEmailHtml_(booking);
 
   GmailApp.sendEmail(to, subject, stripHtml_(htmlBody), {
     htmlBody,
-    name: "Demo Hospitality",
+    name: siteName,
     cc
   });
 
@@ -798,6 +801,7 @@ function sendBookingCancellationEmail_(booking) {
 }
 
 function buildCancellationEmailHtml_(booking) {
+  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
   return `
   <div style="font-family: Arial, sans-serif; color:#241F33; line-height:1.5; padding:24px;">
     <h2 style="color:#FF5C00; margin-bottom:8px;">Booking Cancelled</h2>
@@ -805,7 +809,7 @@ function buildCancellationEmailHtml_(booking) {
     <p>Hi there,</p>
 
     <p>
-      This email is to confirm that the following demo hospitality booking has been cancelled.
+      This email is to confirm that the following hospitality booking has been cancelled.
     </p>
 
     <div style="margin:22px 0; padding:18px; border:1px solid #DDD8EA; border-radius:14px; background:#FFF7F2;">
@@ -824,7 +828,7 @@ function buildCancellationEmailHtml_(booking) {
 
     <p style="margin-top:24px;">
       Kind regards,<br>
-      <strong>Demo Hospitality</strong>
+      <strong>${escapeEmailHtml_(siteName)}</strong>
     </p>
   </div>
   `;

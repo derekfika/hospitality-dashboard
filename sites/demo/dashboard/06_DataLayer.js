@@ -26,7 +26,7 @@ function getDashboardSheet_() {
   if (expectedSpreadsheetId && ss.getId() !== expectedSpreadsheetId) {
     throw new Error(
       "This dashboard script is connected to spreadsheet '" + ss.getName() +
-      "' (" + ss.getId() + "), but demo dashboard data should be in " +
+      "' (" + ss.getId() + "), but dashboard data should be in " +
       expectedSpreadsheetId + "."
     );
   }

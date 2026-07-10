@@ -793,7 +793,7 @@
     if (room) return room;
 
     const location = String(parsed.location || row.Location || "").trim();
-    const siteAddress = "Demo Building";
+    const siteAddress = "FIKA Hospitality";
 
     return location && location !== siteAddress ? location : "";
   }
@@ -834,7 +834,7 @@
           </button>
 
           <button class="icon-btn"
-            title="Printing is not enabled on the demo dashboard"
+            title="Printing is not enabled on this dashboard"
             disabled>
             ${ICONS.print || "Print"}
           </button>
@@ -864,7 +864,7 @@
           ${ICONS.open || "Open"}
         </button>
 
-        <button class="icon-btn" title="Printing is not enabled on the demo dashboard" disabled>
+        <button class="icon-btn" title="Printing is not enabled on this dashboard" disabled>
           ${ICONS.print || "Print"}
         </button>
 
@@ -1256,7 +1256,7 @@
       } else if (CALENDAR_ATTENDEE_OPTIONS.length) {
         status.textContent = "Untick anyone who should not be involved in this booking.";
       } else {
-        status.textContent = "No default attendees are configured. The event will be created on the demo calendar only.";
+        status.textContent = "No default attendees are configured. The event will be created on the configured calendar only.";
       }
     }
 
@@ -1766,9 +1766,9 @@
 
   function runDashboardClientTests() {
     const fixture = [
-      { BookingID: "A", Status: "READY", ClientCompany: "Acme", HostName: "Alex", HostEmail: "alex@example.com", ServiceType: "Breakfast", Location: "Demo Building", Floor: "7" },
-      { BookingID: "B", Status: "CONFIRMED", ClientCompany: "Beta", HostName: "Bea", HostEmail: "bea@example.com", ServiceType: "Lunch", Location: "Demo Building", Floor: "8" },
-      { BookingID: "C", Status: "ARCHIVED", ClientCompany: "Gamma", HostName: "Gus", HostEmail: "gus@example.com", ServiceType: "Drinks", Location: "Demo Building", Floor: "9" }
+      { BookingID: "A", Status: "READY", ClientCompany: "Acme", HostName: "Alex", HostEmail: "alex@example.com", ServiceType: "Breakfast", Location: "FIKA Hospitality", Floor: "7" },
+      { BookingID: "B", Status: "CONFIRMED", ClientCompany: "Beta", HostName: "Bea", HostEmail: "bea@example.com", ServiceType: "Lunch", Location: "FIKA Hospitality", Floor: "8" },
+      { BookingID: "C", Status: "ARCHIVED", ClientCompany: "Gamma", HostName: "Gus", HostEmail: "gus@example.com", ServiceType: "Drinks", Location: "FIKA Hospitality", Floor: "9" }
     ];
 
     const tests = [

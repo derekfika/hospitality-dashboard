@@ -1,8 +1,8 @@
 const SITE_CONFIG = Object.freeze({
   siteId: "demo",
-  siteName: "Demo Site",
-  address: "Demo Building, Demo Street",
-  clientFacingName: "Demo Hospitality",
+  siteName: "FIKA Hospitality",
+  address: "FIKA Hospitality",
+  clientFacingName: "FIKA Hospitality",
   currency: "GBP",
   locale: "en-GB",
   timeZone: "Europe/London",
@@ -41,20 +41,20 @@ const SITE_CONFIG = Object.freeze({
     requestAcknowledgement: "I understand this is a booking request and is subject to confirmation."
   },
   branding: {
-    eyebrow: "Demo hospitality booking platform",
-    heroTitle: "Hospitality, simply arranged.",
+    eyebrow: "FIKA hospitality",
+    heroTitle: "A fresh way to book hospitality.",
     heroBody: "Plan breakfast, lunch, afternoon food, drinks and events in one clear request.",
     fikaLogoSvg: "",
-    fikaLogoUrl: "",
-    fikaLogoAlt: "Demo hospitality",
-    fikaFallbackText: "Hospitality",
+    fikaLogoUrl: "https://fikacatering.com/assets/fika_logoRGB.png",
+    fikaLogoAlt: "FIKA",
+    fikaFallbackText: "Fika",
     siteLogoSvg: "",
     siteLogoUrl: "",
-    siteLogoAlt: "Your logo here",
-    siteFallbackText: "YOUR LOGO HERE",
-    accent: "#4f5d64",
-    ink: "#243036",
-    paper: "#f4f3ef"
+    siteLogoAlt: "FIKA Hospitality",
+    siteFallbackText: "Hospitality",
+    accent: "#4F34C7",
+    ink: "#280F8C",
+    paper: "#F4F3FF"
   }
 });
 
@@ -137,9 +137,7 @@ function getPlatformSettings_() {
       const key = String(row[0] || "").trim();
       const value = String(row[1] || "").trim();
       if (Object.prototype.hasOwnProperty.call(values, key) && value) {
-        values[key] = key === "SITE_EMAIL_ADDRESS" && value.toLowerCase() === "demo@example.com"
-          ? SITE_CONFIG.siteEmailAddress
-          : value;
+        values[key] = normaliseLegacyPlatformSetting_(key, value);
       }
     });
   } catch (error) {
@@ -147,4 +145,25 @@ function getPlatformSettings_() {
   }
 
   return values;
+}
+
+function normaliseLegacyPlatformSetting_(key, value) {
+  const text = String(value || "").trim();
+  const lower = text.toLowerCase();
+  const upper = text.toUpperCase();
+
+  if (key === "SITE_EMAIL_ADDRESS" && lower === "demo@example.com") return SITE_CONFIG.siteEmailAddress;
+  if (key === "PRIMARY_LOGO_URL" && !text) return SITE_CONFIG.branding.fikaLogoUrl;
+  if (key === "PRIMARY_LOGO_ALT" && lower.indexOf("demo") > -1) return SITE_CONFIG.branding.fikaLogoAlt;
+  if (key === "PRIMARY_FALLBACK_TEXT" && (lower === "hospitality" || lower.indexOf("demo") > -1)) return SITE_CONFIG.branding.fikaFallbackText;
+  if (key === "SITE_LOGO_ALT" && (lower.indexOf("your logo") > -1 || lower.indexOf("demo") > -1)) return SITE_CONFIG.branding.siteLogoAlt;
+  const legacyLogoPlaceholder = ["YOUR", "LOGO", "HERE"].join(" ");
+  if (key === "SITE_FALLBACK_TEXT" && (upper === legacyLogoPlaceholder || lower.indexOf("demo") > -1)) return SITE_CONFIG.branding.siteFallbackText;
+  if (key === "CLIENT_FACING_NAME" && lower.indexOf("demo") > -1) return SITE_CONFIG.clientFacingName;
+  if (key === "BRAND_EYEBROW" && lower.indexOf("demo") > -1) return SITE_CONFIG.branding.eyebrow;
+  if (key === "COLOUR_ACCENT" && upper === "#4F5D64") return SITE_CONFIG.branding.accent;
+  if (key === "COLOUR_INK" && upper === "#243036") return SITE_CONFIG.branding.ink;
+  if (key === "COLOUR_PAPER" && upper === "#F4F3EF") return SITE_CONFIG.branding.paper;
+
+  return text;
 }

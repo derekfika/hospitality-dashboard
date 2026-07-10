@@ -20,7 +20,7 @@ function runDashboardPureTests() {
   record("Status validation", testStatusValidation_);
   record("Settings draft column aliases", testSettingsDraftColumnAliases_);
   record("Locked status validation", testLockedStatusValidation_);
-  record("Demo delivery charge", testDemoDeliveryCharge_);
+  record("FIKA delivery charge", testDemoDeliveryCharge_);
 
   const failures = results.filter(result => !result.ok);
   return {
@@ -97,7 +97,7 @@ function makeDashboardTestBooking_() {
   booking.eventDate = "2026-07-14";
   booking.serviceTimes = ["08:30"];
   booking.serviceType = "Breakfast";
-  booking.location = "Demo Building";
+  booking.location = "FIKA Hospitality";
   booking.floor = "7";
   booking.totalPrice = 120;
   booking.mgmtFee = 0;
@@ -330,7 +330,7 @@ function testDemoDeliveryCharge_() {
   const withDelivery = applyMnkDeliveryCharge_(booking);
 
   assertDashboardEqual_(withDelivery.totalPrice, 155, "Delivery charge should add £35 to the food subtotal.");
-  assertDashboardEqual_(withDelivery.mgmtFee, 0, "Demo delivery charge should not add a management fee.");
+  assertDashboardEqual_(withDelivery.mgmtFee, 0, "FIKA delivery charge should not add a management fee.");
   assertDashboardEqual_(withDelivery.vat, 31, "Delivery charge VAT failed.");
   assertDashboardTest_(
     withDelivery.items.some(function(item) { return item.itemId === "demo_cpu_delivery_charge"; }),

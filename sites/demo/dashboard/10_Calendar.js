@@ -71,7 +71,7 @@ function createCalendarEventForRow(rowNumber, options) {
     );
   }
 
-  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "Demo Hospitality");
+  const siteName = getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "FIKA Hospitality");
 
   const start = applyCalendarStartOffset_(
     buildCalendarStart_(booking.eventDate, booking.serviceTimes[0]),
@@ -358,7 +358,7 @@ function selectCalendarAttendees_(attendeeConfig, options) {
 function makeCalendarAttendeeLabel_(email) {
   const local = String(email || "").split("@")[0] || "";
   const known = {
-    demo: "Demo",
+    demo: "FIKA",
     manager: "Manager",
     operations: "Operations"
   };

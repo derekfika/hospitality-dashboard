@@ -1987,28 +1987,28 @@
     }
   }
 
-  /* Demo neutral skin */
+  /* FIKA branded skin */
   :root {
-    --accent: #176f8e;
-    --accent-dark: #07496a;
-    --ink: #07506f;
-    --muted: #4d7890;
-    --paper: #eef8fb;
+    --accent: #4F34C7;
+    --accent-dark: #280F8C;
+    --ink: #280F8C;
+    --muted: #6f67a8;
+    --paper: #f4f3ff;
     --surface: #ffffff;
-    --line: #c7dfe8;
-    --mint: #2db8e8;
-    --cyan: #18a9d1;
+    --line: #d9d4f4;
+    --mint: #4DF7C2;
+    --cyan: #50D700;
     --radius: 6px;
     --radius-small: 4px;
-    --shadow-soft: 0 16px 44px rgba(7, 80, 111, .08);
-    --shadow-card: 0 7px 22px rgba(7, 80, 111, .08);
-    --shadow-hover: 0 16px 34px rgba(7, 80, 111, .16);
+    --shadow-soft: 0 16px 44px rgba(40, 15, 140, .12);
+    --shadow-card: 0 7px 22px rgba(40, 15, 140, .10);
+    --shadow-hover: 0 16px 34px rgba(40, 15, 140, .18);
   }
 
   body {
     color: var(--ink);
-    background: linear-gradient(180deg, #f5fcfe 0, var(--paper) 420px, #fff 100%);
-    font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(180deg, #fbfaff 0, var(--paper) 420px, #fff 100%);
+    font-family: "Gilroy", "Aptos", "Segoe UI", Arial, sans-serif;
   }
 
   .site-header {
@@ -2049,15 +2049,7 @@
   }
 
   .brand-mark::before {
-    content: "";
-    display: inline-block;
-    width: 34px;
-    height: 34px;
-    margin-right: 7px;
-    border-radius: 56% 44% 58% 42%;
-    vertical-align: -7px;
-    background: linear-gradient(135deg, #083d69 0 45%, #2fb7e6 46% 100%);
-    transform: rotate(-18deg);
+    content: none;
   }
 
   .brand-partner {
@@ -2131,7 +2123,8 @@
     min-height: 360px;
     padding: 118px clamp(22px, 7vw, 104px) 74px;
     background:
-      linear-gradient(135deg, #063f62 0%, #176f8e 48%, #2389a5 100%);
+      radial-gradient(circle at 78% 22%, rgba(77, 247, 194, .24), transparent 25rem),
+      linear-gradient(135deg, #280F8C 0%, #4F34C7 52%, #6d54dd 100%);
     color: #fff;
     box-shadow: inset 0 -56px var(--accent);
   }
@@ -2139,8 +2132,8 @@
   .hero::before {
     opacity: .18;
     background:
-      radial-gradient(circle at 18% 24%, rgba(255,255,255,.48), transparent 28rem),
-      radial-gradient(circle at 82% 68%, rgba(255,255,255,.28), transparent 24rem);
+      radial-gradient(circle at 18% 24%, rgba(255,255,255,.34), transparent 28rem),
+      radial-gradient(circle at 82% 68%, rgba(255,232,0,.18), transparent 24rem);
   }
 
   .hero h1 {
