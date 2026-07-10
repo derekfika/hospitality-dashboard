@@ -52,7 +52,7 @@ const MENU_SCHEMA = Object.freeze([
   menuItem_("individual_boxed_lunch", "Lunch Boxes", "Individual Boxed Lunch", "Deli style sandwich, pasta salad, vegetable crisps, sausage roll and mini traybake. Vegan and gluten-free available on request.", "Per person", 14.95, 8, 8, 3, [], 210),
   menuItem_("salad_protein_lunch_platter", "Lunch", "Salad & Protein Lunch Platter", "Three composite salads plus one meat protein, one fish protein and one veggie or vegan protein.", "Per person", 14, 8, 8, 3, [], 220),
   menuItem_("rice_paper_rolls", "Lunch", "Freshly Wrapped Rice Paper Rolls", "12 wraps per platter, each platter contains one flavour with dipping sauce.", "Feeds 3", 45, 1, null, 3, [
-    choice_("flavour", "Choose flavour", "select", true, ["Crayfish and avocado", "Hot smoked trout", "Char-siu pulled chicken", "Lemongrass, ginger & chilli chicken", "Rainbow vegetable roll (vegan)", "Hoisin tofu and rainbow veg (vegan)"])
+    choice_("flavour", "Choose flavour", "multi", true, ["Crayfish and avocado", "Hot smoked trout", "Char-siu pulled chicken", "Lemongrass, ginger & chilli chicken", "Rainbow vegetable roll (vegan)", "Hoisin tofu and rainbow veg (vegan)"])
   ], 230),
   menuItem_("grazing_charcuterie_box", "Grazing Boxes", "Grazing Box - Charcuterie", "Cobble Lane cured British charcuterie, Gordal olives, sun blush tomatoes, baby gherkins, stuffed cherrybell peppers, artisan breads, olive oil and balsamic.", "Feeds 10", 75, 1, null, 3, [], 240),
   menuItem_("cheese_box", "Grazing Boxes", "Cheese Box", "British county cheeses including Wookey Hole Cheddar, Colston Bassett Stilton, Hampshire Tunworth and Cornish Yarg in nettles with Stokes beer chutney and artisan biscuits.", "Feeds 10", 75, 1, null, 3, [], 250),

@@ -45,7 +45,7 @@ function syncConfirmedBookingsToRechargeSheet() {
 
     rechargeSheet.getRange(writeRow, target.dateCol).setValue(rowData.date);
     rechargeSheet.getRange(writeRow, target.detailCol).setValue(rowData.description);
-    rechargeSheet.getRange(writeRow, target.amountCol).setValue(rowData.gross);
+    rechargeSheet.getRange(writeRow, target.amountCol).setValue(rowData.net);
     rechargeSheet.getRange(writeRow, target.dateCol).setNumberFormat("dd/mm/yyyy");
     rechargeSheet.getRange(writeRow, target.amountCol).setNumberFormat("£#,##0.00");
 
@@ -64,7 +64,7 @@ function syncConfirmedBookingsToRechargeSheet() {
       rowNumber: rowNumber,
       bookingId: booking.bookingId || "",
       rechargeRow: writeRow,
-      gross: rowData.gross
+      net: rowData.net
     });
   }
 
@@ -92,7 +92,7 @@ function getRechargeSkipReason_(booking) {
   if (syncableStatuses.indexOf(status) === -1) return "Status is not calendar-created, confirmed or archived";
   if (booking.rechargeSyncedAt) return "Already recharged";
   if (!isBookingCompleteForRecharge_(booking)) return "Event date is not before today";
-  if (Number(booking.grossPrice || 0) <= 0) return "Missing gross total";
+  if (Number(booking.netPrice || 0) <= 0) return "Missing net total";
 
   return "";
 }
@@ -156,10 +156,9 @@ function getRechargeTarget_(sheet) {
   const dateCol = findHeaderColumn_(headers, ["date"]) || 1;
   const detailCol = findHeaderColumn_(headers, ["detail", "description"]) || 2;
   const amountCol = findHeaderColumn_(headers, [
-    "gross",
-    "total gross",
-    "value",
+    "net",
     "value (net)",
+    "value",
     "amount",
     "total"
   ]) || 3;
@@ -244,7 +243,7 @@ function buildRechargeRow_(booking) {
   return {
     date: parseRechargeDate_(booking.eventDate),
     description: buildRechargeDescription_(booking),
-    gross: Number(booking.grossPrice || 0)
+    net: Number(booking.netPrice || 0)
   };
 }
 

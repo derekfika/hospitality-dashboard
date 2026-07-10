@@ -191,7 +191,7 @@ function validateBookingRequest_(booking) {
     const schemaItem = MENU_SCHEMA.find(function(candidate) { return candidate.id === item.itemId; });
     (schemaItem.choices || []).forEach(function(group) {
       const selected = item.choices.find(function(choice) { return choice.id === group.id; });
-      if (group.required && (!selected || !selected.value)) errors.push("Choose an option for " + item.itemName + ".");
+      if (group.required && (!selected || !hasSelectedChoiceValue_(selected.value))) errors.push("Choose an option for " + item.itemName + ".");
     });
   });
 
@@ -204,6 +204,10 @@ function validateBookingRequest_(booking) {
   }
 
   return { ok: errors.length === 0, errors: errors };
+}
+
+function hasSelectedChoiceValue_(value) {
+  return Array.isArray(value) ? value.length > 0 : Boolean(value);
 }
 
 function buildWarnings_(event, eventType, items, dietaries, now) {

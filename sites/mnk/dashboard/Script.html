@@ -1061,7 +1061,13 @@
         BUSY_BOOKING_ID = "";
         OPEN_BOOKING_ID = "";
         renderBookings();
-        showToast("Booking saved.", "success");
+        if (res && res.quoteRegenerated) {
+          showToast("Booking saved and quote regenerated.", "success");
+        } else if (res && res.quoteRegenerationError) {
+          showToast("Booking saved. Quote refresh failed: " + res.quoteRegenerationError, "error");
+        } else {
+          showToast("Booking saved.", "success");
+        }
         loadBookings(false);
       })
       .withFailureHandler(err => {

@@ -114,11 +114,37 @@ function updateBookingFromDashboard(rowNumber, patch) {
   booking = validateBooking_(booking);
 
   writeBookingObjectToExistingRow_(rowNumber, booking);
+  const quoteRefresh = refreshQuoteAfterDashboardEdit_(rowNumber, booking, sh, map);
+  booking = quoteRefresh.booking;
 
   return {
     ok: true,
-    booking
+    booking,
+    quoteRegenerated: quoteRefresh.regenerated,
+    quoteRegenerationError: quoteRefresh.error
   };
+}
+
+function refreshQuoteAfterDashboardEdit_(rowNumber, booking, sheet, map) {
+  const result = { booking: booking, regenerated: false, error: "" };
+
+  if (!booking.quoteUrl || (booking.validationErrors || []).length) return result;
+  if (typeof generateQuoteForRow !== "function") return result;
+
+  try {
+    generateQuoteForRow(rowNumber);
+    const refreshed = safeJsonParse_(sheet.getRange(rowNumber, map.ParsedJSON).getValue(), null);
+    if (refreshed) result.booking = refreshed;
+    result.regenerated = true;
+  } catch (error) {
+    result.error = error && error.message ? error.message : String(error);
+    booking.quoteStale = true;
+    booking.error = "Quote refresh failed: " + result.error;
+    writeBookingObjectToExistingRow_(rowNumber, booking);
+    result.booking = booking;
+  }
+
+  return result;
 }
 
 function applyMnkDeliveryCharge_(booking) {
@@ -188,16 +214,19 @@ function recalculateMnkDashboardTotals_(booking, fallbackFoodSubtotal) {
     return !(item && item.itemId === "mnk_cpu_delivery_charge");
   });
   const hasPricedFoodItems = foodItems.some(function(item) {
-    return !isNaN(Number(item.lineTotal)) || (!isNaN(Number(item.unitPrice)) && !isNaN(Number(item.qty)));
+    return isFiniteDashboardNumber_(item.unitPrice) || isFiniteDashboardNumber_(item.lineTotal);
   });
   const foodSubtotal = hasPricedFoodItems
     ? foodItems.reduce(function(total, item) {
-      const lineTotal = Number(item.lineTotal);
-      if (!isNaN(lineTotal)) return total + lineTotal;
+      if (isFiniteDashboardNumber_(item.unitPrice)) {
+        const qty = isFiniteDashboardNumber_(item.qty) ? Number(item.qty) : 0;
+        const unitPrice = Number(item.unitPrice);
+        item.lineTotal = roundMoney_(qty * unitPrice);
+        return total + item.lineTotal;
+      }
 
-      const qty = Number(item.qty || 0);
-      const unitPrice = Number(item.unitPrice || 0);
-      return total + (qty * unitPrice);
+      const lineTotal = isFiniteDashboardNumber_(item.lineTotal) ? Number(item.lineTotal) : 0;
+      return total + lineTotal;
     }, 0)
     : Number(fallbackFoodSubtotal || 0);
   const deliverySubtotal = booking.deliveryChargeRequired ? 35 : 0;
@@ -214,6 +243,11 @@ function recalculateMnkDashboardTotals_(booking, fallbackFoodSubtotal) {
   booking.grossPrice = roundMoney_(netPrice + vat);
 
   return booking;
+}
+
+function isFiniteDashboardNumber_(value) {
+  if (value === "" || value === null || value === undefined) return false;
+  return isFinite(Number(value));
 }
 
 function writeBookingObjectToExistingRow_(rowNumber, booking) {
