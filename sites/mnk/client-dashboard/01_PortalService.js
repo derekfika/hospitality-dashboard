@@ -1,5 +1,5 @@
-function getClientPortalData(accessKey) {
-  validatePortalAccess_(accessKey);
+function getClientPortalData(accessPin) {
+  validatePortalAccess_(accessPin);
   const bookings = readClientBookings_();
   return {
     viewer: { name: CLIENT_PORTAL_CONFIG.CLIENT_NAME },
@@ -13,11 +13,11 @@ function getClientPortalData(accessKey) {
   };
 }
 
-function validatePortalAccess_(accessKey) {
-  const expected = String(PropertiesService.getScriptProperties().getProperty("FELIPE_PORTAL_KEY") || "");
-  const supplied = String(accessKey || "");
-  if (!expected) throw new Error("The Felipe portal access key has not been configured.");
-  if (!supplied || supplied !== expected) throw new Error("This private portal link is not valid. Please ask the Fika team for the current link.");
+function validatePortalAccess_(accessPin) {
+  const expected = String(PropertiesService.getScriptProperties().getProperty("ACCESS_PIN") || "").trim();
+  const supplied = String(accessPin || "").trim();
+  if (!expected) throw new Error("The portal PIN has not been configured. Please contact the Fika team.");
+  if (!supplied || supplied !== expected) throw new Error("That PIN is not correct. Please try again.");
 }
 
 function readClientBookings_() {

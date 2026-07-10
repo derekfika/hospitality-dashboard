@@ -7,13 +7,23 @@
   <?!= include_("Styles"); ?>
 </head>
 <body>
-  <script>window.PORTAL_ACCESS_KEY = <?!= JSON.stringify(portalAccessKey) ?>;</script>
+  <div id="pinGate" class="gate" role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+    <form id="pinForm" class="pin-card">
+      <span class="eyebrow">FIKA AT MNK</span>
+      <h1 id="pinTitle">Welcome, Felipe</h1>
+      <p>Enter your PIN to view the MNK hospitality dashboard.</p>
+      <label for="pinInput">Access PIN</label>
+      <input id="pinInput" type="password" inputmode="numeric" autocomplete="current-password" required autofocus>
+      <button id="pinButton" type="submit">Open dashboard</button>
+      <p id="pinError" class="pin-error" role="alert" hidden></p>
+    </form>
+  </div>
   <main class="shell">
     <header class="hero">
       <div><span class="eyebrow">FIKA AT MNK</span><h1>My hospitality</h1><p id="welcome">Your bookings, all in one place.</p></div>
       <a id="bookButton" class="book" hidden>Book hospitality</a>
     </header>
-    <section id="loading" class="state">Loading your bookings…</section>
+    <section id="loading" class="state" hidden>Loading your bookings…</section>
     <section id="error" class="state error" hidden></section>
     <div id="portal" hidden>
       <section class="stats" aria-label="This week">
