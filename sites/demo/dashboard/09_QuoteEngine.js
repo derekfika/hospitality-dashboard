@@ -603,20 +603,22 @@ function buildConfirmationEmailHtml_(booking) {
   const hostGreeting = booking.hostName ? "Hi " + escapeEmailHtml_(booking.hostName) + "," : "Hi there,";
 
   return `
-  <div style="margin:0; padding:0; background:${escapeEmailHtml_(paper)}; font-family: Arial, Helvetica, sans-serif; color:#241F33; line-height:1.5;">
+  <div style="margin:0; padding:0; background:${escapeEmailHtml_(paper)}; font-family: Arial, Helvetica, sans-serif; color:#241176; line-height:1.5;">
     <div style="max-width:680px; margin:0 auto; padding:28px 18px;">
-      <div style="background:#ffffff; border:1px solid #DDD8EA; border-radius:22px; overflow:hidden;">
-        <div style="padding:28px 30px; background:${escapeEmailHtml_(primary)}; color:#ffffff;">
-          <div style="font-size:12px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.9;">${escapeEmailHtml_(siteName)}</div>
-          <h1 style="margin:8px 0 0; font-size:30px; line-height:1.1; font-weight:700;">Booking confirmed</h1>
-          <p style="margin:10px 0 0; font-size:15px;">${escapeEmailHtml_(siteName)} - ${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</p>
+      <div style="background:#ffffff; border:1px solid #E4DFFF; border-radius:20px; overflow:hidden;">
+        <div style="padding:32px 34px; background:${escapeEmailHtml_(primary)}; color:#ffffff;">
+          <img src="https://fikacatering.com/assets/fika_logoRGB.png" alt="FIKA" width="104" style="display:block;width:104px;max-width:104px;height:auto;margin:0 0 22px;border:0;filter:brightness(0) invert(1)">
+          <div style="font-size:11px; font-weight:bold; letter-spacing:1.8px; text-transform:uppercase; opacity:0.82;">FIKA Hospitality</div>
+          <h1 style="margin:8px 0 0; font-size:34px; line-height:1.08; font-weight:700;">Your booking is confirmed</h1>
+          <p style="margin:10px 0 0; font-size:15px; opacity:0.9;">${escapeEmailHtml_(siteName)} - ${escapeEmailHtml_(formatEmailDate_(booking.eventDate))}</p>
         </div>
 
-        <div style="padding:28px 30px;">
+        <div style="padding:32px 34px;">
           <p style="margin:0 0 14px;">${hostGreeting}</p>
-          <p style="margin:0 0 18px;">Your hospitality booking is confirmed and scheduled with our team. Here is a summary of what we have booked in for you.</p>
+          <p style="margin:0 0 18px;">Thanks for booking with FIKA Hospitality. Your request is confirmed and scheduled with our team.</p>
+          <p style="margin:0 0 22px;">Here is a clear summary of what we have booked in for you.</p>
 
-          <div style="margin:22px 0; padding:18px; border:1px solid #E4DEEF; border-radius:16px; background:#FBFAFF;">
+          <div style="margin:24px 0; padding:20px; border:1px solid #E4DFFF; border-radius:16px; background:#F7F5FF;">
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; font-size:14px;">
               <tr><td style="padding:6px 0; color:#6B627A;">Reference</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.bookingId)}</td></tr>
               <tr><td style="padding:6px 0; color:#6B627A;">Client</td><td style="padding:6px 0; text-align:right; font-weight:700;">${escapeEmailHtml_(booking.clientCompany || "")}</td></tr>
@@ -629,7 +631,7 @@ function buildConfirmationEmailHtml_(booking) {
             </table>
           </div>
 
-          <h2 style="margin:24px 0 12px; color:${escapeEmailHtml_(primary)}; font-size:20px;">Your booked items</h2>
+          <h2 style="margin:26px 0 12px; color:${escapeEmailHtml_(primary)}; font-size:20px;">Your booked items</h2>
           ${itemRows}
 
           <div style="margin:24px 0 0; padding:16px; border-left:4px solid ${escapeEmailHtml_(accent)}; background:#FFF8F4; border-radius:12px;">
@@ -637,7 +639,8 @@ function buildConfirmationEmailHtml_(booking) {
           </div>
 
           <p style="margin:24px 0 0;">If anything needs changing before the service date, please let us know as soon as possible and we will do our best to help.</p>
-          <p style="margin:24px 0 0;">Kind regards,<br><strong style="color:${escapeEmailHtml_(primary)};">${escapeEmailHtml_(siteName)}</strong></p>
+          <p style="margin:24px 0 0;">Thank you for choosing FIKA.</p>
+          <p style="margin:8px 0 0;">The FIKA Team</p>
         </div>
       </div>
     </div>
