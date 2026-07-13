@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 set "PROJECT_NAME=Angel Court Booking Platform"
-set "PROJECT_DIR=%~dp0client-booking-platform"
+set "PROJECT_DIR=%~dp0sites\angel-court\booking-platform"
 set "CLASP_USER=hospitality"
 set "DEPLOYMENT_ID=AKfycbzPU_s9PqvJnVKXT1LAi9ApoIM3SYDbkPkhzACkjis2hso8ZnKTCpRCR7E-3XG4uzAN"
 
@@ -36,7 +36,7 @@ if errorlevel 1 goto :failed
 call :clasp_command deploy --deploymentId "%DEPLOYMENT_ID%" --description "%MESSAGE%"
 if errorlevel 1 goto :failed
 
-git add -A -- "client-booking-platform"
+git add -A -- "sites\angel-court\booking-platform"
 if errorlevel 1 goto :failed
 git add -- "clientpush.bat"
 if errorlevel 1 goto :failed
