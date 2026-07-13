@@ -928,7 +928,7 @@
           ${editField("eventDate", "Event date", b.eventDate, "date")}
           ${editField("serviceTimes", "Service time", (b.serviceTimes || []).join(" / "))}
           ${editField("serviceType", "Service type", b.serviceType)}
-          ${editField("location", "Location", b.location)}
+          ${editField("location", "Room / area", getEditRoomValue_(row, b))}
           ${editField("floor", "Floor", b.floor)}
         </div>
 
@@ -976,6 +976,23 @@
         </div>
       </div>
     `;
+  }
+
+  function getEditRoomValue_(row, booking) {
+    const clientEvent = booking.clientBooking && booking.clientBooking.event
+      ? booking.clientBooking.event
+      : {};
+
+    return (
+      getDisplayRoom_(row) ||
+      booking.room ||
+      booking.roomOrArea ||
+      booking.deliveryPoint ||
+      clientEvent.roomOrArea ||
+      clientEvent.deliveryPoint ||
+      booking.location ||
+      ""
+    );
   }
 
   function editField(key, label, value, type = "text") {
@@ -1037,6 +1054,8 @@
       };
     });
 
+    const roomValue = document.getElementById("edit-location").value.trim();
+
     const patch = {
       clientCompany: document.getElementById("edit-clientCompany").value.trim(),
       hostName: document.getElementById("edit-hostName").value.trim(),
@@ -1045,7 +1064,9 @@
       eventDate: document.getElementById("edit-eventDate").value.trim(),
       serviceTimes: serviceTimes.map(t => normaliseTime_(t)),
       serviceType: document.getElementById("edit-serviceType").value.trim(),
-      location: document.getElementById("edit-location").value.trim(),
+      location: roomValue,
+      room: roomValue,
+      roomOrArea: roomValue,
       floor: document.getElementById("edit-floor").value.trim(),
       notes: document.getElementById("edit-notes") ? document.getElementById("edit-notes").value.trim() : "",
       deliveryChargeRequired: document.getElementById("edit-deliveryCharge") ? document.getElementById("edit-deliveryCharge").checked : false,
@@ -1858,6 +1879,74 @@
     });
   }
 
+  function openDeliveryReportModal() {
+    const modal = document.getElementById("deliveryReportModal");
+    if (!modal) return;
+
+    const days = getWorkingWeekDays_(CALENDAR_WEEK_START || getMonday_(new Date()));
+    const start = document.getElementById("deliveryReportStart");
+    const end = document.getElementById("deliveryReportEnd");
+    const status = document.getElementById("deliveryReportStatus");
+
+    if (start && !start.value) start.value = toIsoDate_(days[0]);
+    if (end && !end.value) end.value = toIsoDate_(days[days.length - 1]);
+    if (status) status.textContent = "";
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeDeliveryReportModal() {
+    const modal = document.getElementById("deliveryReportModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function generateDeliveryReport() {
+    const start = document.getElementById("deliveryReportStart");
+    const end = document.getElementById("deliveryReportEnd");
+    const status = document.getElementById("deliveryReportStatus");
+    const button = document.getElementById("deliveryReportGenerateBtn");
+
+    const startDate = start ? start.value : "";
+    const endDate = end ? end.value : "";
+    if (!startDate || !endDate) {
+      if (status) status.textContent = "Choose a start and end date.";
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Generating...";
+    }
+    if (status) status.textContent = "Generating delivery PDF...";
+    showToast("Generating delivery PDF...", "loading", true);
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Generate PDF";
+        }
+        if (res && res.url) {
+          if (status) status.textContent = `Created ${res.fileName || "delivery report"} with ${res.count || 0} bookings.`;
+          showToast(`Delivery PDF ready. ${res.count || 0} bookings included.`, "success");
+          window.open(res.url, "_blank");
+        } else {
+          if (status) status.textContent = "Delivery report did not return a PDF URL.";
+          showToast("Delivery report did not return a PDF URL.", "error");
+        }
+      })
+      .withFailureHandler(err => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Generate PDF";
+        }
+        const message = err && err.message ? err.message : err;
+        if (status) status.textContent = "Delivery PDF failed: " + message;
+        showToast("Delivery PDF failed: " + message, "error");
+      })
+      .generateHospitalityDeliveryPdf(startDate, endDate);
+  }
+
   window.setView = setView;
   window.openSettingsModal = openSettingsModal;
   window.closeSettingsModal = closeSettingsModal;
@@ -1876,4 +1965,7 @@
   window.runDashboardClientTests = runDashboardClientTests;
   window.closeAdminPinModal = closeAdminPinModal;
   window.submitAdminPin = submitAdminPin;
+  window.openDeliveryReportModal = openDeliveryReportModal;
+  window.closeDeliveryReportModal = closeDeliveryReportModal;
+  window.generateDeliveryReport = generateDeliveryReport;
 </script>

@@ -37,6 +37,8 @@ function generateQuoteForRow(rowNumber) {
 
   if (!quoteFile) {
     quoteFile = template.makeCopy(quoteName, folder);
+  } else {
+    moveQuoteFileToFolder_(quoteFile, folder);
   }
 
   const doc = DocumentApp.openById(quoteFile.getId());
@@ -358,7 +360,7 @@ function clearAndRefillQuoteDoc_(doc, booking) {
     "<SERVICE>": booking.serviceType || "",
     "<DELIVERYTIME>": (booking.serviceTimes || []).join(" / "),
     "<SERVICETIME>": (booking.serviceTimes || []).join(" / "),
-    "<LOCATION>": booking.location || "",
+    "<LOCATION>": getBookingRoomOrLocation_(booking),
     "<HOST>": booking.hostName || booking.hostEmail || "",
     "<INVOICEREFERENCE>": booking.invoiceReference || "",
     "<INVOICE_REFERENCE>": booking.invoiceReference || "",
@@ -451,6 +453,7 @@ function replaceQuoteOrderPlaceholder_(body, items) {
     appendQuoteText_(line, time, false, false, 10);
     appendQuoteText_(line, item.name || "Untitled item", true, false, 10);
     appendQuoteText_(line, qty, false, false, 10);
+    appendQuoteText_(line, getQuoteItemPriceText_(item), false, false, 10);
 
     const detailParts = [];
     if (item.detail) detailParts.push(item.detail);
@@ -514,6 +517,28 @@ function appendQuoteText_(paragraph, text, bold, italic, fontSize) {
     .setFontSize(fontSize || 10);
 }
 
+function getQuoteItemPriceText_(item) {
+  if (isFiniteQuoteNumber_(item.lineTotal)) return " - " + formatMoney_(Number(item.lineTotal));
+  if (isFiniteQuoteNumber_(item.unitPrice) && isFiniteQuoteNumber_(item.qty)) {
+    return " - " + formatMoney_(Number(item.unitPrice) * Number(item.qty));
+  }
+  return "";
+}
+
+function isFiniteQuoteNumber_(value) {
+  if (value === "" || value === null || value === undefined) return false;
+  return isFinite(Number(value));
+}
+
+function moveQuoteFileToFolder_(quoteFile, folder) {
+  if (!quoteFile || !folder) return;
+  try {
+    quoteFile.moveTo(folder);
+  } catch (error) {
+    console.warn("Quote file could not be moved to booking-date folder: " + (error && error.message ? error.message : error));
+  }
+}
+
 function buildQuoteItems_(booking) {
   const items = Array.isArray(booking.items) ? booking.items : [];
   const descriptionsByItemId = {};
@@ -539,6 +564,22 @@ function buildQuoteItems_(booking) {
   });
 }
 
+function getBookingRoomOrLocation_(booking) {
+  const clientEvent = booking.clientBooking && booking.clientBooking.event
+    ? booking.clientBooking.event
+    : {};
+
+  return (
+    booking.room ||
+    booking.roomOrArea ||
+    booking.deliveryPoint ||
+    clientEvent.roomOrArea ||
+    clientEvent.deliveryPoint ||
+    booking.location ||
+    ""
+  );
+}
+
 function getQuoteFolderForBooking_(booking) {
   const rootFolderName = getConfiguredValue_("QUOTE_ROOT_FOLDER_NAME", CONFIG.QUOTE_ROOT_FOLDER_NAME || "Hospitality");
   const root = getOrCreateDriveFolder_(rootFolderName);
@@ -551,8 +592,13 @@ function getQuoteFolderForBooking_(booking) {
     ? formatFolderMonth_(booking.eventDate)
     : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MM MMMM");
 
+  const day = booking.eventDate
+    ? String(booking.eventDate).slice(0, 10)
+    : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+
   const yearFolder = getOrCreateChildFolder_(root, year);
-  return getOrCreateChildFolder_(yearFolder, month);
+  const monthFolder = getOrCreateChildFolder_(yearFolder, month);
+  return getOrCreateChildFolder_(monthFolder, day);
 }
 
 function getOrCreateDriveFolder_(name) {

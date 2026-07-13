@@ -64,6 +64,7 @@
       </div>
       <div class="header-actions">
         <button class="button secondary" id="rechargeSyncBtn" onclick="syncRechargeSheet()">Sync recharge</button>
+        <button class="button secondary" onclick="openDeliveryReportModal()">Delivery PDF</button>
         <button class="button" onclick="loadBookings()">Refresh</button>
         <button class="icon-btn header-settings-btn" title="Settings" aria-label="Settings"
           onclick="openSettingsModal()">
@@ -162,6 +163,28 @@
     </main>
 
     <div id="toast" class="toast hidden"></div>
+
+    <div id="deliveryReportModal" class="modal hidden">
+      <div class="modal-card">
+        <h2>Delivery PDF</h2>
+        <p class="muted">Generate a printable delivery report for active hospitality bookings in a date range.</p>
+        <div class="edit-grid">
+          <label class="field">
+            <span>Start date</span>
+            <input id="deliveryReportStart" type="date">
+          </label>
+          <label class="field">
+            <span>End date</span>
+            <input id="deliveryReportEnd" type="date">
+          </label>
+        </div>
+        <div id="deliveryReportStatus" class="settings-status muted"></div>
+        <div class="modal-actions">
+          <button class="button secondary" onclick="closeDeliveryReportModal()" type="button">Cancel</button>
+          <button id="deliveryReportGenerateBtn" class="button" onclick="generateDeliveryReport()" type="button">Generate PDF</button>
+        </div>
+      </div>
+    </div>
 
     <div id="cancelModal" class="modal hidden">
       <div class="modal-card">
