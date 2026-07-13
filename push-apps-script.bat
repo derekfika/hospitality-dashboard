@@ -51,26 +51,26 @@ set /P "CONFIRM=Push selected projects? [Y/N]: "
 if /I not "%CONFIRM%"=="Y" goto :cancelled
 
 if not "%PROJECTS:1=%"=="%PROJECTS%" (
-  call :push_project "Angel Court Hospitality Dashboard" "%~dp0" "%HOSPITALITY_CLASP_USER%"
+  call :push_project "Angel Court Hospitality Dashboard" "%~dp0sites\angel-court\dashboard" "%HOSPITALITY_CLASP_USER%"
   if errorlevel 1 goto :failed
 )
 
 if not "%PROJECTS:2=%"=="%PROJECTS%" (
-  call :push_project "Client Booking Platform" "%~dp0client-booking-platform" "%HOSPITALITY_CLASP_USER%"
+  call :push_project "Client Booking Platform" "%~dp0sites\angel-court\booking-platform" "%HOSPITALITY_CLASP_USER%"
   if errorlevel 1 goto :failed
 )
 
 if not "%PROJECTS:3=%"=="%PROJECTS%" (
-  call :push_project "CPU Dashboard" "%~dp0cpu-dashboard" "%CPU_CLASP_USER%"
+  call :push_project "CPU Dashboard" "%~dp0shared\cpu-dashboard" "%CPU_CLASP_USER%"
   if errorlevel 1 goto :failed
 )
 
 if not "%PROJECTS:4=%"=="%PROJECTS%" (
-  call :ensure_clasp_login "%~dp0workforce-operations-platform" "%WORKFORCE_CLASP_USER%"
+  call :ensure_clasp_login "%~dp0shared\workforce-operations-platform" "%WORKFORCE_CLASP_USER%"
   if errorlevel 1 goto :failed
-  call :push_project "Workforce Operations Platform" "%~dp0workforce-operations-platform" "%WORKFORCE_CLASP_USER%"
+  call :push_project "Workforce Operations Platform" "%~dp0shared\workforce-operations-platform" "%WORKFORCE_CLASP_USER%"
   if errorlevel 1 goto :failed
-  call :deploy_project "Workforce Operations Platform" "%~dp0workforce-operations-platform" "%WORKFORCE_CLASP_USER%" "AKfycby66hUERHfHe3v1B-Ok66lXp92xpma7nzdwAITzdyNiqtf7uEgSQWEXqOitO5SMBo-f"
+  call :deploy_project "Workforce Operations Platform" "%~dp0shared\workforce-operations-platform" "%WORKFORCE_CLASP_USER%" "AKfycby66hUERHfHe3v1B-Ok66lXp92xpma7nzdwAITzdyNiqtf7uEgSQWEXqOitO5SMBo-f"
   if errorlevel 1 goto :failed
 )
 

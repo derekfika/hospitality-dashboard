@@ -23,28 +23,21 @@ set "MESSAGE="
 set /P "MESSAGE=Commit description [Update hospitality platforms]: "
 if not defined MESSAGE set "MESSAGE=Update hospitality platforms"
 
-call :commit_folder "Client Booking Platform" "client-booking-platform" "%MESSAGE% - booking platform"
+call :commit_folder "Client Booking Platform" "sites\angel-court\booking-platform" "%MESSAGE% - booking platform"
 if errorlevel 1 goto :failed
 
-call :commit_folder "CPU Dashboard" "cpu-dashboard" "%MESSAGE% - CPU dashboard"
+call :commit_folder "CPU Dashboard" "shared\cpu-dashboard" "%MESSAGE% - CPU dashboard"
 if errorlevel 1 goto :failed
 
-call :commit_folder "Workforce Operations Platform" "workforce-operations-platform" "%MESSAGE% - workforce operations platform"
+call :commit_folder "Workforce Operations Platform" "shared\workforce-operations-platform" "%MESSAGE% - workforce operations platform"
 if errorlevel 1 goto :failed
 
 echo.
 echo ------------------------------------------------------------
 echo  Staging Angel Court Hospitality Dashboard
 echo ------------------------------------------------------------
-git add -- ^
-  .claspignore .gitignore ^
-  00_config.js 02_Schema.js 03_Utils.js 04_Parser.js ^
-  05_GmailScanner.js 06_DataLayer.js 07_Webapp.js ^
-  08_DriveHelper.js 09_QuoteEngine.js 10_Calendar.js ^
-  11_Triggers.js 12_TestHarness.js appsscript.json ^
-  Index.html Styles.html Script.html Icons.html ^
-  README.md CHANGELOG.md ^
-  push-apps-script.bat push-git-projects.bat workforcepush.bat
+git add -A -- "sites\angel-court\dashboard" ^
+  "push-apps-script.bat" "push-git-projects.bat" "workforcepush.bat"
 if errorlevel 1 goto :failed
 
 call :commit_staged "%MESSAGE% - Angel Court dashboard"

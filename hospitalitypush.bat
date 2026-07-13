@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 set "PROJECT_NAME=Angel Court Hospitality Dashboard"
-set "PROJECT_DIR=%~dp0"
+set "PROJECT_DIR=%~dp0sites\angel-court\dashboard"
 set "CLASP_USER=hospitality"
 set "DEPLOYMENT_ID=AKfycbyLnNKaZVHf8ZcTbJOwZ9RQDxq5OYs4uO6gRZ0WXrcNfJtEuqvgz1_zlNupVmnfXQAU"
 
@@ -32,15 +32,8 @@ if errorlevel 1 goto :failed
 call :clasp_command deploy --deploymentId "%DEPLOYMENT_ID%" --description "%MESSAGE%"
 if errorlevel 1 goto :failed
 
-git add -- ^
-  .claspignore .gitignore ^
-  00_config.js 02_Schema.js 03_Utils.js 04_Parser.js ^
-  05_GmailScanner.js 06_DataLayer.js 07_Webapp.js ^
-  08_DriveHelper.js 09_QuoteEngine.js 10_Calendar.js ^
-  11_Triggers.js 12_TestHarness.js 13_Feedback.js appsscript.json ^
-  Index.html Styles.html Script.html Icons.html ^
-  README.md CHANGELOG.md hospitalitypush.bat ^
-  push-apps-script.bat push-git-projects.bat feedbackpush.bat
+git add -A -- "sites\angel-court\dashboard" "hospitalitypush.bat" ^
+  "push-apps-script.bat" "push-git-projects.bat" "feedbackpush.bat"
 if errorlevel 1 goto :failed
 
 call :commit_and_push "%MESSAGE% - Angel Court dashboard"
