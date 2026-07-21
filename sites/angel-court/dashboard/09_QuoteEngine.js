@@ -18,6 +18,7 @@ function generateQuoteForRow(rowNumber) {
 
   const folder = getQuoteFolderForBooking_(booking);
   const quoteName = makeQuoteName_(booking);
+  const templateId = getConfiguredValue_("QUOTE_TEMPLATE_DOC_ID", CONFIG.QUOTE_TEMPLATE_DOC_ID);
 
   let quoteFile;
 
@@ -29,7 +30,6 @@ function generateQuoteForRow(rowNumber) {
   }
 
   if (!quoteFile) {
-    const templateId = getConfiguredValue_("QUOTE_TEMPLATE_DOC_ID", CONFIG.QUOTE_TEMPLATE_DOC_ID);
     const template = DriveApp.getFileById(templateId);
     quoteFile = template.makeCopy(quoteName, folder);
   } else {
@@ -38,6 +38,7 @@ function generateQuoteForRow(rowNumber) {
   }
 
   const doc = DocumentApp.openById(quoteFile.getId());
+  if (booking.quoteUrl) resetQuoteDocumentFromTemplate_(doc, templateId);
   clearAndRefillQuoteDoc_(doc, booking);
   doc.saveAndClose();
 
@@ -53,6 +54,48 @@ function generateQuoteForRow(rowNumber) {
     ok: true,
     quoteUrl: quoteFile.getUrl()
   };
+}
+
+function resetQuoteDocumentFromTemplate_(targetDoc, templateId) {
+  const templateDoc = DocumentApp.openById(templateId);
+  resetQuoteSectionFromTemplate_(targetDoc.getBody(), templateDoc.getBody());
+
+  const sourceHeader = templateDoc.getHeader();
+  if (sourceHeader) {
+    resetQuoteSectionFromTemplate_(targetDoc.getHeader() || targetDoc.addHeader(), sourceHeader);
+  }
+
+  const sourceFooter = templateDoc.getFooter();
+  if (sourceFooter) {
+    resetQuoteSectionFromTemplate_(targetDoc.getFooter() || targetDoc.addFooter(), sourceFooter);
+  }
+
+  templateDoc.saveAndClose();
+}
+
+function resetQuoteSectionFromTemplate_(targetSection, sourceSection) {
+  targetSection.clear();
+
+  for (let i = 0; i < sourceSection.getNumChildren(); i++) {
+    appendQuoteTemplateElement_(targetSection, sourceSection.getChild(i));
+  }
+}
+
+function appendQuoteTemplateElement_(targetSection, sourceElement) {
+  const type = sourceElement.getType();
+  const copy = sourceElement.copy();
+
+  if (type === DocumentApp.ElementType.PARAGRAPH) {
+    targetSection.appendParagraph(copy.asParagraph());
+  } else if (type === DocumentApp.ElementType.TABLE) {
+    targetSection.appendTable(copy.asTable());
+  } else if (type === DocumentApp.ElementType.LIST_ITEM) {
+    targetSection.appendListItem(copy.asListItem());
+  } else if (type === DocumentApp.ElementType.HORIZONTAL_RULE) {
+    targetSection.appendHorizontalRule();
+  } else if (type === DocumentApp.ElementType.PAGE_BREAK) {
+    targetSection.appendPageBreak();
+  }
 }
 
 function getStatusAfterQuoteGeneration_(previousStatus) {
@@ -135,10 +178,28 @@ function ensureLineItemTimes_(booking) {
 }
 
 function clearAndRefillQuoteDoc_(doc, booking) {
-  const body = doc.getBody();
+  const replacements = getQuoteReplacements_(booking);
+  const sections = [doc.getBody(), doc.getHeader(), doc.getFooter()].filter(Boolean);
+  const requiredTokens = ["<SITE>", "<CLIENT>"];
 
-  const replacements = {
-    "<SITE>": getConfiguredValue_("LOCATION_SHORT_CODE", CONFIG.LOCATION_SHORT_CODE || "") || getConfiguredValue_("LOCATION_NAME", CONFIG.LOCATION_NAME || "") || booking.location || "",
+  assertQuoteTokensPresent_(sections, requiredTokens);
+
+  sections.forEach(function(section) {
+    Object.keys(replacements).forEach(function(key) {
+      replaceQuoteToken_(section, key, replacements[key]);
+    });
+  });
+
+  assertQuoteTokensReplaced_(sections, requiredTokens);
+
+  const body = doc.getBody();
+  styleQuoteNotes_(body, booking.notes || "");
+  replaceQuoteOrderPlaceholder_(body, booking.items || []);
+}
+
+function getQuoteReplacements_(booking) {
+  return {
+    "<SITE>": getQuoteSiteCode_(booking),
     "<CLIENT>": booking.clientCompany || "",
     "<FLOOR>": booking.floor || "",
     "<DAY>": formatDayName_(booking.eventDate),
@@ -158,14 +219,47 @@ function clearAndRefillQuoteDoc_(doc, booking) {
     "<VAT>": formatMoney_(booking.vat),
     "<GROSSPRICE>": formatMoney_(booking.grossPrice)
   };
+}
 
-  Object.keys(replacements).forEach(key => {
-    body.replaceText(escapeRegex_(key), String(replacements[key] || ""));
+function replaceQuoteToken_(section, token, value) {
+  const tokenName = String(token || "").replace(/[<>]/g, "");
+  const variants = [
+    "<" + tokenName.toUpperCase() + ">",
+    "<" + tokenName.toLowerCase() + ">",
+    "<" + tokenName.charAt(0).toUpperCase() + tokenName.slice(1).toLowerCase() + ">"
+  ];
+
+  Array.from(new Set(variants)).forEach(function(variant) {
+    section.replaceText(escapeRegex_(variant), String(value || ""));
+  });
+}
+
+function assertQuoteTokensPresent_(sections, tokens) {
+  const documentText = sections.map(function(section) {
+    return section.getText();
+  }).join("\n");
+
+  const missing = tokens.filter(function(token) {
+    return documentText.toUpperCase().indexOf(token.toUpperCase()) === -1;
   });
 
-  styleQuoteNotes_(body, booking.notes || "");
+  if (missing.length) {
+    throw new Error("Quote template is missing required placeholders: " + missing.join(", "));
+  }
+}
 
-  replaceQuoteOrderPlaceholder_(body, booking.items || []);
+function assertQuoteTokensReplaced_(sections, tokens) {
+  const documentText = sections.map(function(section) {
+    return section.getText();
+  }).join("\n");
+
+  const unresolved = tokens.filter(function(token) {
+    return documentText.toUpperCase().indexOf(token.toUpperCase()) !== -1;
+  });
+
+  if (unresolved.length) {
+    throw new Error("Quote placeholders were not replaced: " + unresolved.join(", "));
+  }
 }
 
 function styleQuoteNotes_(body, notesText) {
@@ -374,9 +468,32 @@ function getOrCreateChildFolder_(parent, name) {
 }
 
 function makeQuoteName_(booking) {
-  const date = booking.eventDate || "No Date";
-  const company = booking.clientCompany || "Unknown Company";
-  return `Quote - ${company} - ${date}`;
+  return [
+    getQuoteSiteCode_(booking),
+    booking.clientCompany || "Unknown Client",
+    booking.hostName || booking.hostEmail || "Unknown Host",
+    booking.serviceType || "Hospitality"
+  ]
+    .map(cleanQuoteNamePart_)
+    .join("_");
+}
+
+function getQuoteSiteCode_(booking) {
+  return (
+    CONFIG.LOCATION_SHORT_CODE ||
+    getConfiguredValue_("LOCATION_SHORT_CODE", "") ||
+    CONFIG.LOCATION_NAME ||
+    getConfiguredValue_("LOCATION_NAME", "") ||
+    booking.location ||
+    "Unknown Site"
+  );
+}
+
+function cleanQuoteNamePart_(value) {
+  return String(value || "")
+    .replace(/[\\/:*?"<>|_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function formatMoney_(n) {

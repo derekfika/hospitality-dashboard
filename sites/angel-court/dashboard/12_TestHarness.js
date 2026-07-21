@@ -206,8 +206,11 @@ function testArchiveLogic_() {
 
 function testQuoteHelpers_() {
   const booking = makeDashboardTestBooking_();
+  const replacements = getQuoteReplacements_(booking);
 
-  assertDashboardEqual_(makeQuoteName_(booking), "Quote - Example Client - 2026-07-14", "Quote name failed.");
+  assertDashboardEqual_(replacements["<SITE>"], "OAC", "Quote site replacement failed.");
+  assertDashboardEqual_(replacements["<CLIENT>"], "Example Client", "Quote client replacement failed.");
+  assertDashboardEqual_(makeQuoteName_(booking), "OAC_Example Client_Alex Example_Breakfast", "Quote name failed.");
   assertDashboardEqual_(formatMoney_(12.5), "GBP 12.50", "Money formatting failed.");
   assertDashboardEqual_(formatUkDate_("2026-07-14"), "14/07/2026", "UK date formatting failed.");
   assertDashboardEqual_(extractDriveIdFromUrl_("https://docs.google.com/document/d/abc1234567890123456789012/edit"), "abc1234567890123456789012", "Drive ID extraction failed.");
