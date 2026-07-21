@@ -574,15 +574,191 @@ function processPastMonthQuoteRenames_(dryRun) {
   return result;
 }
 
+function previewPastMonthQuoteDocumentFixes() {
+  return processPastMonthQuoteDocumentFixes_(true);
+}
+
+function updatePastMonthQuoteDocumentsSiteAndClient() {
+  return processPastMonthQuoteDocumentFixes_(false);
+}
+
+function processPastMonthQuoteDocumentFixes_(dryRun) {
+  const lookbackDays = 30;
+  const sheet = getDashboardSheet_();
+  const map = getHeaderMap_();
+
+  if (!map.ParsedJSON) throw new Error("ParsedJSON column not found.");
+
+  const lastRow = sheet.getLastRow();
+  const result = {
+    ok: true,
+    dryRun: Boolean(dryRun),
+    lookbackDays: lookbackDays,
+    checked: 0,
+    eligible: 0,
+    wouldUpdate: 0,
+    updated: 0,
+    unchanged: 0,
+    needsReview: 0,
+    skippedWithoutQuote: 0,
+    skippedOutsideWindow: 0,
+    failed: 0,
+    rows: []
+  };
+
+  if (lastRow < 2) {
+    Logger.log(JSON.stringify(result, null, 2));
+    return result;
+  }
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  const cutoff = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+
+  rows.forEach(function(row, index) {
+    const rowNumber = index + 2;
+    const booking = safeJsonParse_(row[map.ParsedJSON - 1], null);
+    const quoteUrl = booking && booking.quoteUrl
+      ? booking.quoteUrl
+      : (map.QuoteURL ? row[map.QuoteURL - 1] : "");
+
+    result.checked++;
+
+    if (!quoteUrl) {
+      result.skippedWithoutQuote++;
+      return;
+    }
+
+    try {
+      if (!booking) throw new Error("Booking data could not be read.");
+
+      const fileId = extractDriveIdFromUrl_(quoteUrl);
+      if (!fileId) throw new Error("Quote file ID could not be read.");
+
+      const quoteFile = DriveApp.getFileById(fileId);
+      const lastUpdated = quoteFile.getLastUpdated();
+
+      if (lastUpdated < cutoff) {
+        result.skippedOutsideWindow++;
+        return;
+      }
+
+      result.eligible++;
+
+      const doc = DocumentApp.openById(fileId);
+      const sections = [doc.getBody(), doc.getHeader(), doc.getFooter()].filter(Boolean);
+      const replacements = {
+        "<SITE>": getQuoteSiteCode_(booking),
+        "<CLIENT>": booking.clientCompany || ""
+      };
+      const documentText = sections.map(function(section) {
+        return section.getText();
+      }).join("\n");
+      const tokensToReplace = Object.keys(replacements).filter(function(token) {
+        return documentText.toUpperCase().indexOf(token.toUpperCase()) !== -1;
+      });
+      const missingValues = Object.keys(replacements).filter(function(token) {
+        return !String(replacements[token] || "").trim();
+      });
+
+      if (missingValues.length) {
+        throw new Error("Booking is missing values for: " + missingValues.join(", "));
+      }
+
+      const unresolvedFields = Object.keys(replacements).filter(function(token) {
+        const hasPlaceholder = tokensToReplace.indexOf(token) !== -1;
+        const hasExpectedValue = documentText.toUpperCase().indexOf(String(replacements[token]).toUpperCase()) !== -1;
+        return !hasPlaceholder && !hasExpectedValue;
+      });
+
+      if (!tokensToReplace.length) {
+        if (unresolvedFields.length) {
+          result.ok = false;
+          result.needsReview++;
+          result.rows.push({
+            rowNumber: rowNumber,
+            bookingId: booking.bookingId || "",
+            action: "NEEDS_REVIEW",
+            missingPlaceholders: unresolvedFields
+          });
+        } else {
+          result.unchanged++;
+        }
+        return;
+      }
+
+      if (dryRun) {
+        result.wouldUpdate++;
+      } else {
+        tokensToReplace.forEach(function(token) {
+          sections.forEach(function(section) {
+            replaceQuoteToken_(section, token, replacements[token]);
+          });
+        });
+        assertQuoteTokensReplaced_(sections, tokensToReplace);
+        doc.saveAndClose();
+        result.updated++;
+      }
+
+      if (unresolvedFields.length) {
+        result.ok = false;
+        result.needsReview++;
+      }
+
+      result.rows.push({
+        rowNumber: rowNumber,
+        bookingId: booking.bookingId || "",
+        action: dryRun ? "WOULD_UPDATE_DOCUMENT" : "UPDATED_DOCUMENT",
+        placeholders: tokensToReplace,
+        needsReview: unresolvedFields
+      });
+    } catch (error) {
+      result.ok = false;
+      result.failed++;
+      result.rows.push({
+        rowNumber: rowNumber,
+        bookingId: booking && booking.bookingId ? booking.bookingId : "",
+        action: "FAILED",
+        error: String(error && error.message ? error.message : error)
+      });
+    }
+  });
+
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
 function makeQuoteName_(booking) {
   return [
     getQuoteSiteCode_(booking),
     booking.clientCompany || "Unknown Client",
     booking.hostName || booking.hostEmail || "Unknown Host",
-    booking.serviceType || "Hospitality"
+    getPrimaryQuoteServiceType_(booking)
   ]
     .map(cleanQuoteNamePart_)
     .join("_");
+}
+
+function getPrimaryQuoteServiceType_(booking) {
+  const serviceTypes = String(booking.serviceType || "")
+    .split(/\s*(?:\/|\||,|;)\s*/)
+    .map(function(serviceType) {
+      return String(serviceType || "").trim();
+    })
+    .filter(Boolean);
+
+  if (!serviceTypes.length) return "Hospitality";
+
+  const breakfastOrLunch = serviceTypes.find(function(serviceType) {
+    return /\b(breakfast|lunch)\b/i.test(serviceType);
+  });
+
+  if (breakfastOrLunch) return breakfastOrLunch;
+
+  const primaryService = serviceTypes.find(function(serviceType) {
+    return !/\b(drinks?|beverages?|add[\s-]?ons?|add[\s-]?on packages?)\b/i.test(serviceType);
+  });
+
+  return primaryService || serviceTypes[0];
 }
 
 function getQuoteSiteCode_(booking) {

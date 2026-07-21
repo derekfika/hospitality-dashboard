@@ -211,6 +211,13 @@ function testQuoteHelpers_() {
   assertDashboardEqual_(replacements["<SITE>"], "OAC", "Quote site replacement failed.");
   assertDashboardEqual_(replacements["<CLIENT>"], "Example Client", "Quote client replacement failed.");
   assertDashboardEqual_(makeQuoteName_(booking), "OAC_Example Client_Alex Example_Breakfast", "Quote name failed.");
+  booking.serviceType = "Drinks / Lunch / Add-on Packages";
+  assertDashboardEqual_(getPrimaryQuoteServiceType_(booking), "Lunch", "Lunch should take precedence over drinks and add-ons.");
+  assertDashboardEqual_(makeQuoteName_(booking), "OAC_Example Client_Alex Example_Lunch", "Primary-service quote name failed.");
+  booking.serviceType = "Add-on Packages / Breakfast / Drinks";
+  assertDashboardEqual_(getPrimaryQuoteServiceType_(booking), "Breakfast", "Breakfast should take precedence over drinks and add-ons.");
+  booking.serviceType = "Drinks / Add-on Packages";
+  assertDashboardEqual_(getPrimaryQuoteServiceType_(booking), "Drinks", "Secondary-only service fallback failed.");
   assertDashboardEqual_(formatMoney_(12.5), "GBP 12.50", "Money formatting failed.");
   assertDashboardEqual_(formatUkDate_("2026-07-14"), "14/07/2026", "UK date formatting failed.");
   assertDashboardEqual_(extractDriveIdFromUrl_("https://docs.google.com/document/d/abc1234567890123456789012/edit"), "abc1234567890123456789012", "Drive ID extraction failed.");
