@@ -467,6 +467,113 @@ function getOrCreateChildFolder_(parent, name) {
   return folders.hasNext() ? folders.next() : parent.createFolder(name);
 }
 
+function previewPastMonthQuoteRenames() {
+  return processPastMonthQuoteRenames_(true);
+}
+
+function renamePastMonthQuotesToCurrentFormat() {
+  return processPastMonthQuoteRenames_(false);
+}
+
+function processPastMonthQuoteRenames_(dryRun) {
+  const lookbackDays = 30;
+  const sheet = getDashboardSheet_();
+  const map = getHeaderMap_();
+
+  if (!map.ParsedJSON) throw new Error("ParsedJSON column not found.");
+
+  const lastRow = sheet.getLastRow();
+  const result = {
+    ok: true,
+    dryRun: Boolean(dryRun),
+    lookbackDays: lookbackDays,
+    checked: 0,
+    eligible: 0,
+    wouldRename: 0,
+    renamed: 0,
+    unchanged: 0,
+    skippedWithoutQuote: 0,
+    skippedOutsideWindow: 0,
+    failed: 0,
+    rows: []
+  };
+
+  if (lastRow < 2) {
+    Logger.log(JSON.stringify(result, null, 2));
+    return result;
+  }
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  const cutoff = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+
+  rows.forEach(function(row, index) {
+    const rowNumber = index + 2;
+    const booking = safeJsonParse_(row[map.ParsedJSON - 1], null);
+    const quoteUrl = booking && booking.quoteUrl
+      ? booking.quoteUrl
+      : (map.QuoteURL ? row[map.QuoteURL - 1] : "");
+
+    result.checked++;
+
+    if (!quoteUrl) {
+      result.skippedWithoutQuote++;
+      return;
+    }
+
+    try {
+      if (!booking) throw new Error("Booking data could not be read.");
+
+      const fileId = extractDriveIdFromUrl_(quoteUrl);
+      if (!fileId) throw new Error("Quote file ID could not be read.");
+
+      const quoteFile = DriveApp.getFileById(fileId);
+      const lastUpdated = quoteFile.getLastUpdated();
+
+      if (lastUpdated < cutoff) {
+        result.skippedOutsideWindow++;
+        return;
+      }
+
+      result.eligible++;
+
+      const currentName = quoteFile.getName();
+      const targetName = makeQuoteName_(booking);
+
+      if (currentName === targetName) {
+        result.unchanged++;
+        return;
+      }
+
+      if (dryRun) {
+        result.wouldRename++;
+      } else {
+        quoteFile.setName(targetName);
+        result.renamed++;
+      }
+
+      result.rows.push({
+        rowNumber: rowNumber,
+        bookingId: booking.bookingId || "",
+        action: dryRun ? "WOULD_RENAME" : "RENAMED",
+        previousName: currentName,
+        targetName: targetName,
+        lastUpdated: lastUpdated.toISOString()
+      });
+    } catch (error) {
+      result.ok = false;
+      result.failed++;
+      result.rows.push({
+        rowNumber: rowNumber,
+        bookingId: booking && booking.bookingId ? booking.bookingId : "",
+        error: String(error && error.message ? error.message : error)
+      });
+    }
+  });
+
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
 function makeQuoteName_(booking) {
   return [
     getQuoteSiteCode_(booking),
